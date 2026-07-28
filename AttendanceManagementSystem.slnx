@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="AttendanceManagementSystem/AttendanceManagementSystem.csproj" />
+  <Project Path="AttendanceSystem.Application/AttendanceSystem.Application.csproj" />
+  <Project Path="AttendanceSystem.Common/AttendanceSystem.Common.csproj" />
+  <Project Path="AttendanceSystem.Domain/AttendanceSystem.Domain.csproj" />
+  <Project Path="AttendanceSystem.Infrastructure/AttendanceSystem.Infrastructure.csproj" />
+</Solution>
