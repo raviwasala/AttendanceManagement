@@ -1,0 +1,91 @@
+@{
+    ViewData["Title"] = "Settings";
+}
+
+<h5 class="mb-3">Company Settings</h5>
+<div id="settingsAlert"></div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Company Name <span class="text-danger">*</span></label>
+                <input type="text" id="companyName" class="form-control" maxlength="200">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Website</label>
+                <input type="text" id="website" class="form-control" maxlength="200">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Phone</label>
+                <input type="text" id="phone" class="form-control" maxlength="20">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Email</label>
+                <input type="email" id="email" class="form-control" maxlength="200">
+            </div>
+            <div class="col-12">
+                <label class="form-label">Address</label>
+                <textarea id="address" class="form-control" rows="2" maxlength="500"></textarea>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Work Start Time</label>
+                <input type="time" id="workStart" class="form-control">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Work End Time</label>
+                <input type="time" id="workEnd" class="form-control">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Max Late Minutes</label>
+                <input type="number" id="maxLate" class="form-control" min="0" max="120">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Weekend Days <small class="text-muted">(comma-separated, e.g. Saturday,Sunday)</small></label>
+                <input type="text" id="weekendDays" class="form-control" placeholder="Saturday,Sunday">
+            </div>
+            <div class="col-12 mt-3">
+                <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+$(function () {
+    $.getJSON('/api/settings', function (d) {
+        $('#companyName').val(d.CompanyName);
+        $('#website').val(d.Website || '');
+        $('#phone').val(d.Phone || '');
+        $('#email').val(d.Email || '');
+        $('#address').val(d.Address || '');
+        $('#workStart').val(d.WorkStartTime ? d.WorkStartTime.substring(0,5) : '');
+        $('#workEnd').val(d.WorkEndTime ? d.WorkEndTime.substring(0,5) : '');
+        $('#maxLate').val(d.MaxLateMinutes);
+        $('#weekendDays').val(d.WeekendDays);
+    }).fail(function () {
+        $('#settingsAlert').html('<div class="alert alert-danger">Failed to load settings.</div>');
+    });
+});
+
+function saveSettings() {
+    var name = $('#companyName').val().trim();
+    if (!name) { alert('Company Name is required.'); return; }
+    var dto = {
+        CompanyName: name, Website: $('#website').val().trim()||null,
+        Phone: $('#phone').val().trim()||null, Email: $('#email').val().trim()||null,
+        Address: $('#address').val().trim()||null,
+        WorkStartTime: $('#workStart').val() ? $('#workStart').val() + ':00' : '00:00:00',
+        WorkEndTime: $('#workEnd').val() ? $('#workEnd').val() + ':00' : '00:00:00',
+        MaxLateMinutes: parseInt($('#maxLate').val()) || 0,
+        WeekendDays: $('#weekendDays').val()
+    };
+    var uid = @(Context.Session.GetInt32("UserId") ?? 1);
+    $.ajax({ url: '/api/settings?modifiedBy=' + uid, type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
+        success: function () { $('#settingsAlert').html('<div class="alert alert-success alert-dismissible fade show">Settings saved successfully! <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>'); },
+        error: function (xhr) { $('#settingsAlert').html('<div class="alert alert-danger">Error: ' + (xhr.responseText || 'Save failed.') + '</div>'); }
+    });
+}
+</script>
+}

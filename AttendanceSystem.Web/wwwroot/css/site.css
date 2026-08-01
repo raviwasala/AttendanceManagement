@@ -1,0 +1,123 @@
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 0;
+}
+
+.form-floating > .form-control-plaintext::placeholder,
+.form-floating > .form-control::placeholder {
+  color: var(--bs-secondary-color);
+  text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder,
+.form-floating > .form-control:focus::placeholder {
+  text-align: start;
+}
+
+/* ── Adminty theme colour overrides ── */
+:root {
+  --ams-primary:   #01a9ac;
+  --ams-primary-h: #02c0c3;
+  --ams-primary-d: #018587;
+  --ams-success:   #0ac282;
+  --ams-warning:   #fe9365;
+  --ams-danger:    #fe5d70;
+  --ams-info:      #2DCEE3;
+  --ams-inverse:   #404E67;
+}
+
+/* btn-primary → teal */
+.btn-primary {
+  background-color: var(--ams-primary) !important;
+  border-color:     var(--ams-primary) !important;
+  color: #fff !important;
+  transition: background-color .2s, border-color .2s;
+}
+.btn-primary:hover, .btn-primary:focus {
+  background-color: var(--ams-primary-h) !important;
+  border-color:     var(--ams-primary-h) !important;
+}
+.btn-primary:active {
+  background-color: var(--ams-primary-d) !important;
+  border-color:     var(--ams-primary-d) !important;
+}
+
+/* btn-outline-primary → teal outline */
+.btn-outline-primary {
+  color: var(--ams-primary) !important;
+  border-color: var(--ams-primary) !important;
+}
+.btn-outline-primary:hover {
+  background-color: var(--ams-primary) !important;
+  color: #fff !important;
+}
+
+/* btn-success / danger / warning / info / inverse → adminty palette */
+.btn-success  { background-color: var(--ams-success)  !important; border-color: var(--ams-success)  !important; color:#fff !important; }
+.btn-danger   { background-color: var(--ams-danger)   !important; border-color: var(--ams-danger)   !important; color:#fff !important; }
+.btn-warning  { background-color: var(--ams-warning)  !important; border-color: var(--ams-warning)  !important; color:#fff !important; }
+.btn-info     { background-color: var(--ams-info)     !important; border-color: var(--ams-info)     !important; color:#fff !important; }
+
+/* btn-outline-danger → adminty red outline */
+.btn-outline-danger {
+  color: var(--ams-danger) !important;
+  border-color: var(--ams-danger) !important;
+}
+.btn-outline-danger:hover {
+  background-color: var(--ams-danger) !important;
+  color: #fff !important;
+}
+
+/* btn-outline-success → adminty green outline */
+.btn-outline-success {
+  color: var(--ams-success) !important;
+  border-color: var(--ams-success) !important;
+}
+.btn-outline-success:hover {
+  background-color: var(--ams-success) !important;
+  color: #fff !important;
+}
+
+/* btn-outline-warning → adminty orange outline */
+.btn-outline-warning {
+  color: var(--ams-warning) !important;
+  border-color: var(--ams-warning) !important;
+}
+.btn-outline-warning:hover {
+  background-color: var(--ams-warning) !important;
+  color: #fff !important;
+}
+
+/* focus ring */
+.btn:focus, .btn:active:focus,
+.form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.15rem rgba(1,169,172,.35) !important;
+  border-color: var(--ams-primary) !important;
+  outline: none;
+}
+
+/* badge-primary */
+.badge.bg-primary { background-color: var(--ams-primary) !important; }
+
+/* progress bar */
+.progress-bar { background-color: var(--ams-primary); }
+
+/* links */
+a { color: var(--ams-primary); }
+a:hover { color: var(--ams-primary-d); }
+
+}

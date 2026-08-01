@@ -1,0 +1,183 @@
+@{
+    ViewData["Title"] = "Reports";
+}
+
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tabMonthly">Monthly Summary</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabDaily">Daily Report</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabLate">Late Report</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabLeave">Leave Report</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabEmps">Employee List</a></li>
+</ul>
+
+<div class="tab-content">
+
+    <!-- Monthly Summary -->
+    <div class="tab-pane fade show active" id="tabMonthly">
+        <div class="card mb-2">
+            <div class="card-body py-2">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-2"><label class="form-label small mb-1">Month</label>
+                        <select id="mMonth" class="form-select form-select-sm">
+                            @for(int m=1;m<=12;m++){<option value="@m" selected="@(m==DateTime.Now.Month)">@(new DateTime(2000,m,1).ToString("MMMM"))</option>}
+                        </select>
+                    </div>
+                    <div class="col-md-2"><label class="form-label small mb-1">Year</label><input type="number" id="mYear" class="form-control form-control-sm" value="@DateTime.Now.Year"></div>
+                    <div class="col-md-3"><label class="form-label small mb-1">Department</label><select id="mDept" class="form-select form-select-sm"><option value="">All Departments</option></select></div>
+                    <div class="col-md-2"><button class="btn btn-primary btn-sm" onclick="loadMonthly()">Generate</button></div>
+                </div>
+            </div>
+        </div>
+        <div class="card"><div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0"><thead class="table-light">
+                <tr><th>Code</th><th>Employee</th><th>Dept</th><th>Present</th><th>Absent</th><th>Late</th><th>Leave</th><th>Holiday</th><th>Hrs</th><th>Att%</th></tr>
+            </thead><tbody id="mBody"><tr><td colspan="10" class="text-center py-3 text-muted">Click Generate to load report.</td></tr></tbody></table>
+        </div></div>
+    </div>
+
+    <!-- Daily Report -->
+    <div class="tab-pane fade" id="tabDaily">
+        <div class="card mb-2"><div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3"><label class="form-label small mb-1">Date</label><input type="date" id="dDate" class="form-control form-control-sm" value="@DateTime.Now.ToString("yyyy-MM-dd")"></div>
+                <div class="col-md-2"><button class="btn btn-primary btn-sm" onclick="loadDaily()">Generate</button></div>
+            </div>
+        </div></div>
+        <div class="card"><div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0"><thead class="table-light">
+                <tr><th>Code</th><th>Employee</th><th>Dept</th><th>Check In</th><th>Check Out</th><th>Hrs</th><th>Status</th><th>Late</th></tr>
+            </thead><tbody id="dBody"><tr><td colspan="8" class="text-center py-3 text-muted">Select a date and click Generate.</td></tr></tbody></table>
+        </div></div>
+    </div>
+
+    <!-- Late Report -->
+    <div class="tab-pane fade" id="tabLate">
+        <div class="card mb-2"><div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-2"><label class="form-label small mb-1">From</label><input type="date" id="lFrom" class="form-control form-control-sm"></div>
+                <div class="col-md-2"><label class="form-label small mb-1">To</label><input type="date" id="lTo" class="form-control form-control-sm"></div>
+                <div class="col-md-3"><label class="form-label small mb-1">Department</label><select id="lDept" class="form-select form-select-sm"><option value="">All</option></select></div>
+                <div class="col-md-2"><button class="btn btn-primary btn-sm" onclick="loadLate()">Generate</button></div>
+            </div>
+        </div></div>
+        <div class="card"><div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0"><thead class="table-light">
+                <tr><th>Date</th><th>Code</th><th>Employee</th><th>Dept</th><th>Check In</th><th>Late Min</th></tr>
+            </thead><tbody id="lBody"><tr><td colspan="6" class="text-center py-3 text-muted">Set range and click Generate.</td></tr></tbody></table>
+        </div></div>
+    </div>
+
+    <!-- Leave Report -->
+    <div class="tab-pane fade" id="tabLeave">
+        <div class="card mb-2"><div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-2"><label class="form-label small mb-1">From</label><input type="date" id="lvFrom" class="form-control form-control-sm"></div>
+                <div class="col-md-2"><label class="form-label small mb-1">To</label><input type="date" id="lvTo" class="form-control form-control-sm"></div>
+                <div class="col-md-3"><label class="form-label small mb-1">Department</label><select id="lvDept" class="form-select form-select-sm"><option value="">All</option></select></div>
+                <div class="col-md-2"><button class="btn btn-primary btn-sm" onclick="loadLeaveRpt()">Generate</button></div>
+            </div>
+        </div></div>
+        <div class="card"><div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0"><thead class="table-light">
+                <tr><th>Employee</th><th>Dept</th><th>Leave Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th></tr>
+            </thead><tbody id="lvBody"><tr><td colspan="7" class="text-center py-3 text-muted">Set range and click Generate.</td></tr></tbody></table>
+        </div></div>
+    </div>
+
+    <!-- Employee List -->
+    <div class="tab-pane fade" id="tabEmps">
+        <div class="card mb-2"><div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3"><label class="form-label small mb-1">Department</label><select id="eDept" class="form-select form-select-sm"><option value="">All</option></select></div>
+                <div class="col-md-2"><button class="btn btn-primary btn-sm" onclick="loadEmpList()">Generate</button></div>
+            </div>
+        </div></div>
+        <div class="card"><div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0"><thead class="table-light">
+                <tr><th>Code</th><th>Name</th><th>Department</th><th>Designation</th><th>Branch</th><th>Phone</th><th>Email</th><th>Status</th></tr>
+            </thead><tbody id="eBody"><tr><td colspan="8" class="text-center py-3 text-muted">Click Generate to load.</td></tr></tbody></table>
+        </div></div>
+    </div>
+
+</div>
+
+@section Scripts {
+<script>
+$(function () {
+    var today = new Date().toISOString().split('T')[0];
+    $('#lFrom,#lvFrom').val(new Date(new Date().setDate(1)).toISOString().split('T')[0]);
+    $('#lTo,#lvTo').val(today);
+    $.getJSON('/api/departments', function (d) {
+        var o = '<option value="">All</option>';
+        d.forEach(function (x) { o += '<option value="' + x.Id + '">' + x.Name + '</option>'; });
+        $('#mDept,#lDept,#lvDept,#eDept').html(o.replace('<option value="">All</option>','<option value="">All Departments</option>'));
+    });
+});
+
+function loadMonthly() {
+    var m = $('#mMonth').val(), y = $('#mYear').val(), d = $('#mDept').val();
+    $.getJSON('/api/reports/monthly?month=' + m + '&year=' + y + (d ? '&departmentId=' + d : ''), function (data) {
+        if (!data.length) { $('#mBody').html('<tr><td colspan="10" class="text-center text-muted py-3">No data.</td></tr>'); return; }
+        var html = '';
+        data.forEach(function (r) {
+            html += '<tr><td class="text-muted small">' + r.EmployeeCode + '</td><td>' + r.EmployeeName + '</td><td class="text-muted">' + r.Department + '</td>'
+                + '<td class="text-success">' + r.PresentDays + '</td><td class="text-danger">' + r.AbsentDays + '</td>'
+                + '<td class="text-warning">' + r.LateDays + '</td><td class="text-info">' + r.LeaveDays + '</td>'
+                + '<td>' + r.HolidayDays + '</td><td>' + r.TotalWorkingHours.toFixed(1) + '</td>'
+                + '<td><span class="badge bg-' + (r.AttendancePercentage>=90?'success':r.AttendancePercentage>=75?'warning':'danger') + '">' + r.AttendancePercentage.toFixed(1) + '%</span></td></tr>';
+        });
+        $('#mBody').html(html);
+    }).fail(function () { $('#mBody').html('<tr><td colspan="10" class="text-danger text-center py-3">Failed to load.</td></tr>'); });
+}
+
+function loadDaily() {
+    var d = $('#dDate').val(); if (!d) { alert('Select date.'); return; }
+    $.getJSON('/api/reports/daily?date=' + d, function (data) {
+        if (!data.length) { $('#dBody').html('<tr><td colspan="8" class="text-center text-muted py-3">No data.</td></tr>'); return; }
+        var html = '';
+        data.forEach(function (r) {
+            var b = r.StatusDisplay==='Present'?'success':r.StatusDisplay==='Absent'?'danger':r.StatusDisplay==='Late'?'warning':'secondary';
+            html += '<tr><td class="text-muted small">' + r.EmployeeCode + '</td><td>' + r.EmployeeName + '</td><td class="text-muted">' + r.Department + '</td>'
+                + '<td>' + r.CheckInDisplay + '</td><td>' + r.CheckOutDisplay + '</td>'
+                + '<td>' + (r.WorkingHours?r.WorkingHours.toFixed(1)+'h':'—') + '</td>'
+                + '<td><span class="badge bg-' + b + '">' + r.StatusDisplay + '</span></td>'
+                + '<td>' + (r.IsLate?'<span class="badge bg-warning text-dark">'+r.LateMinutes+'m</span>':'—') + '</td></tr>';
+        });
+        $('#dBody').html(html);
+    }).fail(function () { $('#dBody').html('<tr><td colspan="8" class="text-danger text-center py-3">Failed to load.</td></tr>'); });
+}
+
+function loadLate() {
+    var f=$('#lFrom').val(),t=$('#lTo').val(),d=$('#lDept').val(); if(!f||!t){alert('Select date range.');return;}
+    $.getJSON('/api/reports/late?from='+f+'&to='+t+(d?'&departmentId='+d:''), function (data) {
+        if(!data.length){$('#lBody').html('<tr><td colspan="6" class="text-center text-muted py-3">No data.</td></tr>');return;}
+        var html='';
+        data.forEach(function(r){html+='<tr><td>'+new Date(r.AttendanceDate).toLocaleDateString()+'</td><td class="text-muted small">'+r.EmployeeCode+'</td><td>'+r.EmployeeName+'</td><td class="text-muted">'+r.Department+'</td><td>'+r.CheckInDisplay+'</td><td><span class="badge bg-warning text-dark">'+r.LateMinutes+' min</span></td></tr>';});
+        $('#lBody').html(html);
+    }).fail(function(){$('#lBody').html('<tr><td colspan="6" class="text-danger text-center py-3">Failed.</td></tr>');});
+}
+
+function loadLeaveRpt() {
+    var f=$('#lvFrom').val(),t=$('#lvTo').val(),d=$('#lvDept').val(); if(!f||!t){alert('Select date range.');return;}
+    $.getJSON('/api/reports/leave?from='+f+'&to='+t+(d?'&departmentId='+d:''), function (data) {
+        if(!data.length){$('#lvBody').html('<tr><td colspan="7" class="text-center text-muted py-3">No data.</td></tr>');return;}
+        var html='';
+        data.forEach(function(r){
+            var b=r.StatusDisplay==='Approved'?'success':r.StatusDisplay==='Rejected'?'danger':r.StatusDisplay==='Pending'?'warning':'secondary';
+            html+='<tr><td>'+r.EmployeeName+'</td><td class="text-muted">'+r.Department+'</td><td>'+r.LeaveTypeName+'</td><td>'+new Date(r.FromDate).toLocaleDateString()+'</td><td>'+new Date(r.ToDate).toLocaleDateString()+'</td><td>'+r.TotalDays+'</td><td><span class="badge bg-'+b+'">'+r.StatusDisplay+'</span></td></tr>';
+        });
+        $('#lvBody').html(html);
+    }).fail(function(){$('#lvBody').html('<tr><td colspan="7" class="text-danger text-center py-3">Failed.</td></tr>');});
+}
+
+function loadEmpList() {
+    var d=$('#eDept').val();
+    $.getJSON('/api/reports/employees'+(d?'?departmentId='+d:''), function (data) {
+        if(!data.length){$('#eBody').html('<tr><td colspan="8" class="text-center text-muted py-3">No data.</td></tr>');return;}
+        var html='';
+        data.forEach(function(e){html+='<tr><td class="fw-semibold text-primary">'+e.EmployeeCode+'</td><td>'+e.FullName+'</td><td class="text-muted">'+e.Department+'</td><td class="text-muted">'+e.Designation+'</td><td class="text-muted">'+e.Branch+'</td><td>'+(e.Phone||'—')+'</td><td class="small">'+(e.Email||'—')+'</td><td>'+(e.IsActive?'<span class="badge bg-success">Active</span>':'<span class="badge bg-secondary">Inactive</span>')+'</td></tr>';});
+        $('#eBody').html(html);
+    }).fail(function(){$('#eBody').html('<tr><td colspan="8" class="text-danger text-center py-3">Failed.</td></tr>');});
+}
+</script>
+}

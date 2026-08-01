@@ -1,0 +1,208 @@
+@{
+    ViewData["Title"] = "User Management";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">User Management</h5>
+    <button class="btn btn-primary btn-sm" onclick="openModal()">+ Add User</button>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2">
+            <div class="col-md-5"><input type="text" id="searchBox" class="form-control form-control-sm" placeholder="Search username/name/email..." oninput="filterTable()"></div>
+            <div class="col-md-3">
+                <select id="statusFilter" class="form-select form-select-sm" onchange="filterTable()">
+                    <option value="">All Status</option>
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover table-sm mb-0">
+            <thead class="table-light">
+                <tr><th>Username</th><th>Full Name</th><th>Email</th><th>Role</th><th>Employee</th><th>Last Login</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="tbody">
+                <tr><td colspan="8" class="text-center py-3 text-muted">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- User Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title" id="modalTitle">Add User</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <input type="hidden" id="userId">
+                <div class="row g-2">
+                    <div class="col-md-6 mb-2"><label class="form-label">Username <span class="text-danger">*</span></label><input type="text" id="uUsername" class="form-control" maxlength="100" id="uIsNew"></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">Full Name <span class="text-danger">*</span></label><input type="text" id="uFullName" class="form-control" maxlength="200"></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">Email <span class="text-danger">*</span></label><input type="email" id="uEmail" class="form-control" maxlength="200"></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">Role <span class="text-danger">*</span></label><select id="uRole" class="form-select"></select></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">Link to Employee</label><select id="uEmployee" class="form-select"></select></div>
+                    <div class="col-md-6 mb-2" id="passwordField">
+                        <label class="form-label">Password <span class="text-danger">*</span></label>
+                        <input type="password" id="uPassword" class="form-control" minlength="8">
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check"><input class="form-check-input" type="checkbox" id="uActive" checked><label class="form-check-label">Active</label></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveUser()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal fade" id="pwModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title">Reset Password</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <input type="hidden" id="pwUserId">
+                <div class="mb-3"><label class="form-label">New Password <span class="text-danger">*</span></label><input type="password" id="pwNew" class="form-control" minlength="8"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning btn-sm" onclick="doResetPw()">Reset</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+var allItems = [], roles = [], employees = [];
+
+$(function () {
+    $.when(
+        $.getJSON('/api/users/roles', function (d) { roles = d; }),
+        $.getJSON('/api/employees', function (d) { employees = d; })
+    ).then(function () { loadItems(); });
+});
+
+function loadItems() {
+    $.getJSON('/api/users', function (d) { allItems = d; filterTable(); })
+     .fail(function () { $('#tbody').html('<tr><td colspan="8" class="text-danger text-center py-3">Failed to load.</td></tr>'); });
+}
+
+function filterTable() {
+    var q = $('#searchBox').val().toLowerCase(); var s = $('#statusFilter').val();
+    renderTable(allItems.filter(function (u) {
+        return (!q || u.Username.toLowerCase().includes(q) || u.FullName.toLowerCase().includes(q) || u.Email.toLowerCase().includes(q))
+            && (s === '' || String(u.IsActive) === s);
+    }));
+}
+
+function renderTable(data) {
+    if (!data.length) { $('#tbody').html('<tr><td colspan="8" class="text-center text-muted py-3">No users found.</td></tr>'); return; }
+    var html = '';
+    data.forEach(function (u) {
+        var status = u.IsLocked ? '<span class="badge bg-danger">Locked</span>' : u.IsActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>';
+        html += '<tr>'
+            + '<td class="fw-semibold">' + u.Username + '</td>'
+            + '<td>' + u.FullName + '</td>'
+            + '<td class="text-muted small">' + u.Email + '</td>'
+            + '<td><span class="badge bg-primary">' + u.RoleName + '</span></td>'
+            + '<td class="text-muted small">' + (u.EmployeeName || '—') + '</td>'
+            + '<td class="text-muted small">' + (u.LastLoginAt ? new Date(u.LastLoginAt).toLocaleString() : 'Never') + '</td>'
+            + '<td>' + status + '</td>'
+            + '<td>'
+            + '<button class="btn btn-sm btn-outline-primary me-1" onclick="editUser(' + u.Id + ')" title="Edit"><i class="fa fa-pencil"></i></button>'
+            + '<button class="btn btn-sm btn-outline-warning me-1" onclick="openPwModal(' + u.Id + ')" title="Reset Password"><i class="fa fa-key"></i></button>'
+            + (u.IsLocked ? '<button class="btn btn-sm btn-outline-success me-1" onclick="unlock(' + u.Id + ')" title="Unlock"><i class="fa fa-unlock"></i></button>' : '')
+            + '<button class="btn btn-sm btn-outline-danger" onclick="deleteUser(' + u.Id + ')" title="Delete"><i class="fa fa-trash"></i></button>'
+            + '</td></tr>';
+    });
+    $('#tbody').html(html);
+}
+
+function buildDropdowns() {
+    var rOpts = '<option value="">-- Role --</option>';
+    roles.forEach(function (r) { rOpts += '<option value="' + r.Id + '">' + r.Name + '</option>'; });
+    $('#uRole').html(rOpts);
+    var eOpts = '<option value="">-- None --</option>';
+    employees.forEach(function (e) { eOpts += '<option value="' + e.Id + '">' + e.EmployeeCode + ' - ' + e.FullName + '</option>'; });
+    $('#uEmployee').html(eOpts);
+}
+
+function openModal() {
+    buildDropdowns();
+    $('#userId').val(0); $('#uUsername').val('').prop('disabled', false); $('#uFullName').val('');
+    $('#uEmail').val(''); $('#uPassword').val(''); $('#uActive').prop('checked', true);
+    $('#passwordField').show(); $('#modalTitle').text('Add User');
+    new bootstrap.Modal('#editModal').show();
+}
+
+function editUser(id) {
+    var u = allItems.find(function(x){return x.Id===id;});
+    buildDropdowns();
+    $('#userId').val(u.Id); $('#uUsername').val(u.Username).prop('disabled', true);
+    $('#uFullName').val(u.FullName); $('#uEmail').val(u.Email);
+    $('#uRole').val(u.RoleId); $('#uEmployee').val(u.EmployeeId || '');
+    $('#uActive').prop('checked', u.IsActive); $('#passwordField').hide();
+    $('#modalTitle').text('Edit User');
+    new bootstrap.Modal('#editModal').show();
+}
+
+function saveUser() {
+    var id = parseInt($('#userId').val()) || 0;
+    var uid = @(Context.Session.GetInt32("UserId") ?? 1);
+    if (id) {
+        var dto = { Id: id, Email: $('#uEmail').val().trim(), FullName: $('#uFullName').val().trim(), RoleId: parseInt($('#uRole').val()), EmployeeId: parseInt($('#uEmployee').val())||null, IsActive: $('#uActive').is(':checked') };
+        if (!dto.Email || !dto.FullName || !dto.RoleId) { alert('Email, Full Name and Role are required.'); return; }
+        $.ajax({ url: '/api/users/' + id, type: 'PUT', contentType: 'application/json', data: JSON.stringify(dto),
+            success: function () { bootstrap.Modal.getInstance('#editModal').hide(); loadItems(); },
+            error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Save failed.')); }
+        });
+    } else {
+        var dto = { Username: $('#uUsername').val().trim(), FullName: $('#uFullName').val().trim(), Email: $('#uEmail').val().trim(), Password: $('#uPassword').val(), RoleId: parseInt($('#uRole').val()), EmployeeId: parseInt($('#uEmployee').val())||null, IsActive: $('#uActive').is(':checked') };
+        if (!dto.Username || !dto.Email || !dto.FullName || !dto.Password || !dto.RoleId) { alert('All fields are required.'); return; }
+        $.ajax({ url: '/api/users', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
+            success: function () { bootstrap.Modal.getInstance('#editModal').hide(); loadItems(); },
+            error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Save failed.')); }
+        });
+    }
+}
+
+function openPwModal(id) { $('#pwUserId').val(id); $('#pwNew').val(''); new bootstrap.Modal('#pwModal').show(); }
+
+function doResetPw() {
+    var pw = $('#pwNew').val();
+    if (!pw || pw.length < 8) { alert('Password must be at least 8 characters.'); return; }
+    var uid = @(Context.Session.GetInt32("UserId") ?? 1);
+    $.ajax({ url: '/api/users/' + $('#pwUserId').val() + '/reset-password?resetBy=' + uid, type: 'POST', contentType: 'application/json', data: JSON.stringify({ NewPassword: pw }),
+        success: function () { bootstrap.Modal.getInstance('#pwModal').hide(); alert('Password reset successfully.'); },
+        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Reset failed.')); }
+    });
+}
+
+function unlock(id) {
+    $.ajax({ url: '/api/users/' + id + '/unlock', type: 'POST',
+        success: function () { loadItems(); },
+        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Unlock failed.')); }
+    });
+}
+
+function deleteUser(id) {
+    if (!confirm('Delete this user?')) return;
+    var uid = @(Context.Session.GetInt32("UserId") ?? 1);
+    $.ajax({ url: '/api/users/' + id + '?deletedBy=' + uid, type: 'DELETE',
+        success: function () { loadItems(); },
+        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Delete failed.')); }
+    });
+}
+</script>
+}

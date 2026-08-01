@@ -1,0 +1,116 @@
+@{
+    ViewData["Title"] = "Import Biometric Data";
+}
+
+<h5 class="mb-3">Biometric Data Import</h5>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header fw-semibold">Upload File (CSV/Excel)</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Select File <span class="text-danger">*</span></label>
+                    <input type="file" id="importFile" class="form-control" accept=".csv,.xlsx,.xls">
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">From Date</label>
+                        <input type="date" id="importFrom" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">To Date</label>
+                        <input type="date" id="importTo" class="form-control">
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="previewFile()">Preview</button>
+                    <button class="btn btn-primary btn-sm" onclick="importFile()">Import</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header fw-semibold">Import Result</div>
+            <div class="card-body">
+                <div id="resultPanel" class="text-muted">No import run yet.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Table -->
+<div class="card mt-3" id="previewCard" style="display:none">
+    <div class="card-header fw-semibold">Preview <span class="badge bg-secondary ms-2" id="previewCount">0</span> records</div>
+    <div class="card-body p-0" style="max-height:400px;overflow-y:auto">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light sticky-top">
+                <tr><th>#</th><th>Biometric ID</th><th>Punch Time</th><th>Type</th><th>Device</th><th>Status</th></tr>
+            </thead>
+            <tbody id="previewBody"></tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+$(function () {
+    var today = new Date().toISOString().split('T')[0];
+    var firstDay = new Date(new Date().setDate(1)).toISOString().split('T')[0];
+    $('#importFrom').val(firstDay); $('#importTo').val(today);
+});
+
+function getFormData() {
+    var file = $('#importFile')[0].files[0];
+    if (!file) { alert('Please select a file.'); return null; }
+    var fd = new FormData();
+    fd.append('file', file);
+    fd.append('fromDate', $('#importFrom').val());
+    fd.append('toDate', $('#importTo').val());
+    return fd;
+}
+
+function previewFile() {
+    var fd = getFormData(); if (!fd) return;
+    $('#previewCard').hide(); $('#previewBody').html('');
+    $.ajax({ url: '/api/import/preview', type: 'POST', data: fd, processData: false, contentType: false,
+        success: function (data) {
+            if (!data.length) { alert('No records found in file.'); return; }
+            var html = '';
+            data.forEach(function (p, i) {
+                html += '<tr><td class="text-muted">' + (i+1) + '</td>'
+                    + '<td class="fw-semibold">' + p.BiometricId + '</td>'
+                    + '<td>' + new Date(p.PunchTime).toLocaleString() + '</td>'
+                    + '<td>' + (p.PunchType || '—') + '</td>'
+                    + '<td class="text-muted">' + (p.DeviceId || '—') + '</td>'
+                    + '<td>' + (p.IsDuplicate ? '<span class="badge bg-warning text-dark">Duplicate</span>' : '<span class="badge bg-success">New</span>') + '</td></tr>';
+            });
+            $('#previewBody').html(html); $('#previewCount').text(data.length); $('#previewCard').show();
+        },
+        error: function (xhr) { alert('Preview failed: ' + (xhr.responseText || 'Unknown error')); }
+    });
+}
+
+function importFile() {
+    var fd = getFormData(); if (!fd) return;
+    $('#resultPanel').html('<div class="text-muted"><i class="fa fa-hourglass-half me-1"></i>Importing, please wait...</div>');
+    $.ajax({ url: '/api/import/file', type: 'POST', data: fd, processData: false, contentType: false,
+        success: function (result) {
+            $('#resultPanel').html(
+                '<div class="alert alert-success mb-2"><strong>Import Complete!</strong></div>'
+                + '<table class="table table-sm mb-0">'
+                + '<tr><td>Total Punches Read</td><td class="fw-bold">' + result.TotalPunches + '</td></tr>'
+                + '<tr><td>New Records Inserted</td><td class="fw-bold text-success">' + result.NewRecords + '</td></tr>'
+                + '<tr><td>Duplicates Skipped</td><td class="fw-bold text-warning">' + result.DuplicateRecords + '</td></tr>'
+                + '<tr><td>Errors</td><td class="fw-bold text-danger">' + result.ErrorCount + '</td></tr>'
+                + '</table>'
+                + (result.ErrorMessages && result.ErrorMessages.length ? '<div class="mt-2 text-danger small">' + result.ErrorMessages.join('<br>') + '</div>' : '')
+            );
+        },
+        error: function (xhr) { $('#resultPanel').html('<div class="alert alert-danger">Import failed: ' + (xhr.responseText || 'Unknown error') + '</div>'); }
+    });
+}
+</script>
+}

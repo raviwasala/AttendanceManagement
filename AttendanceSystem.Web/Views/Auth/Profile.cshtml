@@ -1,0 +1,281 @@
+@model AttendanceSystem.Application.DTOs.UserDto
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<div class="page-header">
+    <div class="row align-items-center">
+        <div class="col-auto">
+            <h5 class="page-title mb-0">My Profile</h5>
+        </div>
+        <div class="col-auto ms-auto">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a asp-controller="Admin" asp-action="Index">Dashboard</a></li>
+                    <li class="breadcrumb-item active">My Profile</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fa fa-check-circle me-2"></i>@TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fa fa-exclamation-triangle me-2"></i>@TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row">
+
+    <!-- ── Profile Info Card ── -->
+    <div class="col-xl-4 col-md-5">
+        <div class="card user-card">
+            <div class="card-block text-center">
+                <!-- Avatar -->
+                <div class="usre-image mb-3">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle"
+                         style="width:100px;height:100px;background:#01a9ac;font-size:2.5rem;color:#fff;font-weight:700;">
+                        @(Model?.FullName?.Substring(0,1).ToUpper() ?? "U")
+                    </div>
+                </div>
+
+                <h4 class="f-w-600 mb-1">@Model?.FullName</h4>
+                <p class="text-muted mb-1">@Model?.Username</p>
+                <span class="badge"
+                      style="background:#01a9ac;font-size:.82rem;padding:.35em .7em;">
+                    @Model?.RoleName
+                </span>
+
+                <hr class="my-3">
+
+                <!-- Info list -->
+                <ul class="list-unstyled text-start" style="font-size:.9rem;">
+                    <li class="d-flex align-items-center mb-2">
+                        <i class="fa fa-envelope me-2" style="color:#01a9ac;width:18px;"></i>
+                        <span class="text-muted me-1">Email:</span>
+                        <span>@(string.IsNullOrEmpty(Model?.Email) ? "—" : Model.Email)</span>
+                    </li>
+                    @if (!string.IsNullOrEmpty(Model?.EmployeeName))
+                    {
+                        <li class="d-flex align-items-center mb-2">
+                            <i class="fa fa-user me-2" style="color:#01a9ac;width:18px;"></i>
+                            <span class="text-muted me-1">Employee:</span>
+                            <span>@Model.EmployeeName</span>
+                        </li>
+                    }
+                    <li class="d-flex align-items-center mb-2">
+                        <i class="fa fa-calendar me-2" style="color:#01a9ac;width:18px;"></i>
+                        <span class="text-muted me-1">Member Since:</span>
+                        <span>@Model?.CreatedAt.ToString("MMM dd, yyyy")</span>
+                    </li>
+                    <li class="d-flex align-items-center mb-2">
+                        <i class="fa fa-clock-o me-2" style="color:#01a9ac;width:18px;"></i>
+                        <span class="text-muted me-1">Last Login:</span>
+                        <span>
+                            @(Model?.LastLoginAt.HasValue == true
+                                ? Model.LastLoginAt.Value.ToString("MMM dd, yyyy HH:mm")
+                                : "—")
+                        </span>
+                    </li>
+                    <li class="d-flex align-items-center">
+                        <i class="fa fa-circle me-2" style="color:@(Model?.IsActive == true ? "#0ac282" : "#fe5d70");width:18px;"></i>
+                        <span class="text-muted me-1">Status:</span>
+                        @if (Model?.IsActive == true)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-danger">Inactive</span>
+                        }
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Change Password Card ── -->
+    <div class="col-xl-8 col-md-7">
+        <div class="card">
+            <div class="card-header" style="background:#01a9ac;">
+                <h5 class="card-header-text text-white mb-0">
+                    <i class="fa fa-lock me-2"></i>Change Password
+                </h5>
+            </div>
+            <div class="card-block p-4">
+
+                <form asp-controller="Auth" asp-action="ChangePassword" method="post" id="pwForm">
+                    @Html.AntiForgeryToken()
+
+                    <div asp-validation-summary="All" class="alert alert-danger py-2 mb-3"
+                         style="font-size:.85rem;display:none;" id="valSummary"></div>
+
+                    <div class="form-group mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="fa fa-lock me-1" style="color:#01a9ac;"></i>Current Password
+                        </label>
+                        <div class="input-group">
+                            <input name="CurrentPassword"
+                                   class="form-control" type="password"
+                                   placeholder="Enter current password"
+                                   autocomplete="current-password" id="curPw">
+                            <span class="input-group-text toggle-pw" data-target="curPw"
+                                  style="cursor:pointer;">
+                                <i class="fa fa-eye-slash" id="curPwIcon"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="fa fa-key me-1" style="color:#01a9ac;"></i>New Password
+                        </label>
+                        <div class="input-group">
+                            <input name="NewPassword"
+                                   class="form-control" type="password"
+                                   placeholder="At least 8 characters"
+                                   autocomplete="new-password" id="newPw">
+                            <span class="input-group-text toggle-pw" data-target="newPw"
+                                  style="cursor:pointer;">
+                                <i class="fa fa-eye-slash" id="newPwIcon"></i>
+                            </span>
+                        </div>
+                        <!-- strength bar -->
+                        <div class="mt-2">
+                            <div class="progress" style="height:5px;">
+                                <div id="strengthBar" class="progress-bar" style="width:0%;"></div>
+                            </div>
+                            <small id="strengthLabel" class="text-muted" style="font-size:.78rem;"></small>
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-4">
+                        <label class="form-label fw-semibold">
+                            <i class="fa fa-check-circle me-1" style="color:#01a9ac;"></i>Confirm New Password
+                        </label>
+                        <div class="input-group">
+                            <input name="ConfirmPassword"
+                                   class="form-control" type="password"
+                                   placeholder="Re-enter new password"
+                                   autocomplete="new-password" id="conPw">
+                            <span class="input-group-text toggle-pw" data-target="conPw"
+                                  style="cursor:pointer;">
+                                <i class="fa fa-eye-slash" id="conPwIcon"></i>
+                            </span>
+                        </div>
+                        <small id="matchMsg" style="font-size:.78rem;"></small>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="fa fa-save me-1"></i>Update Password
+                        </button>
+                        <a asp-controller="Admin" asp-action="Index"
+                           class="btn btn-secondary px-4">Cancel</a>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+
+        <!-- Account Summary Card -->
+        <div class="card mt-0">
+            <div class="card-header">
+                <h5 class="card-header-text mb-0">
+                    <i class="fa fa-info-circle me-2" style="color:#01a9ac;"></i>Account Summary
+                </h5>
+            </div>
+            <div class="card-block p-3">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h4 class="f-w-700 mb-0" style="color:#01a9ac;">@Model?.RoleName</h4>
+                        <p class="text-muted mb-0" style="font-size:.82rem;">Role</p>
+                    </div>
+                    <div class="col-4 border-start border-end">
+                        <h4 class="f-w-700 mb-0" style="color:#01a9ac;">
+                            @(Model?.IsActive == true ? "Active" : "Inactive")
+                        </h4>
+                        <p class="text-muted mb-0" style="font-size:.82rem;">Account Status</p>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="f-w-700 mb-0" style="color:#01a9ac;">
+                            @(Model?.LastLoginAt.HasValue == true
+                                ? Model.LastLoginAt.Value.ToString("dd MMM")
+                                : "—")
+                        </h4>
+                        <p class="text-muted mb-0" style="font-size:.82rem;">Last Login</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+<script>
+    /* ── toggle show/hide password ── */
+    document.querySelectorAll('.toggle-pw').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var t = document.getElementById(this.dataset.target);
+            var i = this.querySelector('i');
+            if (t.type === 'password') {
+                t.type = 'text';
+                i.classList.replace('fa-eye-slash', 'fa-eye');
+            } else {
+                t.type = 'password';
+                i.classList.replace('fa-eye', 'fa-eye-slash');
+            }
+        });
+    });
+
+    /* ── password strength ── */
+    var newPw = document.getElementById('newPw');
+    var bar   = document.getElementById('strengthBar');
+    var lbl   = document.getElementById('strengthLabel');
+    newPw.addEventListener('input', function () {
+        var v = this.value;
+        var score = 0;
+        if (v.length >= 8)  score++;
+        if (/[A-Z]/.test(v)) score++;
+        if (/[0-9]/.test(v)) score++;
+        if (/[^A-Za-z0-9]/.test(v)) score++;
+        var pct  = score * 25;
+        var cols = ['#fe5d70','#fe9365','#f4c22b','#0ac282'];
+        var lbls = ['Weak','Fair','Good','Strong'];
+        bar.style.width = pct + '%';
+        bar.style.backgroundColor = cols[score - 1] || '#ddd';
+        lbl.textContent = score > 0 ? lbls[score - 1] : '';
+        lbl.style.color  = cols[score - 1] || '#aaa';
+    });
+
+    /* ── confirm password match ── */
+    var conPw = document.getElementById('conPw');
+    var msg   = document.getElementById('matchMsg');
+    conPw.addEventListener('input', function () {
+        if (this.value === '' || newPw.value === '') { msg.textContent = ''; return; }
+        if (this.value === newPw.value) {
+            msg.textContent = '✓ Passwords match';
+            msg.style.color = '#0ac282';
+        } else {
+            msg.textContent = '✗ Passwords do not match';
+            msg.style.color = '#fe5d70';
+        }
+    });
+
+    /* ── show server validation summary if errors ── */
+    var vs = document.getElementById('valSummary');
+    if (vs && vs.querySelectorAll('li').length > 0) {
+        vs.style.display = 'block';
+    }
+</script>
+}

@@ -1,0 +1,422 @@
+@{
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    var action     = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+
+    // Helper: returns "active" CSS class when current route matches
+    string Nav(string c, string a = "") =>
+        controller.Equals(c, StringComparison.OrdinalIgnoreCase) &&
+        (string.IsNullOrEmpty(a) || action.Equals(a, StringComparison.OrdinalIgnoreCase))
+        ? "active" : "";
+
+    string NavSection(string c) =>
+        controller.Equals(c, StringComparison.OrdinalIgnoreCase) ? "pcoded-trigger" : "";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>@(ViewData["Title"] != null ? ViewData["Title"] + " – " : "")Attendance Management System</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimal-ui">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link rel="icon" href="~/assets/images/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,600" rel="stylesheet">
+    <!-- Bootstrap (local) -->
+    <link rel="stylesheet" type="text/css" href="~/lib/bootstrap/dist/css/bootstrap.min.css">
+    <!-- Feather icons (local assets) -->
+    <link rel="stylesheet" type="text/css" href="~/assets/icon/feather/css/feather.css">
+    <!-- Icofont -->
+    <link rel="stylesheet" type="text/css" href="~/assets/icon/icofont/css/icofont.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" type="text/css" href="~/assets/icon/font-awesome/css/font-awesome.min.css">
+    <!-- Theme style (local assets) -->
+    <link rel="stylesheet" type="text/css" href="~/assets/css/style.css">
+    <link rel="stylesheet" type="text/css" href="~/assets/css/jquery.mCustomScrollbar.css">
+    <!-- Adminty teal colour overrides (must come after template CSS) -->
+    <link rel="stylesheet" type="text/css" href="~/css/site.css">
+    @RenderSection("Styles", required: false)
+</head>
+
+<body>
+    <!-- Pre-loader start -->
+    <div class="theme-loader">
+        <div class="ball-scale">
+            <div class='contain'>
+                <div class="ring"><div class="frame"></div></div>
+                <div class="ring"><div class="frame"></div></div>
+                <div class="ring"><div class="frame"></div></div>
+                <div class="ring"><div class="frame"></div></div>
+                <div class="ring"><div class="frame"></div></div>
+            </div>
+        </div>
+    </div>
+    <!-- Pre-loader end -->
+
+    <div id="pcoded" class="pcoded">
+        <div class="pcoded-overlay-box"></div>
+        <div class="pcoded-container navbar-wrapper">
+
+            <!-- =========================================================
+                 TOP NAVBAR
+            ========================================================== -->
+            <nav class="navbar header-navbar pcoded-header">
+                <div class="navbar-wrapper">
+
+                    <!-- Logo -->
+                    <div class="navbar-logo">
+                        <a class="mobile-menu" id="mobile-collapse" href="#!">
+                            <i class="feather icon-menu"></i>
+                        </a>
+                        <a asp-controller="Admin" asp-action="Index">
+                            <img class="img-fluid" src="~/assets/images/logo.png" alt="AttendanceMS"
+                                 onerror="this.outerHTML='<span style=\'color:#fff;font-size:18px;font-weight:700;\'>AMS</span>'" />
+                        </a>
+                        <a class="mobile-options">
+                            <i class="feather icon-more-horizontal"></i>
+                        </a>
+                    </div>
+                    <!-- /Logo -->
+
+                    <div class="navbar-container container-fluid">
+                        <ul class="nav-left">
+                            <li class="header-search">
+                                <div class="main-search morphsearch-search">
+                                    <div class="input-group">
+                                        <span class="input-group-addon search-close"><i class="feather icon-x"></i></span>
+                                        <input type="text" class="form-control" placeholder="Search...">
+                                        <span class="input-group-addon search-btn"><i class="feather icon-search"></i></span>
+                                    </div>
+                                </div>
+                            </li>
+                            <li>
+                                <a href="#!" onclick="javascript:toggleFullScreen()">
+                                    <i class="feather icon-maximize full-screen"></i>
+                                </a>
+                            </li>
+                        </ul>
+
+                        <ul class="nav-right">
+                            <!-- Notifications -->
+                            <li class="header-notification">
+                                <div class="dropdown-primary dropdown">
+                                    <div class="dropdown-toggle" data-toggle="dropdown">
+                                        <i class="feather icon-bell"></i>
+                                        <span class="badge bg-c-pink">5</span>
+                                    </div>
+                                    <ul class="show-notification notification-view dropdown-menu"
+                                        data-dropdown-in="fadeIn" data-dropdown-out="fadeOut">
+                                        <li>
+                                            <h6>Notifications</h6>
+                                            <label class="label label-danger">New</label>
+                                        </li>
+                                        <li>
+                                            <div class="media">
+                                                <img class="d-flex align-self-center img-radius"
+                                                     src="~/assets/images/avatar-4.jpg" alt="User">
+                                                <div class="media-body">
+                                                    <h5 class="notification-user">System Alert</h5>
+                                                    <p class="notification-msg">5 employees are late today.</p>
+                                                    <span class="notification-time">Just now</span>
+                                                </div>
+                                            </div>
+                                        </li>
+                                        <li>
+                                            <div class="media">
+                                                <img class="d-flex align-self-center img-radius"
+                                                     src="~/assets/images/avatar-3.jpg" alt="User">
+                                                <div class="media-body">
+                                                    <h5 class="notification-user">Biometric Sync</h5>
+                                                    <p class="notification-msg">Last import completed successfully.</p>
+                                                    <span class="notification-time">30 minutes ago</span>
+                                                </div>
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </li>
+
+                            <!-- User Profile -->
+                            @{
+                                var _fullName  = Context.Session.GetString("FullName")  ?? Context.Session.GetString("Username") ?? "Admin";
+                                var _roleName  = Context.Session.GetString("RoleName")  ?? "";
+                                var _initial   = _fullName.Length > 0 ? _fullName.Substring(0,1).ToUpper() : "A";
+                            }
+                            <li class="user-profile header-notification">
+                                <div class="dropdown-primary dropdown">
+                                    <div class="dropdown-toggle" data-toggle="dropdown">
+                                        <!-- Avatar initials instead of a missing image -->
+                                        <span class="d-inline-flex align-items-center justify-content-center img-radius"
+                                              style="width:40px;height:40px;background:#01a9ac;color:#fff;font-weight:700;font-size:1rem;flex-shrink:0;">
+                                            @_initial
+                                        </span>
+                                        <span class="ms-1">@_fullName</span>
+                                        <i class="feather icon-chevron-down"></i>
+                                    </div>
+                                    <ul class="show-notification profile-notification dropdown-menu"
+                                        data-dropdown-in="fadeIn" data-dropdown-out="fadeOut">
+
+                                        <!-- User info header -->
+                                        <li class="px-3 pt-2 pb-1" style="pointer-events:none;">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="d-inline-flex align-items-center justify-content-center rounded-circle"
+                                                      style="width:44px;height:44px;background:#01a9ac;color:#fff;font-weight:700;font-size:1.1rem;flex-shrink:0;">
+                                                    @_initial
+                                                </span>
+                                                <div>
+                                                    <div class="fw-semibold" style="font-size:.9rem;line-height:1.2;">@_fullName</div>
+                                                    @if (!string.IsNullOrEmpty(_roleName))
+                                                    {
+                                                        <small class="text-muted">@_roleName</small>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+
+                                        <li>
+                                            <a asp-controller="Auth" asp-action="Profile">
+                                                <i class="feather icon-user"></i> My Profile
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a asp-controller="Admin" asp-action="Settings">
+                                                <i class="feather icon-settings"></i> Settings
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li>
+                                            <a href="#" id="logoutTrigger" style="color:#fe5d70 !important;">
+                                                <i class="feather icon-log-out"></i> Logout
+                                            </a>
+                                            <form id="logoutForm" asp-controller="Auth" asp-action="Logout"
+                                                  method="post" style="display:none;">
+                                                @Html.AntiForgeryToken()
+                                            </form>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+            <!-- /TOP NAVBAR -->
+
+            <!-- =========================================================
+                 MAIN CONTAINER
+            ========================================================== -->
+            <div class="pcoded-main-container">
+                <div class="pcoded-wrapper">
+
+                    <!-- =========================================================
+                         LEFT SIDEBAR NAVIGATION
+                    ========================================================== -->
+                    <nav class="pcoded-navbar">
+                        <div class="pcoded-inner-navbar main-menu">
+
+                            <!-- ── MAIN ─────────────────────────────── -->
+                            <div class="pcoded-navigatio-lavel">Main</div>
+                            <ul class="pcoded-item pcoded-left-item">
+
+                                <!-- Dashboard -->
+                                <li class="@Nav("Admin","Index")">
+                                    <a asp-controller="Admin" asp-action="Index">
+                                        <span class="pcoded-micon"><i class="feather icon-home"></i></span>
+                                        <span class="pcoded-mtext">Dashboard</span>
+                                    </a>
+                                </li>
+
+                            </ul>
+
+                            <!-- ── EMPLOYEE MANAGEMENT ───────────────── -->
+                            <div class="pcoded-navigatio-lavel">Employee Management</div>
+                            <ul class="pcoded-item pcoded-left-item">
+
+                                <!-- Departments -->
+                                <li class="@Nav("Admin","Departments")">
+                                    <a asp-controller="Admin" asp-action="Departments">
+                                        <span class="pcoded-micon"><i class="feather icon-layers"></i></span>
+                                        <span class="pcoded-mtext">Departments</span>
+                                    </a>
+                                </li>
+
+                                <!-- Designations -->
+                                <li class="@Nav("Admin","Designations")">
+                                    <a asp-controller="Admin" asp-action="Designations">
+                                        <span class="pcoded-micon"><i class="feather icon-award"></i></span>
+                                        <span class="pcoded-mtext">Designations</span>
+                                    </a>
+                                </li>
+
+                                <!-- Branches -->
+                                <li class="@Nav("Admin","Branches")">
+                                    <a asp-controller="Admin" asp-action="Branches">
+                                        <span class="pcoded-micon"><i class="feather icon-map-pin"></i></span>
+                                        <span class="pcoded-mtext">Branches</span>
+                                    </a>
+                                </li>
+
+                                <!-- Shifts -->
+                                <li class="@Nav("Admin","Shifts")">
+                                    <a asp-controller="Admin" asp-action="Shifts">
+                                        <span class="pcoded-micon"><i class="feather icon-clock"></i></span>
+                                        <span class="pcoded-mtext">Shifts</span>
+                                    </a>
+                                </li>
+
+                                <!-- Employees -->
+                                <li class="@Nav("Admin","Employees")">
+                                    <a asp-controller="Admin" asp-action="Employees">
+                                        <span class="pcoded-micon"><i class="feather icon-users"></i></span>
+                                        <span class="pcoded-mtext">Employees</span>
+                                    </a>
+                                </li>
+
+                                <!-- Users (system users) -->
+                                <li class="@Nav("Admin","Users")">
+                                    <a asp-controller="Admin" asp-action="Users">
+                                        <span class="pcoded-micon"><i class="feather icon-user-check"></i></span>
+                                        <span class="pcoded-mtext">System Users</span>
+                                    </a>
+                                </li>
+
+                            </ul>
+
+                            <!-- ── ATTENDANCE ────────────────────────── -->
+                            <div class="pcoded-navigatio-lavel">Attendance</div>
+                            <ul class="pcoded-item pcoded-left-item">
+
+                                <!-- Attendance Records -->
+                                <li class="@Nav("Admin","Attendance")">
+                                    <a asp-controller="Admin" asp-action="Attendance">
+                                        <span class="pcoded-micon"><i class="feather icon-check-circle"></i></span>
+                                        <span class="pcoded-mtext">Attendance Records</span>
+                                    </a>
+                                </li>
+
+                                <!-- Leave Management -->
+                                <li class="@Nav("Admin","Leave")">
+                                    <a asp-controller="Admin" asp-action="Leave">
+                                        <span class="pcoded-micon"><i class="feather icon-calendar"></i></span>
+                                        <span class="pcoded-mtext">Leave Management</span>
+                                    </a>
+                                </li>
+
+                                <!-- Holidays -->
+                                <li class="@Nav("Admin","Holidays")">
+                                    <a asp-controller="Admin" asp-action="Holidays">
+                                        <span class="pcoded-micon"><i class="feather icon-flag"></i></span>
+                                        <span class="pcoded-mtext">Holidays</span>
+                                    </a>
+                                </li>
+
+                                <!-- Biometric Import -->
+                                <li class="@Nav("Admin","Import")">
+                                    <a asp-controller="Admin" asp-action="Import">
+                                        <span class="pcoded-micon"><i class="feather icon-upload"></i></span>
+                                        <span class="pcoded-mtext">Biometric Import</span>
+                                    </a>
+                                </li>
+
+                            </ul>
+
+                            <!-- ── REPORTS & SETTINGS ────────────────── -->
+                            <div class="pcoded-navigatio-lavel">Reports &amp; Config</div>
+                            <ul class="pcoded-item pcoded-left-item">
+
+                                <!-- Reports -->
+                                <li class="@Nav("Admin","Reports")">
+                                    <a asp-controller="Admin" asp-action="Reports">
+                                        <span class="pcoded-micon"><i class="feather icon-bar-chart-2"></i></span>
+                                        <span class="pcoded-mtext">Reports</span>
+                                    </a>
+                                </li>
+
+                                <!-- Settings -->
+                                <li class="@Nav("Admin","Settings")">
+                                    <a asp-controller="Admin" asp-action="Settings">
+                                        <span class="pcoded-micon"><i class="feather icon-settings"></i></span>
+                                        <span class="pcoded-mtext">Settings</span>
+                                    </a>
+                                </li>
+
+                            </ul>
+
+                        </div>
+                    </nav>
+                    <!-- /LEFT SIDEBAR -->
+
+                    <!-- =========================================================
+                         PAGE CONTENT
+                    ========================================================== -->
+                    <div class="pcoded-content">
+                        <div class="pcoded-inner-content">
+
+                            <!-- Breadcrumb -->
+                            <div class="main-body">
+                                <div class="page-wrapper">
+
+                                    @RenderBody()
+
+                                    <!-- Footer -->
+                                    <div class="page-footer">
+                                        <div class="row align-items-center">
+                                            <div class="col-sm-8">
+                                                <p class="m-b-0">
+                                                    Attendance Management System &copy; @DateTime.Now.Year
+                                                    &nbsp;|&nbsp; Built with .NET 10
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- /Footer -->
+
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- /PAGE CONTENT -->
+
+                </div>
+            </div>
+            <!-- /MAIN CONTAINER -->
+
+        </div>
+    </div>
+
+    <!-- =========================================================
+         SCRIPTS
+    ========================================================== -->
+    <!-- jQuery (local) -->
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <!-- Bootstrap (local) -->
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Smooth scroll & custom scrollbar (local assets) -->
+    <script src="~/assets/js/jquery.mCustomScrollbar.concat.min.js"></script>
+    <script src="~/assets/js/SmoothScroll.js"></script>
+    <!-- Pcoded sidebar engine (local assets) -->
+    <script src="~/assets/js/pcoded.min.js"></script>
+    <script src="~/assets/js/vartical-layout.min.js"></script>
+    <!-- Dashboard chart helpers (local assets) -->
+    <script src="~/assets/pages/dashboard/custom-dashboard.js"></script>
+    <!-- App script (local assets) -->
+    <script src="~/assets/js/script.min.js"></script>
+
+    @RenderSection("Scripts", required: false)
+
+    <script>
+        /* ── Logout confirmation ── */
+        document.addEventListener('DOMContentLoaded', function () {
+            var trigger = document.getElementById('logoutTrigger');
+            if (trigger) {
+                trigger.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    if (confirm('Are you sure you want to log out?')) {
+                        document.getElementById('logoutForm').submit();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

@@ -228,7 +228,7 @@ public class AttendanceDbContext : DbContext
             {
                 Id = 1, Username = "admin", FullName = "System Administrator",
                 Email = "admin@company.com",
-                PasswordHash = "$2a$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi", // Admin@123
+                PasswordHash = "$2a$12$nO.92cNvowz6VFNOT/FerO6E0f.7B9VFm3ziDnofYlZi4NWOgJ3nW", // Admin@123
                 RoleId = 1, IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1)
             }
         );

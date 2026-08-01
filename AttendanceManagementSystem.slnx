@@ -4,4 +4,5 @@
   <Project Path="AttendanceSystem.Common/AttendanceSystem.Common.csproj" />
   <Project Path="AttendanceSystem.Domain/AttendanceSystem.Domain.csproj" />
   <Project Path="AttendanceSystem.Infrastructure/AttendanceSystem.Infrastructure.csproj" />
+  <Project Path="AttendanceSystem.Web/AttendanceSystem.Web.csproj" />
 </Solution>

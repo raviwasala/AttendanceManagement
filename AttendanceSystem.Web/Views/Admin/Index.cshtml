@@ -1,0 +1,223 @@
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Dashboard</h5>
+    <span class="text-muted small">@DateTime.Now.ToString("dddd, dd MMMM yyyy")</span>
+</div>
+
+<!-- Stat Cards -->
+<div class="row g-3 mb-4" id="statCards">
+    <div class="col-xl-3 col-md-6">
+        <div class="card text-white bg-primary">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="mb-1 small opacity-75">Total Employees</p>
+                    <h3 class="mb-0 fw-bold" id="statTotal">—</h3>
+                </div>
+                <i class="feather icon-users" style="font-size:2.5rem;opacity:.4"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card text-white bg-success">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="mb-1 small opacity-75">Present Today</p>
+                    <h3 class="mb-0 fw-bold" id="statPresent">—</h3>
+                </div>
+                <i class="feather icon-user-check" style="font-size:2.5rem;opacity:.4"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card text-white bg-danger">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="mb-1 small opacity-75">Absent Today</p>
+                    <h3 class="mb-0 fw-bold" id="statAbsent">—</h3>
+                </div>
+                <i class="feather icon-user-x" style="font-size:2.5rem;opacity:.4"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card text-white bg-warning">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="mb-1 small opacity-75">On Leave Today</p>
+                    <h3 class="mb-0 fw-bold" id="statLeave">—</h3>
+                </div>
+                <i class="feather icon-calendar" style="font-size:2.5rem;opacity:.4"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Attendance % card -->
+    <div class="col-xl-4 col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><strong>Today's Attendance</strong></div>
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <div style="position:relative;width:160px;height:160px;">
+                    <canvas id="attendancePie"></canvas>
+                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">
+                        <span class="fw-bold fs-4" id="pctLabel">—</span>
+                        <div class="text-muted small">Attendance</div>
+                    </div>
+                </div>
+                <div class="mt-3 w-100">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span><span class="badge bg-success me-1">&nbsp;</span>Present</span>
+                        <span id="lblPresent">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span><span class="badge bg-danger me-1">&nbsp;</span>Absent</span>
+                        <span id="lblAbsent">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span><span class="badge bg-warning me-1">&nbsp;</span>Late</span>
+                        <span id="lblLate">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between small">
+                        <span><span class="badge bg-info me-1">&nbsp;</span>On Leave</span>
+                        <span id="lblLeave">—</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent attendance table -->
+    <div class="col-xl-8 col-md-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Recent Attendance</strong>
+                <a asp-controller="Admin" asp-action="Attendance" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Employee</th>
+                                <th>Date</th>
+                                <th>Check In</th>
+                                <th>Check Out</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentBody">
+                            <tr><td colspan="5" class="text-center py-3 text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Links -->
+<div class="row g-3 mt-1">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header"><strong>Quick Links</strong></div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2">
+                    <a asp-controller="Admin" asp-action="Employees"    class="btn btn-outline-primary btn-sm"><i class="feather icon-users me-1"></i>Employees</a>
+                    <a asp-controller="Admin" asp-action="Attendance"   class="btn btn-outline-success btn-sm"><i class="feather icon-clock me-1"></i>Attendance</a>
+                    <a asp-controller="Admin" asp-action="Leave"        class="btn btn-outline-warning btn-sm"><i class="feather icon-calendar me-1"></i>Leave</a>
+                    <a asp-controller="Admin" asp-action="Departments"  class="btn btn-outline-secondary btn-sm"><i class="feather icon-grid me-1"></i>Departments</a>
+                    <a asp-controller="Admin" asp-action="Shifts"       class="btn btn-outline-info btn-sm"><i class="feather icon-watch me-1"></i>Shifts</a>
+                    <a asp-controller="Admin" asp-action="Reports"      class="btn btn-outline-dark btn-sm"><i class="feather icon-bar-chart-2 me-1"></i>Reports</a>
+                    <a asp-controller="Admin" asp-action="Users"        class="btn btn-outline-danger btn-sm"><i class="feather icon-user me-1"></i>Users</a>
+                    <a asp-controller="Admin" asp-action="Settings"     class="btn btn-outline-secondary btn-sm"><i class="feather icon-settings me-1"></i>Settings</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    let pieChart = null;
+
+    async function loadDashboard() {
+        try {
+            const res = await fetch('/api/attendance/dashboard');
+            if (!res.ok) throw new Error('Failed to load dashboard data');
+            const d = await res.json();
+
+            // Stat cards
+            document.getElementById('statTotal').textContent   = d.TotalEmployees ?? 0;
+            document.getElementById('statPresent').textContent = d.PresentToday   ?? 0;
+            document.getElementById('statAbsent').textContent  = d.AbsentToday    ?? 0;
+            document.getElementById('statLeave').textContent   = d.OnLeaveToday   ?? 0;
+
+            // Pie labels
+            const pct = d.AttendancePercentage ?? 0;
+            document.getElementById('pctLabel').textContent  = pct.toFixed(1) + '%';
+            document.getElementById('lblPresent').textContent = d.PresentToday  ?? 0;
+            document.getElementById('lblAbsent').textContent  = d.AbsentToday   ?? 0;
+            document.getElementById('lblLate').textContent    = d.LateToday     ?? 0;
+            document.getElementById('lblLeave').textContent   = d.OnLeaveToday  ?? 0;
+
+            // Doughnut chart
+            const ctx = document.getElementById('attendancePie').getContext('2d');
+            if (pieChart) pieChart.destroy();
+            pieChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Present', 'Absent', 'Late', 'On Leave'],
+                    datasets: [{
+                        data: [d.PresentToday, d.AbsentToday, d.LateToday, d.OnLeaveToday],
+                        backgroundColor: ['#28a745','#dc3545','#ffc107','#17a2b8'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    cutout: '70%',
+                    plugins: { legend: { display: false } },
+                    animation: { duration: 600 }
+                }
+            });
+
+            // Recent attendance table
+            const tbody = document.getElementById('recentBody');
+            const rows  = d.RecentAttendance ?? [];
+            if (rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">No attendance records for today.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = rows.slice(0, 15).map(r => {
+                const statusBadge = {
+                    'Present' : '<span class="badge bg-success">Present</span>',
+                    'Absent'  : '<span class="badge bg-danger">Absent</span>',
+                    'Late'    : '<span class="badge bg-warning text-dark">Late</span>',
+                    'OnLeave' : '<span class="badge bg-info">On Leave</span>',
+                    'Holiday' : '<span class="badge bg-secondary">Holiday</span>'
+                }[r.Status] ?? `<span class="badge bg-light text-dark">${r.Status ?? ''}</span>`;
+
+                const fmt = v => v ? new Date(v).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
+                const date = r.Date ? new Date(r.Date).toLocaleDateString() : '—';
+                return `<tr>
+                    <td>${r.EmployeeName ?? '—'}</td>
+                    <td>${date}</td>
+                    <td>${fmt(r.CheckIn)}</td>
+                    <td>${fmt(r.CheckOut)}</td>
+                    <td>${statusBadge}</td>
+                </tr>`;
+            }).join('');
+        } catch (e) {
+            document.getElementById('recentBody').innerHTML =
+                '<tr><td colspan="5" class="text-center text-danger py-3">Failed to load data.</td></tr>';
+            console.error(e);
+        }
+    }
+
+    loadDashboard();
+</script>
+}

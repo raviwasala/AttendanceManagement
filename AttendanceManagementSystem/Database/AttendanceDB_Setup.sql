@@ -368,7 +368,7 @@ GO
 -- Admin user  (Password: Admin@123)
 IF NOT EXISTS (SELECT 1 FROM Users WHERE Username = 'admin')
 INSERT INTO Users (Username,PasswordHash,Email,FullName,RoleId,IsActive,IsDeleted,CreatedAt)
-VALUES ('admin','$2a$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+VALUES ('admin','$2a$12$nO.92cNvowz6VFNOT/FerO6E0f.7B9VFm3ziDnofYlZi4NWOgJ3nW',
 		'admin@company.com','System Administrator',1,1,0,GETUTCDATE());
 GO
 

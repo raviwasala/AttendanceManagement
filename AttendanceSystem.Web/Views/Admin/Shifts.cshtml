@@ -1,0 +1,273 @@
+@{
+    ViewData["Title"] = "Shifts";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Shift Management</h5>
+</div>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-3" id="shiftTabs">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tabShifts">Shift Definitions</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabAssign">Employee Assignments</a></li>
+</ul>
+
+<div class="tab-content">
+
+    <!-- Shift Definitions Tab -->
+    <div class="tab-pane fade show active" id="tabShifts">
+        <div class="d-flex justify-content-end mb-2">
+            <button class="btn btn-primary btn-sm" onclick="openShiftModal()">+ Add Shift</button>
+        </div>
+        <div class="card">
+            <div class="card-body p-0">
+                <table class="table table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr><th>#</th><th>Name</th><th>Start</th><th>End</th><th>Grace (min)</th><th>Weekly Off</th><th>Status</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="shiftBody">
+                        <tr><td colspan="8" class="text-center py-3 text-muted">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignments Tab -->
+    <div class="tab-pane fade" id="tabAssign">
+        <div class="d-flex justify-content-end mb-2">
+            <button class="btn btn-success btn-sm" onclick="openAssignModal()">+ Assign Shift</button>
+        </div>
+        <div class="card mb-2">
+            <div class="card-body py-2">
+                <input type="text" id="assignSearch" class="form-control form-control-sm" placeholder="Search by employee..." oninput="filterAssign()">
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-body p-0">
+                <table class="table table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr><th>Code</th><th>Employee</th><th>Shift</th><th>Start</th><th>End</th><th>Effective From</th><th>Effective To</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="assignBody">
+                        <tr><td colspan="8" class="text-center py-3 text-muted">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Shift Modal -->
+<div class="modal fade" id="shiftModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title" id="shiftModalTitle">Add Shift</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="shiftId">
+                <div class="row g-2">
+                    <div class="col-12 mb-2">
+                        <label class="form-label">Name <span class="text-danger">*</span></label>
+                        <input type="text" id="shiftName" class="form-control" maxlength="100">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Start Time <span class="text-danger">*</span></label>
+                        <input type="time" id="shiftStart" class="form-control">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">End Time <span class="text-danger">*</span></label>
+                        <input type="time" id="shiftEnd" class="form-control">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Grace Minutes</label>
+                        <input type="number" id="shiftGrace" class="form-control" value="0" min="0" max="60">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Weekly Off Days</label>
+                        <input type="text" id="shiftWeeklyOff" class="form-control" value="Saturday,Sunday" placeholder="Saturday,Sunday">
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="shiftActive" checked>
+                            <label class="form-check-label">Active</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveShift()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Modal -->
+<div class="modal fade" id="assignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">Assign Shift to Employee</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Employee <span class="text-danger">*</span></label>
+                    <select id="assignEmp" class="form-select"></select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Shift <span class="text-danger">*</span></label>
+                    <select id="assignShift" class="form-select"></select>
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Effective From <span class="text-danger">*</span></label>
+                        <input type="date" id="assignFrom" class="form-control">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Effective To</label>
+                        <input type="date" id="assignTo" class="form-control">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success btn-sm" onclick="saveAssign()">Assign</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+var allShifts = [], allAssign = [], allEmployees = [];
+$(function () { loadShifts(); loadAssign(); loadEmployees(); });
+
+// ── Shifts ───────────────────────────────────────────────────────────────────
+function loadShifts() {
+    $.getJSON('/api/shifts', function (d) { allShifts = d; renderShifts(d); })
+     .fail(function () { $('#shiftBody').html('<tr><td colspan="8" class="text-danger text-center py-3">Failed to load.</td></tr>'); });
+}
+
+function renderShifts(data) {
+    if (!data.length) { $('#shiftBody').html('<tr><td colspan="8" class="text-center text-muted py-3">No shifts defined.</td></tr>'); return; }
+    var html = '';
+    data.forEach(function (s, i) {
+        html += '<tr>'
+            + '<td class="text-muted">' + (i+1) + '</td>'
+            + '<td class="fw-semibold">' + s.Name + '</td>'
+            + '<td>' + s.StartTimeDisplay + '</td>'
+            + '<td>' + s.EndTimeDisplay + '</td>'
+            + '<td>' + s.GraceMinutes + '</td>'
+            + '<td class="small text-muted">' + s.WeeklyOffDays + '</td>'
+            + '<td>' + (s.IsActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-danger">Inactive</span>') + '</td>'
+            + '<td>'
+            + '<button class="btn btn-sm btn-outline-primary me-1" onclick="editShift(' + s.Id + ')" title="Edit"><i class="fa fa-pencil"></i></button>'
+            + '<button class="btn btn-sm btn-outline-danger" onclick="deleteShift(' + s.Id + ')" title="Delete"><i class="fa fa-trash"></i></button>'
+            + '</td></tr>';
+    });
+    $('#shiftBody').html(html);
+}
+
+function openShiftModal(id, name, start, end, grace, weekoff, active) {
+    $('#shiftId').val(id || 0); $('#shiftName').val(name || '');
+    $('#shiftStart').val(start || '09:00'); $('#shiftEnd').val(end || '18:00');
+    $('#shiftGrace').val(grace || 0); $('#shiftWeeklyOff').val(weekoff || 'Saturday,Sunday');
+    $('#shiftActive').prop('checked', active !== false);
+    $('#shiftModalTitle').text(id ? 'Edit Shift' : 'Add Shift');
+    new bootstrap.Modal('#shiftModal').show();
+}
+
+function editShift(id) {
+    var s = allShifts.find(function (x) { return x.Id === id; });
+    if (!s) return;
+    // StartTime comes as "HH:mm:ss" from TimeSpan serialisation
+    var st = (s.StartTime || '').substring(0, 5);
+    var et = (s.EndTime || '').substring(0, 5);
+    openShiftModal(s.Id, s.Name, st, et, s.GraceMinutes, s.WeeklyOffDays, s.IsActive);
+}
+
+function saveShift() {
+    var name = $('#shiftName').val().trim();
+    if (!name || !$('#shiftStart').val() || !$('#shiftEnd').val()) { alert('Name, Start Time and End Time are required.'); return; }
+    var dto = {
+        Id: parseInt($('#shiftId').val()) || 0, Name: name,
+        StartTime: $('#shiftStart').val() + ':00', EndTime: $('#shiftEnd').val() + ':00',
+        GraceMinutes: parseInt($('#shiftGrace').val()) || 0,
+        WeeklyOffDays: $('#shiftWeeklyOff').val(), IsActive: $('#shiftActive').is(':checked')
+    };
+    $.ajax({ url: '/api/shifts', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
+        success: function () { bootstrap.Modal.getInstance('#shiftModal').hide(); loadShifts(); },
+        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Save failed.')); }
+    });
+}
+
+function deleteShift(id) {
+    if (!confirm('Delete this shift?')) return;
+    $.ajax({ url: '/api/shifts/' + id + '?deletedBy=@(Context.Session.GetInt32("UserId") ?? 1)', type: 'DELETE',
+        success: function () { loadShifts(); },
+        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Delete failed.')); }
+    });
+}
+
+// ── Assignments ───────────────────────────────────────────────────────────────
+function loadAssign() {
+    $.getJSON('/api/shifts/assignments', function (d) { allAssign = d; renderAssign(d); })
+     .fail(function () { $('#assignBody').html('<tr><td colspan="8" class="text-danger text-center py-3">Failed to load assignments.</td></tr>'); });
+}
+
+function filterAssign() {
+    var q = $('#assignSearch').val().toLowerCase();
+    renderAssign(allAssign.filter(function (a) { return !q || a.EmployeeName.toLowerCase().includes(q) || a.EmployeeCode.toLowerCase().includes(q); }));
+}
+
+function renderAssign(data) {
+    if (!data.length) { $('#assignBody').html('<tr><td colspan="8" class="text-center text-muted py-3">No assignments.</td></tr>'); return; }
+    var html = '';
+    data.forEach(function (a) {
+        html += '<tr>'
+            + '<td class="text-muted small">' + a.EmployeeCode + '</td>'
+            + '<td>' + a.EmployeeName + '</td>'
+            + '<td class="fw-semibold">' + a.ShiftName + '</td>'
+            + '<td class="text-muted">' + a.StartTimeDisplay + '</td>'
+            + '<td class="text-muted">' + a.EndTimeDisplay + '</td>'
+            + '<td>' + new Date(a.EffectiveFrom).toLocaleDateString() + '</td>'
+            + '<td>' + (a.EffectiveTo ? new Date(a.EffectiveTo).toLocaleDateString() : '—') + '</td>'
+            + '<td></td></tr>';
+    });
+    $('#assignBody').html(html);
+}
+
+function loadEmployees() {
+    $.getJSON('/api/employees', function (data) {
+        allEmployees = data;
+        var opts = '<option value="">-- Select Employee --</option>';
+        data.forEach(function (e) { opts += '<option value="' + e.Id + '">' + e.EmployeeCode + ' - ' + e.FullName + '</option>'; });
+        $('#assignEmp').html(opts);
+    });
+}
+
+function openAssignModal() {
+    var shiftOpts = '<option value="">-- Select Shift --</option>';
+    allShifts.filter(function (s) { return s.IsActive; }).forEach(function (s) { shiftOpts += '<option value="' + s.Id + '">' + s.Name + '</option>'; });
+    $('#assignShift').html(shiftOpts);
+    $('#assignFrom').val(new Date().toISOString().split('T')[0]);
+    $('#assignTo').val('');
+    new bootstrap.Modal('#assignModal').show();
+}
+
+function saveAssign() {
+    var emp = parseInt($('#assignEmp').val()); var shf = parseInt($('#assignShift').val()); var frm = $('#assignFrom').val();
+    if (!emp || !shf || !frm) { alert('Employee, Shift and Effective From are required.'); return; }
+    var dto = { EmployeeId: emp, ShiftId: shf, EffectiveFrom: frm, EffectiveTo: $('#assignTo').val() || null };
+    $.ajax({ url: '/api/shifts/assign', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
+        success: function () { bootstrap.Modal.getInstance('#assignModal').hide(); loadAssign(); },
+        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Assign failed.')); }
+    });
+}
+</script>
+}

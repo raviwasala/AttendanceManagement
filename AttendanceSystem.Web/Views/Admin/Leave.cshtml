@@ -1,0 +1,244 @@
+@{
+    ViewData["Title"] = "Leave Management";
+}
+
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tabRequests">Leave Requests</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabTypes">Leave Types</a></li>
+</ul>
+
+<div class="tab-content">
+
+    <!-- Leave Requests -->
+    <div class="tab-pane fade show active" id="tabRequests">
+        <div class="card mb-2">
+            <div class="card-body py-2">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <select id="reqStatusFilter" class="form-select form-select-sm" onchange="filterRequests()">
+                            <option value="">All Status</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Approved">Approved</option>
+                            <option value="Rejected">Rejected</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" id="reqSearch" class="form-control form-select-sm" placeholder="Search employee..." oninput="filterRequests()">
+                    </div>
+                    <div class="col-md-auto ms-auto">
+                        <button class="btn btn-primary btn-sm" onclick="openApplyModal()">+ Apply Leave</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-body p-0">
+                <table class="table table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr><th>Employee</th><th>Department</th><th>Leave Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="reqBody">
+                        <tr><td colspan="9" class="text-center py-3 text-muted">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Types -->
+    <div class="tab-pane fade" id="tabTypes">
+        <div class="d-flex justify-content-end mb-2">
+            <button class="btn btn-primary btn-sm" onclick="openTypeModal()">+ Add Leave Type</button>
+        </div>
+        <div class="card">
+            <div class="card-body p-0">
+                <table class="table table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr><th>#</th><th>Name</th><th>Total Days</th><th>Paid</th><th>Status</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="typeBody">
+                        <tr><td colspan="6" class="text-center py-3 text-muted">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Apply Leave Modal -->
+<div class="modal fade" id="applyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title">Apply Leave</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3"><label class="form-label">Employee <span class="text-danger">*</span></label><select id="leaveEmp" class="form-select"></select></div>
+                <div class="mb-3"><label class="form-label">Leave Type <span class="text-danger">*</span></label><select id="leaveType" class="form-select"></select></div>
+                <div class="row g-2">
+                    <div class="col-md-6 mb-2"><label class="form-label">From Date <span class="text-danger">*</span></label><input type="date" id="leaveFrom" class="form-control"></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">To Date <span class="text-danger">*</span></label><input type="date" id="leaveTo" class="form-control"></div>
+                </div>
+                <div class="mb-3"><label class="form-label">Reason <span class="text-danger">*</span></label><textarea id="leaveReason" class="form-control" rows="2" maxlength="1000"></textarea></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="applyLeave()">Apply</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Leave Type Modal -->
+<div class="modal fade" id="typeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title" id="typeModalTitle">Add Leave Type</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <input type="hidden" id="typeId">
+                <div class="mb-3"><label class="form-label">Name <span class="text-danger">*</span></label><input type="text" id="typeName" class="form-control" maxlength="100"></div>
+                <div class="mb-3"><label class="form-label">Total Days <span class="text-danger">*</span></label><input type="number" id="typeDays" class="form-control" min="1" max="365" value="10"></div>
+                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="typePaid" checked><label class="form-check-label">Paid Leave</label></div>
+                <div class="form-check"><input class="form-check-input" type="checkbox" id="typeActive" checked><label class="form-check-label">Active</label></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveType()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+var allReqs = [], allTypes = [];
+$(function () { loadRequests(); loadTypes(); loadApplyDropdowns(); });
+
+function loadApplyDropdowns() {
+    $.getJSON('/api/employees', function (d) {
+        var o = '<option value="">-- Employee --</option>';
+        d.forEach(function (e) { o += '<option value="' + e.Id + '">' + e.EmployeeCode + ' - ' + e.FullName + '</option>'; });
+        $('#leaveEmp').html(o);
+    });
+}
+
+function loadRequests() {
+    $.getJSON('/api/leave/requests', function (d) { allReqs = d; filterRequests(); })
+     .fail(function () { $('#reqBody').html('<tr><td colspan="9" class="text-danger text-center py-3">Failed to load.</td></tr>'); });
+}
+
+function filterRequests() {
+    var s = $('#reqStatusFilter').val(); var q = $('#reqSearch').val().toLowerCase();
+    renderRequests(allReqs.filter(function (r) {
+        return (s==='' || r.StatusDisplay===s) && (!q || r.EmployeeName.toLowerCase().includes(q));
+    }));
+}
+
+function renderRequests(data) {
+    if (!data.length) { $('#reqBody').html('<tr><td colspan="9" class="text-center text-muted py-3">No requests found.</td></tr>'); return; }
+    var html = '';
+    data.forEach(function (r) {
+        var badge = r.StatusDisplay==='Approved'?'success':r.StatusDisplay==='Rejected'?'danger':r.StatusDisplay==='Pending'?'warning':'secondary';
+        html += '<tr>'
+            + '<td>' + r.EmployeeName + '<br><small class="text-muted">' + r.EmployeeCode + '</small></td>'
+            + '<td class="text-muted small">' + r.Department + '</td>'
+            + '<td>' + r.LeaveTypeName + '</td>'
+            + '<td>' + new Date(r.FromDate).toLocaleDateString() + '</td>'
+            + '<td>' + new Date(r.ToDate).toLocaleDateString() + '</td>'
+            + '<td class="text-center">' + r.TotalDays + '</td>'
+            + '<td class="text-muted small" style="max-width:120px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">' + r.Reason + '</td>'
+            + '<td><span class="badge bg-' + badge + '">' + r.StatusDisplay + '</span></td>'
+            + '<td>'
+            + (r.StatusDisplay==='Pending' ? '<button class="btn btn-sm btn-success me-1" onclick="approveReject(' + r.Id + ',true)" title="Approve"><i class="fa fa-check"></i></button>'
+               + '<button class="btn btn-sm btn-danger me-1" onclick="approveReject(' + r.Id + ',false)" title="Reject"><i class="fa fa-times"></i></button>' : '')
+            + (r.StatusDisplay==='Pending'||r.StatusDisplay==='Approved' ? '<button class="btn btn-sm btn-outline-secondary" onclick="cancel(' + r.Id + ')" title="Cancel"><i class="fa fa-ban"></i></button>' : '')
+            + '</td></tr>';
+    });
+    $('#reqBody').html(html);
+}
+
+function loadTypes() {
+    $.getJSON('/api/leave/types', function (d) {
+        allTypes = d;
+        renderTypes(d);
+        var o = '<option value="">-- Leave Type --</option>';
+        d.filter(function(x){return x.IsActive;}).forEach(function (t) { o += '<option value="' + t.Id + '">' + t.Name + '</option>'; });
+        $('#leaveType').html(o);
+    }).fail(function () { $('#typeBody').html('<tr><td colspan="6" class="text-danger text-center py-3">Failed to load.</td></tr>'); });
+}
+
+function renderTypes(data) {
+    if (!data.length) { $('#typeBody').html('<tr><td colspan="6" class="text-center text-muted py-3">No leave types defined.</td></tr>'); return; }
+    var html = '';
+    data.forEach(function (t, i) {
+        html += '<tr><td class="text-muted">' + (i+1) + '</td><td class="fw-semibold">' + t.Name + '</td>'
+            + '<td>' + t.TotalDays + '</td>'
+            + '<td>' + (t.IsPaid ? '<span class="badge bg-success">Paid</span>' : '<span class="badge bg-secondary">Unpaid</span>') + '</td>'
+            + '<td>' + (t.IsActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-danger">Inactive</span>') + '</td>'
+            + '<td><button class="btn btn-sm btn-outline-primary me-1" onclick="editType(' + t.Id + ')" title="Edit"><i class="fa fa-pencil"></i></button>'
+            + '<button class="btn btn-sm btn-outline-danger" onclick="deleteType(' + t.Id + ')" title="Delete"><i class="fa fa-trash"></i></button></td></tr>';
+    });
+    $('#typeBody').html(html);
+}
+
+function openApplyModal() { $('#applyModal').find('select,input,textarea').val(''); new bootstrap.Modal('#applyModal').show(); }
+
+function applyLeave() {
+    var emp = parseInt($('#leaveEmp').val()), lt = parseInt($('#leaveType').val());
+    var frm = $('#leaveFrom').val(), to = $('#leaveTo').val(), reason = $('#leaveReason').val().trim();
+    if (!emp || !lt || !frm || !to || !reason) { alert('All fields are required.'); return; }
+    $.ajax({ url: '/api/leave/requests', type: 'POST', contentType: 'application/json',
+        data: JSON.stringify({ EmployeeId: emp, LeaveTypeId: lt, FromDate: frm, ToDate: to, Reason: reason }),
+        success: function () { bootstrap.Modal.getInstance('#applyModal').hide(); loadRequests(); },
+        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Apply failed.')); }
+    });
+}
+
+function approveReject(id, isApproved) {
+    var reason = isApproved ? '' : prompt('Rejection reason:');
+    if (!isApproved && reason === null) return;
+    var uid = @(Context.Session.GetInt32("UserId") ?? 1);
+    $.ajax({ url: '/api/leave/requests/approve?actionBy=' + uid, type: 'POST', contentType: 'application/json',
+        data: JSON.stringify({ LeaveRequestId: id, IsApproved: isApproved, RejectionReason: reason }),
+        success: function () { loadRequests(); },
+        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Action failed.')); }
+    });
+}
+
+function cancel(id) {
+    if (!confirm('Cancel this leave request?')) return;
+    var uid = @(Context.Session.GetInt32("UserId") ?? 1);
+    $.ajax({ url: '/api/leave/requests/' + id + '/cancel?cancelledBy=' + uid, type: 'POST',
+        success: function () { loadRequests(); },
+        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Cancel failed.')); }
+    });
+}
+
+function openTypeModal() { $('#typeId').val(0); $('#typeName').val(''); $('#typeDays').val(10); $('#typePaid').prop('checked',true); $('#typeActive').prop('checked',true); $('#typeModalTitle').text('Add Leave Type'); new bootstrap.Modal('#typeModal').show(); }
+
+function editType(id) {
+    var t = allTypes.find(function(x){return x.Id===id;});
+    $('#typeId').val(t.Id); $('#typeName').val(t.Name); $('#typeDays').val(t.TotalDays);
+    $('#typePaid').prop('checked',t.IsPaid); $('#typeActive').prop('checked',t.IsActive);
+    $('#typeModalTitle').text('Edit Leave Type'); new bootstrap.Modal('#typeModal').show();
+}
+
+function saveType() {
+    var name = $('#typeName').val().trim(), days = parseInt($('#typeDays').val());
+    if (!name || !days) { alert('Name and Total Days are required.'); return; }
+    var dto = { Id: parseInt($('#typeId').val())||0, Name: name, TotalDays: days, IsPaid: $('#typePaid').is(':checked'), IsActive: $('#typeActive').is(':checked') };
+    $.ajax({ url: '/api/leave/types', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
+        success: function () { bootstrap.Modal.getInstance('#typeModal').hide(); loadTypes(); },
+        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Save failed.')); }
+    });
+}
+
+function deleteType(id) {
+    if (!confirm('Delete this leave type?')) return;
+    $.ajax({ url: '/api/leave/types/' + id, type: 'DELETE',
+        success: function () { loadTypes(); },
+        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Delete failed.')); }
+    });
+}
+</script>
+}
