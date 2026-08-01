@@ -1,6 +1,7 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
+using System.Data;
 
 namespace AttendanceManagementSystem.UI.Forms;
 
@@ -98,7 +99,7 @@ public class BiometricImportForm : Form
         dtpDirectTo = new DateTimePicker { Left = 245, Top = 77, Width = 140, Format = DateTimePickerFormat.Short };
         dtpDirectTo.Value = DateTime.Today;
 
-        btnDirectPreview = Btn("Preview", 410, 74, 100, btnDirectPreview_Click);
+        btnDirectPreview = Btn("View Enroll", 410, 74, 100, btnDirectPreview_Click);
         btnDirectImport  = Btn("Import →", 520, 74, 110, btnDirectImport_Click);
         btnDirectImport.BackColor = Color.FromArgb(39, 174, 96);
         btnDirectImport.ForeColor = Color.White;
@@ -219,16 +220,17 @@ public class BiometricImportForm : Form
     private async void btnDirectPreview_Click(object? s, EventArgs e)
     {
         if (!ValidateMdbPath()) return;
-        SetBusy(pbDirect, btnDirectPreview, btnDirectImport, lblDirectStatus, "Reading from device file...");
+        SetBusy(pbDirect, btnDirectPreview, btnDirectImport, lblDirectStatus, "Reading Enroll table...");
         try
         {
-            var punches = await Task.Run(() =>
-                _importService.ImportFromAccessFileAsync(txtMdbPath.Text,
-                    dtpDirectFrom.Value.Date, dtpDirectTo.Value.Date));
             // Use preview only — don't save; re-read raw data for grid
-            var preview = await _importService.PreviewFileAsync(txtMdbPath.Text);
-            BindGrid(dgvDirectPreview, preview);
-            lblDirectStatus.Text = $"{preview.Count} records read from device file.";
+            var enrollments = await _importService.ReadEnrollTableAsync(txtMdbPath.Text);
+
+            // Filter out binary/image columns that cannot be displayed in DataGridView
+            var filteredTable = FilterBinaryColumns(enrollments);
+
+            dgvDirectPreview.DataSource = filteredTable;
+            lblDirectStatus.Text = $"{filteredTable.Rows.Count} records read from the Enroll table.";
         }
         catch (Exception ex) { ShowError(ex.Message); }
         finally { SetIdle(pbDirect, btnDirectPreview, btnDirectImport); }
@@ -343,6 +345,44 @@ public class BiometricImportForm : Form
     private void ShowError(string message) =>
         MessageBox.Show(message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
 
+    private static DataTable FilterBinaryColumns(DataTable table)
+    {
+        // Create a new DataTable with only displayable columns
+        var filtered = new DataTable();
+
+        foreach (DataColumn column in table.Columns)
+        {
+            // Skip binary/image columns
+            if (column.DataType == typeof(byte[]))
+                continue;
+
+            // Skip columns with common binary/template names
+            if (column.ColumnName.Contains("Template", StringComparison.OrdinalIgnoreCase) ||
+                column.ColumnName.Contains("Features", StringComparison.OrdinalIgnoreCase) ||
+                column.ColumnName.Contains("Image", StringComparison.OrdinalIgnoreCase) ||
+                column.ColumnName.Contains("Fingerprint", StringComparison.OrdinalIgnoreCase) ||
+                column.ColumnName.Contains("Photo", StringComparison.OrdinalIgnoreCase) ||
+                column.ColumnName.Contains("Duress", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            // Add the column to filtered table
+            filtered.Columns.Add(column.ColumnName, column.DataType);
+        }
+
+        // Copy rows with only the filtered columns
+        foreach (DataRow row in table.Rows)
+        {
+            var newRow = filtered.NewRow();
+            foreach (DataColumn column in filtered.Columns)
+            {
+                newRow[column.ColumnName] = row[column.ColumnName];
+            }
+            filtered.Rows.Add(newRow);
+        }
+
+        return filtered;
+    }
+
     private static void BindGrid(DataGridView grid, List<BiometricPunchDto> punches)
     {
         grid.DataSource = punches.Select(p => new
@@ -407,6 +447,14 @@ public class BiometricImportForm : Form
         grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
         grid.ColumnHeadersDefaultCellStyle.Font      = new Font("Segoe UI", 9f, FontStyle.Bold);
         grid.EnableHeadersVisualStyles               = false;
+
+        // Handle DataError events to prevent displaying errors for binary/unsupported columns
+        grid.DataError += (sender, e) =>
+        {
+            // Suppress the error dialog and continue
+            e.ThrowException = false;
+        };
+
         return grid;
     }
 }

@@ -153,6 +153,9 @@ public interface IReportService
 /// <summary>Biometric device data import service contract.</summary>
 public interface IBiometricImportService
 {
+    /// <summary>Read the biometric device's Enroll table without changing the device database.</summary>
+    Task<System.Data.DataTable> ReadEnrollTableAsync(string mdbFilePath);
+
     /// <summary>Import punches directly from a ZKTeco/Access MDB file or ODBC source.</summary>
     Task<BiometricImportResultDto> ImportFromAccessFileAsync(string mdbFilePath, DateTime fromDate, DateTime toDate);
 
@@ -161,4 +164,7 @@ public interface IBiometricImportService
 
     /// <summary>Parse raw punch rows and return preview without saving.</summary>
     Task<List<BiometricPunchDto>> PreviewFileAsync(string filePath);
+
+    /// <summary>Read raw punch rows from an Access database without saving them.</summary>
+    Task<List<BiometricPunchDto>> PreviewAccessFileAsync(string mdbFilePath, DateTime fromDate, DateTime toDate);
 }

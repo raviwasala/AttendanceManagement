@@ -65,6 +65,10 @@ public class BiometricImportService : IBiometricImportService
         });
     }
 
+    public Task<List<BiometricPunchDto>> PreviewAccessFileAsync(
+        string mdbFilePath, DateTime fromDate, DateTime toDate) =>
+        ReadFromAccessAsync(mdbFilePath, fromDate, toDate);
+
     // ──────────────────────────────────────────────────────────────────
     // CORE PROCESSING
     // ──────────────────────────────────────────────────────────────────
@@ -159,7 +163,7 @@ public class BiometricImportService : IBiometricImportService
 
     /// <summary>
     /// Reads punch records directly from a ZKTeco-style MS Access .mdb file.
-    /// Typical table: CHECKINOUT  Columns: USERID (=EnrollId), CHECKTIME
+    /// A punch table must contain both an enrollment ID and a punch date/time.
     /// </summary>
     private static async Task<List<BiometricPunchDto>> ReadFromAccessAsync(
         string mdbFilePath, DateTime fromDate, DateTime toDate)
@@ -198,17 +202,38 @@ public class BiometricImportService : IBiometricImportService
 
         // Discover table name — ZKTeco uses CHECKINOUT or Att_log
         var tables = conn.GetSchema("Tables");
-        string tableName = "CHECKINOUT";
-        foreach (DataRow row in tables.Rows)
+        var tableNames = tables.AsEnumerable()
+            .Where(row => string.Equals(row["TABLE_TYPE"]?.ToString(), "TABLE", StringComparison.OrdinalIgnoreCase))
+            .Select(row => row["TABLE_NAME"]?.ToString())
+            .Where(name => !string.IsNullOrWhiteSpace(name) && !name.StartsWith("MSys", StringComparison.OrdinalIgnoreCase))
+            .Cast<string>()
+            .ToList();
+
+        // Never use Enroll as a fallback: it only stores employee/template data.
+        string? tableName = tableNames.FirstOrDefault(name =>
+            name.Equals("CHECKINOUT", StringComparison.OrdinalIgnoreCase) ||
+            name.Equals("Att_log", StringComparison.OrdinalIgnoreCase) ||
+            name.Equals("AttendanceLogs", StringComparison.OrdinalIgnoreCase));
+
+        // Some devices use a different table name, so identify it by its columns.
+        tableName ??= tableNames.FirstOrDefault(name =>
         {
-            var name = row["TABLE_NAME"].ToString() ?? "";
-            if (name.Equals("CHECKINOUT", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("Att_log", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("AttendanceLogs", StringComparison.OrdinalIgnoreCase))
-            {
-                tableName = name;
-                break;
-            }
+            var tableColumns = conn.GetSchema("Columns", new[] { null, null, name, null })
+                .AsEnumerable()
+                .Select(row => row["COLUMN_NAME"]?.ToString() ?? string.Empty)
+                .ToList();
+
+            return HasColumn(tableColumns, "USERID", "EnrollId", "EmpNo") &&
+                   HasColumn(tableColumns, "CHECKTIME", "PunchTime", "DateTime");
+        });
+
+        if (tableName is null)
+        {
+            var availableTables = tableNames.Count == 0 ? "none" : string.Join(", ", tableNames);
+            throw new InvalidOperationException(
+                "No attendance-log table was found in the Access file. " +
+                $"Available tables: {availableTables}. The 'Enroll' table contains biometric enrollment/template data, " +
+                "not attendance punches, because it has no CHECKTIME (or equivalent) column.");
         }
 
         // Try to detect column names
@@ -216,7 +241,7 @@ public class BiometricImportService : IBiometricImportService
         string timeCol  = "CHECKTIME";
         string nameCol  = "";
         var cols = conn.GetSchema("Columns", new[] { null, null, tableName, null });
-        var colNames = cols.AsEnumerable().Select(r => r["COLUMN_NAME"].ToString()!).ToList();
+        var colNames = cols.AsEnumerable().Select(r => r["COLUMN_NAME"]?.ToString() ?? string.Empty).ToList();
         userCol = colNames.FirstOrDefault(c =>
             c.Equals("USERID", StringComparison.OrdinalIgnoreCase) ||
             c.Equals("EnrollId", StringComparison.OrdinalIgnoreCase) ||
@@ -229,11 +254,20 @@ public class BiometricImportService : IBiometricImportService
             c.Equals("EmpName", StringComparison.OrdinalIgnoreCase) ||
             c.Equals("Name", StringComparison.OrdinalIgnoreCase)) ?? "";
 
+        if (!colNames.Contains(userCol, StringComparer.OrdinalIgnoreCase) ||
+            !colNames.Contains(timeCol, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Attendance table '{tableName}' must contain an enrollment ID and a punch date/time column.");
+        }
+
         string nameSelect = nameCol.Length > 0 ? $", [{nameCol}]" : "";
         string sql = $"SELECT [{userCol}], [{timeCol}]{nameSelect} FROM [{tableName}] " +
-                     $"WHERE [{timeCol}] >= #{fromDate:MM/dd/yyyy}# AND [{timeCol}] <= #{toDate.AddDays(1):MM/dd/yyyy}#";
+                     $"WHERE [{timeCol}] >= ? AND [{timeCol}] < ?";
 
         using var cmd = new OleDbCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@fromDate", fromDate.Date);
+        cmd.Parameters.AddWithValue("@toDateExclusive", toDate.Date.AddDays(1));
         using var reader = await cmd.ExecuteReaderAsync();
 
         while (await reader.ReadAsync())
@@ -252,6 +286,58 @@ public class BiometricImportService : IBiometricImportService
 
         return punches;
     }
+
+    /// <summary>Reads all Enroll-table fields for display only; it never writes to the Access file.</summary>
+    public async Task<DataTable> ReadEnrollTableAsync(string mdbFilePath)
+    {
+        string[] providers =
+        [
+            "Microsoft.ACE.OLEDB.16.0",
+            "Microsoft.ACE.OLEDB.12.0",
+            "Microsoft.Jet.OLEDB.4.0"
+        ];
+
+        OleDbConnection? connection = null;
+        foreach (var provider in providers)
+        {
+            try
+            {
+                connection = new OleDbConnection($"Provider={provider};Data Source={mdbFilePath};");
+                await connection.OpenAsync();
+                break;
+            }
+            catch
+            {
+                connection?.Dispose();
+                connection = null;
+            }
+        }
+
+        if (connection is null)
+            throw new InvalidOperationException(
+                "Cannot connect to the Access file. Install Microsoft Access Database Engine (64-bit) from Microsoft.");
+
+        using (connection)
+        {
+            var tableName = connection.GetSchema("Tables").AsEnumerable()
+                .Where(row => string.Equals(row["TABLE_TYPE"]?.ToString(), "TABLE", StringComparison.OrdinalIgnoreCase))
+                .Select(row => row["TABLE_NAME"]?.ToString())
+                .FirstOrDefault(name => string.Equals(name, "Enroll", StringComparison.OrdinalIgnoreCase));
+
+            if (string.IsNullOrWhiteSpace(tableName))
+                throw new InvalidOperationException("The selected Access database does not contain an 'Enroll' table.");
+
+            using var command = new OleDbCommand($"SELECT * FROM [{tableName}]", connection);
+            using var reader = await command.ExecuteReaderAsync();
+            var enrollments = new DataTable(tableName);
+            enrollments.Load(reader);
+            return enrollments;
+        }
+    }
+
+    private static bool HasColumn(IEnumerable<string> columns, params string[] candidates) =>
+        columns.Any(column => candidates.Any(candidate =>
+            column.Equals(candidate, StringComparison.OrdinalIgnoreCase)));
 
     /// <summary>
     /// Reads punch records from an Excel file (.xlsx).
