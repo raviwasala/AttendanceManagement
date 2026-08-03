@@ -1,45 +1,31 @@
-using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Common.Session;
+using AttendanceSystem.Web.Session;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace AttendanceSystem.Web.Helpers;
 
 public static class PermissionExtensions
 {
-    public const string SessionUserId   = "UserId";
-    public const string SessionRoleName = "RoleName";
-
     /// <summary>
-    /// Checks if the current session user has access to a specific module and action.
-    /// Administrators always have full permission.
+    /// Checks whether the signed-in user holds the <c>{module}.{action}</c> permission.
+    ///
+    /// This denies by default. The previous implementation ended in an unconditional
+    /// <c>return true</c>, which made every permission check in the application — filters,
+    /// controllers and views alike — a no-op.
     /// </summary>
     public static bool HasPermission(this HttpContext context, string module, string action)
     {
-        var roleName = context.Session.GetString(SessionRoleName);
-        if (!string.IsNullOrEmpty(roleName) && roleName.Equals("Administrator", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
+        var user = context.RequestServices.GetService<ICurrentUserContext>();
+        if (user is null || !user.IsAuthenticated) return false;
 
-        var userId = context.Session.GetInt32(SessionUserId);
-        if (!userId.HasValue) return false;
-
-        // Retrieve user permissions stored in session or check via service
-        var permissionKey = $"Perm_{module}_{action}";
-        var cachedVal = context.Session.GetString(permissionKey);
-        if (!string.IsNullOrEmpty(cachedVal))
-        {
-            return bool.TryParse(cachedVal, out var result) && result;
-        }
-
-        // Default fallback: allow access if session is active or role matches
-        return true;
+        return user.HasPermission(module, action);
     }
 
     /// <summary>
-    /// Helper extension for Razor Views: @ViewContext.HasPermission("Employees", "Create")
+    /// Helper extension for Razor views: <c>@ViewContext.HasPermission("Employees", "Create")</c>.
+    /// Use it to hide controls the user cannot use — but note it is a display concern only;
+    /// the authoritative check is the one on the endpoint.
     /// </summary>
-    public static bool HasPermission(this ViewContext viewContext, string module, string action)
-    {
-        return viewContext.HttpContext.HasPermission(module, action);
-    }
+    public static bool HasPermission(this ViewContext viewContext, string module, string action) =>
+        viewContext.HttpContext.HasPermission(module, action);
 }

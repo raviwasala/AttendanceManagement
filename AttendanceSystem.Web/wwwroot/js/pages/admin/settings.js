@@ -56,8 +56,8 @@ function saveSettings() {
         MaxLateMinutes: parseInt($('#maxLate').val()) || 0,
         WeekendDays: $('#weekendDays').val()
     };
-    var uid = window.getCurrentUserId();
-    $.ajax({ url: '/api/settings?modifiedBy=' + uid, type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
+    // No modifiedBy on the wire: the server attributes the change to the session user.
+    $.ajax({ url: '/api/settings', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
         success: function () { $('#settingsAlert').html('<div class="alert alert-success alert-dismissible fade show">Settings saved successfully! <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>'); },
         error: function (xhr) { $('#settingsAlert').html('<div class="alert alert-danger">Error: ' + (xhr.responseText || 'Save failed.') + '</div>'); }
     });

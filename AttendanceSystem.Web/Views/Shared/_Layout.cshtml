@@ -10,6 +10,16 @@
 
     string NavSection(string c) =>
         controller.Equals(c, StringComparison.OrdinalIgnoreCase) ? "pcoded-trigger" : "";
+
+    // Helper: true when the signed-in user may view the given module. Used to hide menu
+    // entries that would only lead to an Access Denied page. This is presentation only —
+    // the binding check lives on the controller action, not here.
+    bool CanView(string module) =>
+        ViewContext.HasPermission(module, AttendanceSystem.Common.Constants.AppConstants.Actions.View);
+
+    // True when at least one module in a sidebar group is visible. Used to drop the whole
+    // group — heading included — rather than leaving a bare heading over an empty list.
+    bool CanViewAny(params string[] modules) => modules.Any(CanView);
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -39,7 +49,7 @@
     @RenderSection("Styles", required: false)
 </head>
 
-<body data-user-id="@(Context.Session.GetInt32("UserId") ?? 1)">
+<body>
     <!-- Pre-loader start -->
     <div class="theme-loader">
         <div class="ball-scale">
@@ -179,11 +189,14 @@
                                                 <i class="feather icon-user"></i> My Profile
                                             </a>
                                         </li>
-                                        <li>
-                                            <a asp-controller="Admin" asp-action="Settings">
-                                                <i class="feather icon-settings"></i> Settings
-                                            </a>
-                                        </li>
+                                        @if (CanView(AppConstants.Modules.Settings))
+                                        {
+                                            <li>
+                                                <a asp-controller="Admin" asp-action="Settings">
+                                                    <i class="feather icon-settings"></i> Settings
+                                                </a>
+                                            </li>
+                                        }
                                         <li>
                                             <a href="#" id="logoutTrigger" style="color:#fe5d70 !important;">
                                                 <i class="feather icon-log-out"></i> Logout
@@ -215,146 +228,209 @@
                         <div class="pcoded-inner-navbar main-menu">
 
                             <!-- ── MAIN ─────────────────────────────── -->
+                            @if (CanViewAny(AppConstants.Modules.Dashboard))
+                            {
                             <div class="pcoded-navigatio-lavel">Main</div>
                             <ul class="pcoded-item pcoded-left-item">
 
-                                <!-- Dashboard -->
+                                @* Items are emitted conditionally rather than hidden with the `hidden`
+                                   attribute: the theme's `.pcoded-item>li{display:block}` is an author
+                                   rule and beats the browser's `[hidden]{display:none}`, so a hidden
+                                   item would still be visible. *@
+                                @if (CanView(AppConstants.Modules.Dashboard))
+                                {
                                 <li class="@Nav("Admin","Index")">
                                     <a asp-controller="Admin" asp-action="Index">
                                         <span class="pcoded-micon"><i class="feather icon-home"></i></span>
                                         <span class="pcoded-mtext">Dashboard</span>
                                     </a>
                                 </li>
+                                }
 
                             </ul>
+                            }
 
                             <!-- ── EMPLOYEE MANAGEMENT ───────────────── -->
+                            @if (CanViewAny(AppConstants.Modules.Departments, AppConstants.Modules.Designations,
+                                            AppConstants.Modules.Branches, AppConstants.Modules.Shifts,
+                                            AppConstants.Modules.Employees))
+                            {
                             <div class="pcoded-navigatio-lavel">Employee Management</div>
                             <ul class="pcoded-item pcoded-left-item">
 
                                 <!-- Departments -->
+                                @if (CanView(AppConstants.Modules.Departments))
+                                {
                                 <li class="@Nav("Admin","Departments")">
                                     <a asp-controller="Admin" asp-action="Departments">
                                         <span class="pcoded-micon"><i class="feather icon-layers"></i></span>
                                         <span class="pcoded-mtext">Departments</span>
                                     </a>
                                 </li>
+                                }
 
                                 <!-- Designations -->
+                                @if (CanView(AppConstants.Modules.Designations))
+                                {
                                 <li class="@Nav("Admin","Designations")">
                                     <a asp-controller="Admin" asp-action="Designations">
                                         <span class="pcoded-micon"><i class="feather icon-award"></i></span>
                                         <span class="pcoded-mtext">Designations</span>
                                     </a>
                                 </li>
+                                }
 
                                 <!-- Branches -->
+                                @if (CanView(AppConstants.Modules.Branches))
+                                {
                                 <li class="@Nav("Admin","Branches")">
                                     <a asp-controller="Admin" asp-action="Branches">
                                         <span class="pcoded-micon"><i class="feather icon-map-pin"></i></span>
                                         <span class="pcoded-mtext">Branches</span>
                                     </a>
                                 </li>
+                                }
 
                                 <!-- Shifts -->
+                                @if (CanView(AppConstants.Modules.Shifts))
+                                {
                                 <li class="@Nav("Admin","Shifts")">
                                     <a asp-controller="Admin" asp-action="Shifts">
                                         <span class="pcoded-micon"><i class="feather icon-clock"></i></span>
                                         <span class="pcoded-mtext">Shifts</span>
                                     </a>
                                 </li>
+                                }
 
                                 <!-- Employees -->
+                                @if (CanView(AppConstants.Modules.Employees))
+                                {
                                 <li class="@Nav("Admin","Employees")">
                                     <a asp-controller="Admin" asp-action="Employees">
                                         <span class="pcoded-micon"><i class="feather icon-users"></i></span>
                                         <span class="pcoded-mtext">Employees</span>
                                     </a>
                                 </li>
+                                }
 
                             </ul>
+                            }
 
                             <!-- ── ATTENDANCE & LEAVE ───────────────────── -->
+                            @if (CanViewAny(AppConstants.Modules.Attendance, AppConstants.Modules.Leave,
+                                            AppConstants.Modules.Holidays, AppConstants.Modules.Import))
+                            {
                             <div class="pcoded-navigatio-lavel">Attendance &amp; Leave</div>
                             <ul class="pcoded-item pcoded-left-item">
 
                                 <!-- Attendance Records -->
+                                @if (CanView(AppConstants.Modules.Attendance))
+                                {
                                 <li class="@Nav("Admin","Attendance")">
                                     <a asp-controller="Admin" asp-action="Attendance">
                                         <span class="pcoded-micon"><i class="feather icon-check-circle"></i></span>
                                         <span class="pcoded-mtext">Attendance Records</span>
                                     </a>
                                 </li>
+                                }
 
                                 <!-- Leave Management -->
+                                @if (CanView(AppConstants.Modules.Leave))
+                                {
                                 <li class="@Nav("Admin","Leave")">
                                     <a asp-controller="Admin" asp-action="Leave">
                                         <span class="pcoded-micon"><i class="feather icon-calendar"></i></span>
                                         <span class="pcoded-mtext">Leave Management</span>
                                     </a>
                                 </li>
+                                }
 
                                 <!-- Holidays -->
+                                @if (CanView(AppConstants.Modules.Holidays))
+                                {
                                 <li class="@Nav("Admin","Holidays")">
                                     <a asp-controller="Admin" asp-action="Holidays">
                                         <span class="pcoded-micon"><i class="feather icon-flag"></i></span>
                                         <span class="pcoded-mtext">Holidays</span>
                                     </a>
                                 </li>
+                                }
 
                                 <!-- Biometric Import -->
+                                @if (CanView(AppConstants.Modules.Import))
+                                {
                                 <li class="@Nav("Admin","Import")">
                                     <a asp-controller="Admin" asp-action="Import">
                                         <span class="pcoded-micon"><i class="feather icon-upload"></i></span>
                                         <span class="pcoded-mtext">Biometric Import</span>
                                     </a>
                                 </li>
+                                }
 
                             </ul>
+                            }
 
                             <!-- ── USER ACCESS & SECURITY ───────────────── -->
+                            @if (CanViewAny(AppConstants.Modules.Users, AppConstants.Modules.Roles))
+                            {
                             <div class="pcoded-navigatio-lavel">User Access &amp; Security</div>
                             <ul class="pcoded-item pcoded-left-item">
 
                                 <!-- Users (system users) -->
+                                @if (CanView(AppConstants.Modules.Users))
+                                {
                                 <li class="@Nav("Admin","Users")">
                                     <a asp-controller="Admin" asp-action="Users">
                                         <span class="pcoded-micon"><i class="feather icon-user-check"></i></span>
                                         <span class="pcoded-mtext">System Users</span>
                                     </a>
                                 </li>
+                                }
 
                                 <!-- Roles & Access Permissions -->
+                                @if (CanView(AppConstants.Modules.Roles))
+                                {
                                 <li class="@Nav("Admin","Roles")">
                                     <a asp-controller="Admin" asp-action="Roles">
                                         <span class="pcoded-micon"><i class="feather icon-shield"></i></span>
                                         <span class="pcoded-mtext">Role &amp; Access Control</span>
                                     </a>
                                 </li>
+                                }
 
                             </ul>
+                            }
 
                             <!-- ── REPORTS & SETTINGS ────────────────── -->
+                            @if (CanViewAny(AppConstants.Modules.Reports, AppConstants.Modules.Settings))
+                            {
                             <div class="pcoded-navigatio-lavel">Reports &amp; Config</div>
                             <ul class="pcoded-item pcoded-left-item">
 
                                 <!-- Reports -->
+                                @if (CanView(AppConstants.Modules.Reports))
+                                {
                                 <li class="@Nav("Admin","Reports")">
                                     <a asp-controller="Admin" asp-action="Reports">
                                         <span class="pcoded-micon"><i class="feather icon-bar-chart-2"></i></span>
                                         <span class="pcoded-mtext">Reports</span>
                                     </a>
                                 </li>
+                                }
 
                                 <!-- Settings -->
+                                @if (CanView(AppConstants.Modules.Settings))
+                                {
                                 <li class="@Nav("Admin","Settings")">
                                     <a asp-controller="Admin" asp-action="Settings">
                                         <span class="pcoded-micon"><i class="feather icon-settings"></i></span>
                                         <span class="pcoded-mtext">Settings</span>
                                     </a>
                                 </li>
+                                }
 
                             </ul>
+                            }
 
                         </div>
                     </nav>

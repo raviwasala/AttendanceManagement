@@ -1,19 +1,21 @@
-using AttendanceSystem.Application.DTOs;
+﻿using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Web.Filters;
+using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
+using Actions = AttendanceSystem.Common.Constants.AppConstants.Actions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/holidays")]
-[ApiController]
 [SessionAuthorize]
-public class HolidaysApiController : ControllerBase
+public class HolidaysApiController : ApiControllerBase
 {
     private readonly IHolidayService _svc;
     public HolidaysApiController(IHolidayService svc) => _svc = svc;
 
     [HttpGet]
+    [SessionAuthorize(Modules.Holidays, Actions.View)]
     public async Task<IActionResult> GetAll()
     {
         var r = await _svc.GetAllAsync();
@@ -21,6 +23,7 @@ public class HolidaysApiController : ControllerBase
     }
 
     [HttpGet("year/{year}")]
+    [SessionAuthorize(Modules.Holidays, Actions.View)]
     public async Task<IActionResult> GetByYear(int year)
     {
         var r = await _svc.GetByYearAsync(year);
@@ -28,6 +31,7 @@ public class HolidaysApiController : ControllerBase
     }
 
     [HttpPost]
+    [SessionAuthorize(Modules.Holidays, Actions.Edit)]
     public async Task<IActionResult> Save([FromBody] SaveHolidayDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -36,10 +40,10 @@ public class HolidaysApiController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [SessionAuthorize(Modules.Holidays, Actions.Delete)]
     public async Task<IActionResult> Delete(int id)
     {
-        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
-        var r = await _svc.DeleteAsync(id, currentUserId);
+        var r = await _svc.DeleteAsync(id, CurrentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 }

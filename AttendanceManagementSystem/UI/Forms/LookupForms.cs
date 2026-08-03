@@ -2,7 +2,7 @@ using AttendanceManagementSystem.UI.Controls;
 using AttendanceManagementSystem.UI.Theme;
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
-using AttendanceSystem.Common.Session;
+using AttendanceManagementSystem.Session;
 
 namespace AttendanceManagementSystem.UI.Forms;
 
@@ -67,7 +67,7 @@ public class DesignationForm : Form
         if (_grid.SelectedRows.Count == 0) return;
         var s = (DesignationDto)_grid.SelectedRows[0].DataBoundItem;
         if (MessageBox.Show($"Delete '{s.Name}'?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-        var r = await _service.DeleteAsync(s.Id, AppSession.UserId);
+        var r = await _service.DeleteAsync(s.Id, DesktopSession.UserId);
         if (r.IsSuccess) await LoadAsync();
         else MessageBox.Show(r.ErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
@@ -157,7 +157,7 @@ public class BranchForm : Form
         if (_grid.SelectedRows.Count == 0) return;
         var s = (BranchDto)_grid.SelectedRows[0].DataBoundItem;
         if (MessageBox.Show($"Delete '{s.Name}'?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-        var r = await _service.DeleteAsync(s.Id, AppSession.UserId);
+        var r = await _service.DeleteAsync(s.Id, DesktopSession.UserId);
         if (r.IsSuccess) await LoadAsync();
         else MessageBox.Show(r.ErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }

@@ -3,7 +3,7 @@ using AttendanceManagementSystem.UI.Theme;
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Common.Models;
-using AttendanceSystem.Common.Session;
+using AttendanceManagementSystem.Session;
 
 namespace AttendanceManagementSystem.UI.Forms;
 
@@ -91,7 +91,7 @@ public class SettingsForm : Form
             WeekendDays   = _txtWeekend.Value.Trim(),
             MaxLateMinutes = (int)_nudLate.Value
         };
-        var r = await _settingsService.SaveAsync(dto, AppSession.UserId);
+        var r = await _settingsService.SaveAsync(dto, DesktopSession.UserId);
         if (r.IsSuccess) MessageBox.Show("Settings saved successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
         else MessageBox.Show(r.ErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
@@ -181,7 +181,7 @@ public class ChangePasswordForm : Form
         _txtCurrent.ClearError(); _txtNew.ClearError(); _txtConfirm.ClearError();
         if (string.IsNullOrWhiteSpace(_txtCurrent.Value)) { _txtCurrent.ShowError("Required"); return; }
         if (_txtNew.Value != _txtConfirm.Value) { _txtConfirm.ShowError("Passwords do not match."); return; }
-        var r = await _authService.ChangePasswordAsync(AppSession.UserId, new(
+        var r = await _authService.ChangePasswordAsync(DesktopSession.UserId, new(
             _txtCurrent.Value, _txtNew.Value, _txtConfirm.Value));
         if (r.IsSuccess)
         {

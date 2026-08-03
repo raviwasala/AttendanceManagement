@@ -4,6 +4,7 @@ using AttendanceSystem.Common.Exceptions;
 using AttendanceSystem.Common.Logging;
 using AttendanceSystem.Infrastructure;
 using AttendanceManagementSystem.UI.Forms;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -18,9 +19,14 @@ internal static class Program
     {
         ApplicationConfiguration.Initialize();
 
+        // Later sources win. appsettings.json holds non-secret defaults only; the
+        // connection string and any other credentials come from user-secrets during
+        // development and from ATTENDANCE_-prefixed environment variables when deployed.
         var config = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+            .AddUserSecrets(System.Reflection.Assembly.GetExecutingAssembly(), optional: true)
+            .AddEnvironmentVariables("ATTENDANCE_")
             .Build();
 
         AppConfiguration.Initialize(config);
@@ -38,6 +44,13 @@ internal static class Program
 
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(config);
+
+        // The desktop client serves exactly one user, so the current-user context is a
+        // singleton backed by DesktopSession. The web host registers a per-request
+        // implementation instead — see AttendanceSystem.Web/Session.
+        services.AddSingleton<AttendanceSystem.Common.Session.ICurrentUserContext,
+                              AttendanceManagementSystem.Session.DesktopUserContext>();
+
         services.AddInfrastructure(config);
         services.AddApplication();
 
@@ -73,13 +86,14 @@ internal static class Program
             {
                 var ctx = scope.ServiceProvider
                     .GetRequiredService<AttendanceSystem.Infrastructure.Data.AttendanceDbContext>();
-                ctx.Database.EnsureCreated();
-                AppLogger.Info("Database initialised.");
+                // See the note in AttendanceSystem.Web/Program.cs — Migrate(), not EnsureCreated().
+                ctx.Database.Migrate();
+                AppLogger.Info("Database migrated to the latest version.");
             }
             catch (Exception ex)
             {
-                AppLogger.Fatal("Database initialisation failed.", ex);
-                MessageBox.Show($"Database connection failed:\n\n{ex.Message}\n\nCheck connection string in appsettings.json.",
+                AppLogger.Fatal("Database migration failed.", ex);
+                MessageBox.Show($"Database connection failed:\n\n{ex.Message}\n\nCheck that the connection string is configured (see README).",
                     "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }

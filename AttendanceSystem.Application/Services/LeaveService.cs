@@ -14,7 +14,8 @@ public class LeaveService : ILeaveService
 {
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
-    public LeaveService(IUnitOfWork uow, IAuditService audit) { _uow = uow; _audit = audit; }
+    private readonly ICurrentUserContext _currentUser;
+    public LeaveService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser) { _uow = uow; _audit = audit; _currentUser = currentUser; }
 
     // ── Leave Types ────────────────────────────────────────────────────────────
     public async Task<Result<IEnumerable<LeaveTypeDto>>> GetLeaveTypesAsync()
@@ -38,7 +39,7 @@ public class LeaveService : ILeaveService
 
             if (dto.Id == 0)
             {
-                var entity = new LeaveType { Name = dto.Name.Trim(), TotalDays = dto.TotalDays, IsPaid = dto.IsPaid, IsActive = dto.IsActive, CreatedBy = AppSession.UserId, CreatedAt = DateTime.Now };
+                var entity = new LeaveType { Name = dto.Name.Trim(), TotalDays = dto.TotalDays, IsPaid = dto.IsPaid, IsActive = dto.IsActive, CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now };
                 await _uow.LeaveTypes.AddAsync(entity);
                 await _uow.SaveChangesAsync();
                 return Result<LeaveTypeDto>.Success(MapType(entity));
@@ -49,7 +50,7 @@ public class LeaveService : ILeaveService
                 if (entity == null) return Result<LeaveTypeDto>.Failure("Leave type not found.");
                 entity.Name = dto.Name.Trim(); entity.TotalDays = dto.TotalDays;
                 entity.IsPaid = dto.IsPaid; entity.IsActive = dto.IsActive;
-                entity.ModifiedBy = AppSession.UserId; entity.ModifiedAt = DateTime.Now;
+                entity.ModifiedBy = _currentUser.UserId; entity.ModifiedAt = DateTime.Now;
                 await _uow.LeaveTypes.UpdateAsync(entity);
                 await _uow.SaveChangesAsync();
                 return Result<LeaveTypeDto>.Success(MapType(entity));
@@ -66,7 +67,7 @@ public class LeaveService : ILeaveService
             if (requests.Any()) return Result.Failure("Cannot delete — leave requests reference this type.");
             var entity = await _uow.LeaveTypes.GetByIdAsync(id);
             if (entity == null) return Result.Failure("Not found.");
-            entity.IsDeleted = true; entity.ModifiedBy = AppSession.UserId; entity.ModifiedAt = DateTime.Now;
+            entity.IsDeleted = true; entity.ModifiedBy = _currentUser.UserId; entity.ModifiedAt = DateTime.Now;
             await _uow.LeaveTypes.UpdateAsync(entity);
             await _uow.SaveChangesAsync();
             return Result.Success();
@@ -127,11 +128,11 @@ public class LeaveService : ILeaveService
                 EmployeeId = dto.EmployeeId, LeaveTypeId = dto.LeaveTypeId,
                 FromDate = dto.FromDate, ToDate = dto.ToDate, TotalDays = totalDays,
                 Reason = dto.Reason, Status = LeaveStatus.Pending,
-                CreatedBy = AppSession.UserId, CreatedAt = DateTime.Now
+                CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now
             };
             await _uow.Leaves.AddAsync(entity);
             await _uow.SaveChangesAsync();
-            await _audit.LogAsync("Leave", "Apply", AppSession.UserId, "LeaveRequest", entity.Id);
+            await _audit.LogAsync("Leave", "Apply", _currentUser.UserId, "LeaveRequest", entity.Id);
 
             var result = await _uow.Leaves.GetByIdAsync(entity.Id);
             return Result<LeaveRequestDto>.Success(MapRequest(result!));

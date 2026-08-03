@@ -234,30 +234,72 @@ a:hover { color: var(--ams-primary-d); }
   border-top: none !important;
 }
 
-/* ── UI Framework Glassmorphism & Card Enhancements ── */
-.card-stat-widget {
+/* ── Dashboard stat tiles ───────────────────────────────────────────────────
+   Layout only. The gradient itself comes from the theme's .bg-c-* classes, so
+   the tiles follow the template's palette instead of a second one defined here. */
+.stat-card {
   border: none !important;
-  border-radius: 12px !important;
-  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.05) !important;
-  transition: transform 0.25s ease, box-shadow 0.25s ease !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 10px 0 rgba(0, 0, 0, 0.06) !important;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
   overflow: hidden;
 }
-.card-stat-widget:hover {
-  transform: translateY(-3px) !important;
-  box-shadow: 0 8px 25px 0 rgba(0, 0, 0, 0.1) !important;
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 22px 0 rgba(0, 0, 0, 0.12) !important;
 }
 
-.gradient-primary {
-  background: linear-gradient(135deg, #01a9ac 0%, #018587 100%) !important;
+.stat-card-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.35rem 1.5rem !important;
 }
-.gradient-success {
-  background: linear-gradient(135deg, #0ac282 0%, #089d69 100%) !important;
+
+.stat-card-text {
+  min-width: 0; /* lets long labels ellipsize instead of pushing the icon out */
 }
-.gradient-danger {
-  background: linear-gradient(135deg, #fe5d70 0%, #e03e52 100%) !important;
+
+.stat-card-label {
+  margin: 0 0 0.35rem;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.gradient-warning {
-  background: linear-gradient(135deg, #fe9365 0%, #f47640 100%) !important;
+
+.stat-card-value {
+  margin: 0;
+  color: #fff;
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.stat-card-icon {
+  flex-shrink: 0;
+  font-size: 2.75rem;
+  line-height: 1;
+  color: #fff;
+  opacity: 0.45; /* watermark, not a focal point — the number is the message */
+}
+
+@media (max-width: 575.98px) {
+  .stat-card-value { font-size: 1.5rem; }
+  .stat-card-icon  { font-size: 2.25rem; }
+}
+
+/* The theme ships .bg-c-* only in the gradient set used above; these two extend
+   the same left-to-right treatment for tiles added later. */
+.bg-c-purple {
+  background: linear-gradient(to right, #7759de, #9d88f2) !important;
+}
+.bg-c-grey {
+  background: linear-gradient(to right, #64707d, #8a97a5) !important;
 }
 
 /* Soft Badges */

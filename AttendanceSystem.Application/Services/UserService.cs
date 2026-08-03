@@ -14,7 +14,8 @@ public class UserService : IUserService
 {
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
-    public UserService(IUnitOfWork uow, IAuditService audit) { _uow = uow; _audit = audit; }
+    private readonly ICurrentUserContext _currentUser;
+    public UserService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser) { _uow = uow; _audit = audit; _currentUser = currentUser; }
 
     public async Task<Result<IEnumerable<UserDto>>> GetAllAsync()
     {
@@ -55,11 +56,11 @@ public class UserService : IUserService
                 RoleId = dto.RoleId,
                 EmployeeId = dto.EmployeeId,
                 IsActive = dto.IsActive,
-                CreatedBy = AppSession.UserId, CreatedAt = DateTime.Now
+                CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now
             };
             await _uow.Users.AddAsync(user);
             await _uow.SaveChangesAsync();
-            await _audit.LogAsync("Users", "Create", AppSession.UserId, "User", user.Id);
+            await _audit.LogAsync("Users", "Create", _currentUser.UserId, "User", user.Id);
             return Result<UserDto>.Success(Map(user));
         }
         catch (Exception ex) { AppLogger.Error("UserService.CreateAsync", ex); return Result<UserDto>.Failure(ex.Message); }
@@ -73,10 +74,10 @@ public class UserService : IUserService
             if (user == null) return Result.Failure("User not found.");
             user.Email = dto.Email.Trim(); user.FullName = dto.FullName.Trim();
             user.RoleId = dto.RoleId; user.EmployeeId = dto.EmployeeId; user.IsActive = dto.IsActive;
-            user.ModifiedBy = AppSession.UserId; user.ModifiedAt = DateTime.Now;
+            user.ModifiedBy = _currentUser.UserId; user.ModifiedAt = DateTime.Now;
             await _uow.Users.UpdateAsync(user);
             await _uow.SaveChangesAsync();
-            await _audit.LogAsync("Users", "Update", AppSession.UserId, "User", dto.Id);
+            await _audit.LogAsync("Users", "Update", _currentUser.UserId, "User", dto.Id);
             return Result.Success();
         }
         catch (Exception ex) { return Result.Failure(ex.Message); }
@@ -143,7 +144,8 @@ public class UserService : IUserService
 public class RoleService : IRoleService
 {
     private readonly IUnitOfWork _uow;
-    public RoleService(IUnitOfWork uow) { _uow = uow; }
+    private readonly ICurrentUserContext _currentUser;
+    public RoleService(IUnitOfWork uow, ICurrentUserContext currentUser) { _uow = uow; _currentUser = currentUser; }
 
     public async Task<Result<IEnumerable<RoleDto>>> GetAllAsync()
     {
@@ -171,7 +173,7 @@ public class RoleService : IRoleService
         {
             if (dto.Id == 0)
             {
-                var entity = new Role { Name = dto.Name.Trim(), Description = dto.Description?.Trim(), CreatedBy = AppSession.UserId, CreatedAt = DateTime.Now };
+                var entity = new Role { Name = dto.Name.Trim(), Description = dto.Description?.Trim(), CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now };
                 await _uow.Roles.AddAsync(entity);
                 await _uow.SaveChangesAsync();
                 return Result<RoleDto>.Success(new RoleDto { Id = entity.Id, Name = entity.Name });
@@ -181,7 +183,7 @@ public class RoleService : IRoleService
                 var entity = await _uow.Roles.GetByIdAsync(dto.Id);
                 if (entity == null) return Result<RoleDto>.Failure("Not found.");
                 entity.Name = dto.Name.Trim(); entity.Description = dto.Description?.Trim();
-                entity.ModifiedBy = AppSession.UserId; entity.ModifiedAt = DateTime.Now;
+                entity.ModifiedBy = _currentUser.UserId; entity.ModifiedAt = DateTime.Now;
                 await _uow.Roles.UpdateAsync(entity);
                 await _uow.SaveChangesAsync();
                 return Result<RoleDto>.Success(new RoleDto { Id = entity.Id, Name = entity.Name });
@@ -198,7 +200,7 @@ public class RoleService : IRoleService
             if (usersInRole.Any()) return Result.Failure("Cannot delete — users are assigned to this role.");
             var entity = await _uow.Roles.GetByIdAsync(id);
             if (entity == null) return Result.Failure("Not found.");
-            entity.IsDeleted = true; entity.ModifiedBy = AppSession.UserId; entity.ModifiedAt = DateTime.Now;
+            entity.IsDeleted = true; entity.ModifiedBy = _currentUser.UserId; entity.ModifiedAt = DateTime.Now;
             await _uow.Roles.UpdateAsync(entity);
             await _uow.SaveChangesAsync();
             return Result.Success();

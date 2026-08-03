@@ -196,9 +196,8 @@ async function saveEdit() {
     const id  = parseInt(document.getElementById('editId').value);
     const err = document.getElementById('editError');
     err.textContent = '';
-    const uid = window.getCurrentUserId();
-
-    const r = await fetch(`/api/attendance/${id}?modifiedBy=${uid}`, {
+    // No modifiedBy on the wire: the server attributes the change to the session user.
+    const r = await fetch(`/api/attendance/${id}`, {
         method : 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify({

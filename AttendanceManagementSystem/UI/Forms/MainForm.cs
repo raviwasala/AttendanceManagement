@@ -2,7 +2,7 @@ using AttendanceManagementSystem.UI.Controls;
 using AttendanceManagementSystem.UI.Theme;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Common.Exceptions;
-using AttendanceSystem.Common.Session;
+using AttendanceManagementSystem.Session;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AttendanceManagementSystem.UI.Forms;
@@ -80,7 +80,7 @@ public class MainForm : Form
 
         _lblUser = new Label
         {
-            Text = $"👤  {AppSession.FullName}  ({AppSession.RoleName})",
+            Text = $"👤  {DesktopSession.FullName}  ({DesktopSession.RoleName})",
             Font = AppTheme.SmallFont,
             ForeColor = AppTheme.SubText,
             AutoSize = true,
@@ -295,7 +295,7 @@ public class MainForm : Form
             MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
         {
             _clockTimer.Stop();
-            AppSession.Clear();
+            DesktopSession.Clear();
             var login = _services.GetRequiredService<LoginForm>();
             login.Show();
             Close();

@@ -1,5 +1,6 @@
 using AttendanceSystem.Application;
 using AttendanceSystem.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Serilog;
 
@@ -23,15 +24,23 @@ builder.Services.AddControllersWithViews()
         o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
-// ── Session (web equivalent of AppSession) ───────────────────────────────────
+// ── Session ──────────────────────────────────────────────────────────────────
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(o =>
 {
-    o.IdleTimeout = TimeSpan.FromMinutes(60);
+    o.IdleTimeout = TimeSpan.FromMinutes(AttendanceSystem.Common.Constants.AppConstants.SessionTimeoutMinutes);
     o.Cookie.HttpOnly = true;
     o.Cookie.IsEssential = true;
+    // The session cookie authenticates every request — it must not travel over plain HTTP.
+    o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    o.Cookie.SameSite = SameSiteMode.Lax;
 });
 builder.Services.AddHttpContextAccessor();
+
+// Who the current request is acting as. Scoped, so concurrent requests never see
+// each other's user — the previous static AppSession was shared across all of them.
+builder.Services.AddScoped<AttendanceSystem.Common.Session.ICurrentUserContext,
+                           AttendanceSystem.Web.Session.HttpSessionUserContext>();
 
 // ── Application + Infrastructure layers ─────────────────────────────────────
 builder.Services.AddApplication();
@@ -62,7 +71,6 @@ if (Directory.Exists(assetsPath))
 
 app.UseRouting();
 app.UseSession();
-app.UseMiddleware<AttendanceSystem.Web.Middleware.UserSessionMiddleware>();
 app.UseAuthorization();
 
 app.MapStaticAssets();
@@ -72,15 +80,17 @@ app.MapControllerRoute(
     pattern: "{controller=Auth}/{action=Login}/{id?}")
     .WithStaticAssets();
 
-// Ensure the database exists and seed data is applied
+// Bring the database up to the latest migration.
+// Migrate() rather than EnsureCreated(): EnsureCreated builds the schema once and then
+// ignores every later model change, so the app would silently run against a stale schema.
 using (var scope = app.Services.CreateScope())
 {
     try
     {
         var ctx = scope.ServiceProvider
             .GetRequiredService<AttendanceSystem.Infrastructure.Data.AttendanceDbContext>();
-        ctx.Database.EnsureCreated();
-        Log.Information("Database initialised.");
+        ctx.Database.Migrate();
+        Log.Information("Database migrated to the latest version.");
     }
     catch (Exception ex)
     {

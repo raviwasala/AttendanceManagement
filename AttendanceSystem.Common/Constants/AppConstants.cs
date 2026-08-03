@@ -13,13 +13,16 @@ public static class AppConstants
         public const string Employees = "Employees";
         public const string Departments = "Departments";
         public const string Designations = "Designations";
+        public const string Branches = "Branches";
         public const string Shifts = "Shifts";
         public const string Attendance = "Attendance";
         public const string Leave = "Leave";
         public const string Holidays = "Holidays";
         public const string Reports = "Reports";
         public const string Users = "Users";
+        public const string Roles = "Roles";
         public const string Settings = "Settings";
+        public const string Import = "Import";
         public const string AuditLogs = "AuditLogs";
     }
 

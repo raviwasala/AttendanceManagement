@@ -8,56 +8,50 @@
 </div>
 
 <!-- Stat Cards -->
+@* Gradient classes (bg-c-yellow / green / pink / blue) come from the Adminty theme rather
+   than being redefined here, so these tiles stay in step with the rest of the template. *@
 <div class="row g-3 mb-4" id="statCards">
     <div class="col-xl-3 col-md-6">
-        <div class="card card-stat-widget text-white gradient-primary">
-            <div class="card-body p-4 d-flex justify-content-between align-items-center">
-                <div>
-                    <p class="mb-1 text-white-50 text-uppercase fw-bold fs-7">Total Employees</p>
-                    <h2 class="mb-0 fw-extrabold text-white" id="statTotal">—</h2>
+        <div class="card stat-card bg-c-yellow">
+            <div class="card-body stat-card-body">
+                <div class="stat-card-text">
+                    <p class="stat-card-label">Total Employees</p>
+                    <h3 class="stat-card-value" id="statTotal">—</h3>
                 </div>
-                <div class="rounded-circle p-3 bg-white bg-opacity-20 d-flex align-items-center justify-content-center">
-                    <i class="feather icon-users fs-2 text-white"></i>
-                </div>
+                <i class="feather icon-users stat-card-icon" aria-hidden="true"></i>
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6">
-        <div class="card card-stat-widget text-white gradient-success">
-            <div class="card-body p-4 d-flex justify-content-between align-items-center">
-                <div>
-                    <p class="mb-1 text-white-50 text-uppercase fw-bold fs-7">Present Today</p>
-                    <h2 class="mb-0 fw-extrabold text-white" id="statPresent">—</h2>
+        <div class="card stat-card bg-c-green">
+            <div class="card-body stat-card-body">
+                <div class="stat-card-text">
+                    <p class="stat-card-label">Present Today</p>
+                    <h3 class="stat-card-value" id="statPresent">—</h3>
                 </div>
-                <div class="rounded-circle p-3 bg-white bg-opacity-20 d-flex align-items-center justify-content-center">
-                    <i class="feather icon-user-check fs-2 text-white"></i>
-                </div>
+                <i class="feather icon-user-check stat-card-icon" aria-hidden="true"></i>
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6">
-        <div class="card card-stat-widget text-white gradient-danger">
-            <div class="card-body p-4 d-flex justify-content-between align-items-center">
-                <div>
-                    <p class="mb-1 text-white-50 text-uppercase fw-bold fs-7">Absent Today</p>
-                    <h2 class="mb-0 fw-extrabold text-white" id="statAbsent">—</h2>
+        <div class="card stat-card bg-c-pink">
+            <div class="card-body stat-card-body">
+                <div class="stat-card-text">
+                    <p class="stat-card-label">Absent Today</p>
+                    <h3 class="stat-card-value" id="statAbsent">—</h3>
                 </div>
-                <div class="rounded-circle p-3 bg-white bg-opacity-20 d-flex align-items-center justify-content-center">
-                    <i class="feather icon-user-x fs-2 text-white"></i>
-                </div>
+                <i class="feather icon-user-x stat-card-icon" aria-hidden="true"></i>
             </div>
         </div>
     </div>
     <div class="col-xl-3 col-md-6">
-        <div class="card card-stat-widget text-white gradient-warning">
-            <div class="card-body p-4 d-flex justify-content-between align-items-center">
-                <div>
-                    <p class="mb-1 text-white-50 text-uppercase fw-bold fs-7">On Leave Today</p>
-                    <h2 class="mb-0 fw-extrabold text-white" id="statLeave">—</h2>
+        <div class="card stat-card bg-c-blue">
+            <div class="card-body stat-card-body">
+                <div class="stat-card-text">
+                    <p class="stat-card-label">On Leave Today</p>
+                    <h3 class="stat-card-value" id="statLeave">—</h3>
                 </div>
-                <div class="rounded-circle p-3 bg-white bg-opacity-20 d-flex align-items-center justify-content-center">
-                    <i class="feather icon-calendar fs-2 text-white"></i>
-                </div>
+                <i class="feather icon-calendar stat-card-icon" aria-hidden="true"></i>
             </div>
         </div>
     </div>

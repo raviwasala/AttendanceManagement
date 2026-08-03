@@ -38,7 +38,28 @@ public class UserDto
     public bool IsLocked { get; set; }
     public DateTime? LastLoginAt { get; set; }
     public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>
+/// Result of a successful authentication.
+///
+/// <see cref="RememberToken"/> is the one and only time the raw remember-me token is
+/// available — only its hash is persisted, so it can never be read back afterwards.
+/// It is deliberately kept off <see cref="UserDto"/> so that user-listing endpoints
+/// cannot leak other users' tokens.
+/// </summary>
+public class AuthResultDto
+{
+    public UserDto User { get; set; } = new();
+
+    /// <summary>Permissions granted to this user, as <c>"{Module}.{Action}"</c> keys.</summary>
+    public List<string> Permissions { get; set; } = new();
+
+    /// <summary>Raw remember-me token to write to the client, or <c>null</c> when not requested.</summary>
     public string? RememberToken { get; set; }
+
+    /// <summary>Expiry to use for the remember-me cookie, when a token was issued.</summary>
+    public DateTime? RememberTokenExpiresAt { get; set; }
 }
 
 public class CreateUserDto

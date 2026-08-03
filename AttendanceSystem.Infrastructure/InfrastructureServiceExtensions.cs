@@ -16,9 +16,20 @@ public static class InfrastructureServiceExtensions
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services, IConfiguration configuration)
     {
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            // Fail loudly at startup rather than with an opaque SqlException on the first
+            // query — a blank connection string almost always means secrets were not configured.
+            throw new InvalidOperationException(
+                "Connection string 'DefaultConnection' is not configured. Set it with " +
+                "`dotnet user-secrets set \"ConnectionStrings:DefaultConnection\" \"<value>\"` for local " +
+                "development, or via the ConnectionStrings__DefaultConnection environment variable. " +
+                "See README.md → \"Configuration & secrets\".");
+        }
+
         services.AddDbContext<AttendanceDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"),
-                sql => sql.EnableRetryOnFailure(3)));
+            options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure(3)));
 
         services.AddScoped<IUnitOfWork, UnitOfWork.UnitOfWork>();
         services.AddSingleton<DapperContext>();

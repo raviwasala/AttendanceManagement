@@ -2,7 +2,7 @@ using AttendanceManagementSystem.UI.Controls;
 using AttendanceManagementSystem.UI.Theme;
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
-using AttendanceSystem.Common.Session;
+using AttendanceManagementSystem.Session;
 
 namespace AttendanceManagementSystem.UI.Forms;
 
@@ -98,7 +98,7 @@ public class DepartmentForm : Form
         var selected = (DepartmentDto)_grid.SelectedRows[0].DataBoundItem;
         if (MessageBox.Show($"Delete department '{selected.Name}'?", "Confirm",
             MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-        var r = await _deptService.DeleteAsync(selected.Id, AppSession.UserId);
+        var r = await _deptService.DeleteAsync(selected.Id, DesktopSession.UserId);
         if (r.IsSuccess) await LoadAsync();
         else MessageBox.Show(r.ErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }

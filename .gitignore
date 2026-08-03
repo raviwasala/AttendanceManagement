@@ -361,3 +361,13 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# --- Local secrets & machine-specific configuration ---
+# Credentials belong in user-secrets or environment variables, never in the repo.
+# The committed appsettings.json files hold non-secret defaults only.
+appsettings.Local.json
+appsettings.*.Local.json
+secrets.json
+*.pfx
+.env
+.env.*

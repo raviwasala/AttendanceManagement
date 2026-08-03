@@ -2,7 +2,7 @@ using AttendanceManagementSystem.UI.Controls;
 using AttendanceManagementSystem.UI.Theme;
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
-using AttendanceSystem.Common.Session;
+using AttendanceManagementSystem.Session;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AttendanceManagementSystem.UI.Forms;
@@ -120,7 +120,7 @@ public class EmployeeListForm : Form
         var emp = (EmployeeListItemDto)_grid.SelectedRows[0].DataBoundItem;
         if (MessageBox.Show($"Delete employee '{emp.FullName}'?", "Confirm",
             MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-        var r = await _empService.DeleteAsync(emp.Id, AppSession.UserId);
+        var r = await _empService.DeleteAsync(emp.Id, DesktopSession.UserId);
         if (r.IsSuccess) await LoadAsync();
         else MessageBox.Show(r.ErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
@@ -129,7 +129,7 @@ public class EmployeeListForm : Form
     {
         if (_grid.SelectedRows.Count == 0) return;
         var emp = (EmployeeListItemDto)_grid.SelectedRows[0].DataBoundItem;
-        var r = await _empService.ToggleActiveAsync(emp.Id, AppSession.UserId);
+        var r = await _empService.ToggleActiveAsync(emp.Id, DesktopSession.UserId);
         if (r.IsSuccess) await LoadAsync();
         else MessageBox.Show(r.ErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }

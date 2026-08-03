@@ -1,11 +1,15 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers;
 
 public class AuthController : BaseController
 {
+    private const string RememberUserCookie = "Auth_RememberUser";
+    private const string RememberTokenCookie = "Auth_RememberToken";
+
     private readonly IAuthService _auth;
     private readonly IUserService _users;
 
@@ -22,24 +26,20 @@ public class AuthController : BaseController
 
         var model = new LoginDto("", "");
 
-        if (Request.Cookies.TryGetValue("Auth_RememberUser", out var savedUser) &&
-            Request.Cookies.TryGetValue("Auth_RememberToken", out var savedToken) &&
+        if (Request.Cookies.TryGetValue(RememberUserCookie, out var savedUser) &&
+            Request.Cookies.TryGetValue(RememberTokenCookie, out var savedToken) &&
             !string.IsNullOrEmpty(savedUser) && !string.IsNullOrEmpty(savedToken))
         {
             var result = await _auth.ValidateRememberTokenAsync(savedUser, savedToken);
             if (result.IsSuccess)
             {
-                var user = result.Data!;
-                HttpContext.Session.SetInt32(SessionUserId, user.Id);
-                HttpContext.Session.SetString(SessionUsername, user.Username);
-                HttpContext.Session.SetString(SessionFullName, user.FullName);
-                HttpContext.Session.SetInt32(SessionRoleId, user.RoleId);
-                HttpContext.Session.SetString(SessionEmail, user.Email ?? "");
-                HttpContext.Session.SetString(SessionRoleName, user.RoleName ?? "");
-
+                EstablishSession(result.Data!);
                 return RedirectToAction("Index", "Admin");
             }
 
+            // The token was rejected — clear it so a stale or stolen cookie is not
+            // presented again on every subsequent visit.
+            ClearRememberCookies();
             model = new LoginDto(savedUser, "", true);
         }
 
@@ -58,37 +58,48 @@ public class AuthController : BaseController
             return View(dto);
         }
 
-        var user = result.Data!;
-        HttpContext.Session.SetInt32(SessionUserId, user.Id);
-        HttpContext.Session.SetString(SessionUsername, user.Username);
-        HttpContext.Session.SetString(SessionFullName, user.FullName);
-        HttpContext.Session.SetInt32(SessionRoleId, user.RoleId);
-        HttpContext.Session.SetString(SessionEmail, user.Email ?? "");
-        HttpContext.Session.SetString(SessionRoleName, user.RoleName ?? "");
+        EstablishSession(result.Data!);
+        return RedirectToAction("Index", "Admin");
+    }
 
-        if (dto.RememberMe)
+    /// <summary>Writes the authenticated identity into the session and refreshes the remember-me cookies.</summary>
+    private void EstablishSession(AuthResultDto auth)
+    {
+        var user = auth.User;
+
+        HttpSessionUserContext.SignIn(HttpContext, user.Id, user.Username, user.FullName,
+            user.Email ?? string.Empty, user.RoleId, user.RoleName ?? string.Empty,
+            user.EmployeeId, auth.Permissions);
+
+        if (auth.RememberToken is not null)
         {
-            var cookieOptions = new CookieOptions
+            var options = new CookieOptions
             {
-                Expires = DateTime.UtcNow.AddDays(30),
+                Expires = auth.RememberTokenExpiresAt ?? DateTime.UtcNow.AddDays(30),
                 HttpOnly = true,
                 IsEssential = true,
+                // The token is a long-lived credential; never let it travel over plain HTTP.
+                Secure = true,
                 SameSite = SameSiteMode.Lax
             };
-            if (!string.IsNullOrEmpty(user.Username))
-                Response.Cookies.Append("Auth_RememberUser", user.Username, cookieOptions);
 
-            var rememberToken = user.RememberToken ?? Guid.NewGuid().ToString("N");
-            Response.Cookies.Append("Auth_RememberToken", rememberToken, cookieOptions);
+            Response.Cookies.Append(RememberUserCookie, user.Username, options);
+            Response.Cookies.Append(RememberTokenCookie, auth.RememberToken, options);
         }
         else
         {
-            Response.Cookies.Delete("Auth_RememberUser");
-            Response.Cookies.Delete("Auth_RememberToken");
+            ClearRememberCookies();
         }
-
-        return RedirectToAction("Index", "Admin");
     }
+
+    private void ClearRememberCookies()
+    {
+        Response.Cookies.Delete(RememberUserCookie);
+        Response.Cookies.Delete(RememberTokenCookie);
+    }
+
+    [HttpGet]
+    public IActionResult AccessDenied() => View();
 
     [HttpGet]
     public IActionResult ForgotPassword()
@@ -148,19 +159,21 @@ public class AuthController : BaseController
     }
 
     [HttpGet]
-    public async Task<IActionResult> LogoutGet()
-    {
-        return await Logout();
-    }
+    public async Task<IActionResult> LogoutGet() => await Logout();
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
         if (CurrentUserId.HasValue)
+        {
             await _auth.LogoutAsync(CurrentUserId.Value);
+            // Signing out revokes the stored token too, so the cookie cannot resurrect
+            // the session on the next visit.
+            await _auth.RevokeRememberTokenAsync(CurrentUserId.Value);
+        }
+
         HttpContext.Session.Clear();
-        Response.Cookies.Delete("Auth_RememberUser");
-        Response.Cookies.Delete("Auth_RememberToken");
+        ClearRememberCookies();
         return RedirectToAction("Login");
     }
 
@@ -199,6 +212,8 @@ public class AuthController : BaseController
             Id = user.Id,
             FullName = fullName.Trim(),
             Email = email?.Trim() ?? string.Empty,
+            // Role and active flag come from the stored record, never from the form —
+            // otherwise a user could grant themselves another role via their own profile.
             RoleId = user.RoleId,
             EmployeeId = user.EmployeeId,
             IsActive = user.IsActive
@@ -211,8 +226,8 @@ public class AuthController : BaseController
             return RedirectToAction("Profile");
         }
 
-        HttpContext.Session.SetString(SessionFullName, updateDto.FullName);
-        HttpContext.Session.SetString(SessionEmail, updateDto.Email);
+        HttpContext.Session.SetString(WebSessionKeys.FullName, updateDto.FullName);
+        HttpContext.Session.SetString(WebSessionKeys.Email, updateDto.Email);
 
         TempData["Success"] = "Profile details updated successfully.";
         return RedirectToAction("Profile");
@@ -239,6 +254,9 @@ public class AuthController : BaseController
             TempData["Error"] = result.ErrorMessage ?? "Failed to change password.";
             return View("Profile", (await _users.GetByIdAsync(CurrentUserId!.Value)).Data);
         }
+
+        // The password change revoked the remember-me token server-side; drop the cookie too.
+        ClearRememberCookies();
 
         TempData["Success"] = "Password changed successfully.";
         return RedirectToAction("Profile");

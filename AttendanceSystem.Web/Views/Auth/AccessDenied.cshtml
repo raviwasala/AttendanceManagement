@@ -1,0 +1,36 @@
+@{
+    ViewData["Title"] = "Access Denied";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card card-table-container">
+            <div class="card-body text-center p-5">
+
+                <span class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3"
+                      style="width:76px;height:76px;background:rgba(254,93,112,.12);color:#fe5d70;">
+                    <i class="feather icon-lock" style="font-size:2rem;"></i>
+                </span>
+
+                <h5 class="fw-bold mb-2">Access Denied</h5>
+                <p class="text-muted mb-4">
+                    You do not have permission to open this page.
+                    If you believe this is a mistake, please contact your system administrator.
+                </p>
+
+                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                    @if (ViewContext.HasPermission(AppConstants.Modules.Dashboard, AppConstants.Actions.View))
+                    {
+                        <a class="btn btn-primary btn-sm px-4" asp-controller="Admin" asp-action="Index">
+                            <i class="feather icon-home me-1"></i>Back to Dashboard
+                        </a>
+                    }
+                    <a class="btn btn-light btn-sm px-4" asp-controller="Auth" asp-action="LogoutGet">
+                        <i class="feather icon-log-out me-1"></i>Sign in as a different user
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,7 +1,8 @@
-using AttendanceSystem.Application.DTOs;
+﻿using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Common.Logging;
 using AttendanceSystem.Common.Models;
+using AttendanceSystem.Common.Session;
 using AttendanceSystem.Domain.Entities;
 using AttendanceSystem.Domain.Interfaces;
 
@@ -12,11 +13,13 @@ public class EmployeeService : IEmployeeService
 {
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
+    private readonly ICurrentUserContext _currentUser;
 
-    public EmployeeService(IUnitOfWork uow, IAuditService audit)
+    public EmployeeService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser)
     {
         _uow = uow;
         _audit = audit;
+        _currentUser = currentUser;
     }
 
     public async Task<Result<IEnumerable<EmployeeListItemDto>>> GetAllAsync()
@@ -72,12 +75,12 @@ public class EmployeeService : IEmployeeService
                     DesignationId = dto.DesignationId,
                     BranchId = dto.BranchId,
                     IsActive = dto.IsActive,
-                    CreatedBy = Common.Session.AppSession.UserId,
+                    CreatedBy = _currentUser.UserId,
                     CreatedAt = DateTime.Now
                 };
                 await _uow.Employees.AddAsync(emp);
                 await _uow.SaveChangesAsync();
-                await _audit.LogAsync("Employees", "Create", Common.Session.AppSession.UserId, "Employee", emp.Id);
+                await _audit.LogAsync("Employees", "Create", _currentUser.UserId, "Employee", emp.Id);
                 return await GetByIdAsync(emp.Id);
             }
             else
@@ -99,12 +102,12 @@ public class EmployeeService : IEmployeeService
                 emp.DesignationId = dto.DesignationId;
                 emp.BranchId = dto.BranchId;
                 emp.IsActive = dto.IsActive;
-                emp.ModifiedBy = Common.Session.AppSession.UserId;
+                emp.ModifiedBy = _currentUser.UserId;
                 emp.ModifiedAt = DateTime.Now;
 
                 await _uow.Employees.UpdateAsync(emp);
                 await _uow.SaveChangesAsync();
-                await _audit.LogAsync("Employees", "Update", Common.Session.AppSession.UserId, "Employee", emp.Id);
+                await _audit.LogAsync("Employees", "Update", _currentUser.UserId, "Employee", emp.Id);
                 return await GetByIdAsync(emp.Id);
             }
         }

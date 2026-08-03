@@ -2,7 +2,7 @@ using AttendanceManagementSystem.UI.Controls;
 using AttendanceManagementSystem.UI.Theme;
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
-using AttendanceSystem.Common.Session;
+using AttendanceManagementSystem.Session;
 
 namespace AttendanceManagementSystem.UI.Forms;
 
@@ -108,8 +108,8 @@ public class LeaveTypeForm : Form
 
     private async Task LoadBalance()
     {
-        if (!AppSession.EmployeeId.HasValue) return;
-        var r = await _leaveService.GetBalancesAsync(AppSession.EmployeeId.Value);
+        if (!DesktopSession.EmployeeId.HasValue) return;
+        var r = await _leaveService.GetBalancesAsync(DesktopSession.EmployeeId.Value);
         if (r.IsSuccess) { _gridBalance.DataSource = null; _gridBalance.DataSource = r.Data!.ToList(); }
     }
 
@@ -161,7 +161,7 @@ public class LeaveTypeForm : Form
             reason = Microsoft.VisualBasic.Interaction.InputBox("Enter rejection reason:", "Reject Leave", "");
             if (string.IsNullOrWhiteSpace(reason)) return;
         }
-        var r = await _leaveService.ApproveRejectAsync(new ApproveRejectLeaveDto { LeaveRequestId = req.Id, IsApproved = approve, RejectionReason = reason }, AppSession.UserId);
+        var r = await _leaveService.ApproveRejectAsync(new ApproveRejectLeaveDto { LeaveRequestId = req.Id, IsApproved = approve, RejectionReason = reason }, DesktopSession.UserId);
         if (r.IsSuccess) await LoadAsync();
         else MessageBox.Show(r.ErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
@@ -170,7 +170,7 @@ public class LeaveTypeForm : Form
     {
         if (_gridRequests.SelectedRows.Count == 0) return;
         var req = (LeaveRequestDto)_gridRequests.SelectedRows[0].DataBoundItem;
-        var r = await _leaveService.CancelAsync(req.Id, AppSession.UserId);
+        var r = await _leaveService.CancelAsync(req.Id, DesktopSession.UserId);
         if (r.IsSuccess) await LoadAsync();
         else MessageBox.Show(r.ErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }

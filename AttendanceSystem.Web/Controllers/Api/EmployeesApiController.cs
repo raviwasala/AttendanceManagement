@@ -1,19 +1,21 @@
-using AttendanceSystem.Application.DTOs;
+﻿using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Web.Filters;
+using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
+using Actions = AttendanceSystem.Common.Constants.AppConstants.Actions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/employees")]
-[ApiController]
 [SessionAuthorize]
-public class EmployeesApiController : ControllerBase
+public class EmployeesApiController : ApiControllerBase
 {
     private readonly IEmployeeService _svc;
     public EmployeesApiController(IEmployeeService svc) => _svc = svc;
 
     [HttpGet]
+    [SessionAuthorize(Modules.Employees, Actions.View)]
     public async Task<IActionResult> GetAll()
     {
         var r = await _svc.GetAllAsync();
@@ -21,6 +23,7 @@ public class EmployeesApiController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [SessionAuthorize(Modules.Employees, Actions.View)]
     public async Task<IActionResult> GetById(int id)
     {
         var r = await _svc.GetByIdAsync(id);
@@ -28,6 +31,7 @@ public class EmployeesApiController : ControllerBase
     }
 
     [HttpGet("search")]
+    [SessionAuthorize(Modules.Employees, Actions.View)]
     public async Task<IActionResult> Search([FromQuery] string q)
     {
         var r = await _svc.SearchAsync(q ?? "");
@@ -35,6 +39,7 @@ public class EmployeesApiController : ControllerBase
     }
 
     [HttpPost]
+    [SessionAuthorize(Modules.Employees, Actions.Edit)]
     public async Task<IActionResult> Save([FromBody] SaveEmployeeDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -43,18 +48,18 @@ public class EmployeesApiController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [SessionAuthorize(Modules.Employees, Actions.Delete)]
     public async Task<IActionResult> Delete(int id)
     {
-        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
-        var r = await _svc.DeleteAsync(id, currentUserId);
+        var r = await _svc.DeleteAsync(id, CurrentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 
     [HttpPost("{id}/toggle")]
+    [SessionAuthorize(Modules.Employees, Actions.Edit)]
     public async Task<IActionResult> Toggle(int id)
     {
-        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
-        var r = await _svc.ToggleActiveAsync(id, currentUserId);
+        var r = await _svc.ToggleActiveAsync(id, CurrentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 }

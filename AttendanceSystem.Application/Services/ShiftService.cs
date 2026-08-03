@@ -1,4 +1,4 @@
-using AttendanceSystem.Application.DTOs;
+﻿using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Common.Logging;
 using AttendanceSystem.Common.Models;
@@ -13,8 +13,9 @@ public class ShiftService : IShiftService
 {
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
+    private readonly ICurrentUserContext _currentUser;
 
-    public ShiftService(IUnitOfWork uow, IAuditService audit) { _uow = uow; _audit = audit; }
+    public ShiftService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser) { _uow = uow; _audit = audit; _currentUser = currentUser; }
 
     public async Task<Result<IEnumerable<ShiftDto>>> GetAllAsync()
     {
@@ -49,11 +50,11 @@ public class ShiftService : IShiftService
                 {
                     Name = dto.Name.Trim(), StartTime = dto.StartTime, EndTime = dto.EndTime,
                     GraceMinutes = dto.GraceMinutes, WeeklyOffDays = dto.WeeklyOffDays,
-                    IsActive = dto.IsActive, CreatedBy = AppSession.UserId, CreatedAt = DateTime.Now
+                    IsActive = dto.IsActive, CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now
                 };
                 await _uow.Shifts.AddAsync(entity);
                 await _uow.SaveChangesAsync();
-                await _audit.LogAsync("Shifts", "Create", AppSession.UserId, "Shift", entity.Id);
+                await _audit.LogAsync("Shifts", "Create", _currentUser.UserId, "Shift", entity.Id);
                 return Result<ShiftDto>.Success(MapShift(entity));
             }
             else
@@ -62,7 +63,7 @@ public class ShiftService : IShiftService
                 if (entity == null) return Result<ShiftDto>.Failure("Shift not found.");
                 entity.Name = dto.Name.Trim(); entity.StartTime = dto.StartTime; entity.EndTime = dto.EndTime;
                 entity.GraceMinutes = dto.GraceMinutes; entity.WeeklyOffDays = dto.WeeklyOffDays; entity.IsActive = dto.IsActive;
-                entity.ModifiedBy = AppSession.UserId; entity.ModifiedAt = DateTime.Now;
+                entity.ModifiedBy = _currentUser.UserId; entity.ModifiedAt = DateTime.Now;
                 await _uow.Shifts.UpdateAsync(entity);
                 await _uow.SaveChangesAsync();
                 return Result<ShiftDto>.Success(MapShift(entity));
@@ -76,7 +77,7 @@ public class ShiftService : IShiftService
         try
         {
             var assigned = await _uow.EmployeeShifts.FindAsync(es => es.ShiftId == id);
-            if (assigned.Any()) return Result.Failure("Cannot delete � shift is assigned to employees.");
+            if (assigned.Any()) return Result.Failure("Cannot delete — shift is assigned to employees.");
             var entity = await _uow.Shifts.GetByIdAsync(id);
             if (entity == null) return Result.Failure("Shift not found.");
             entity.IsDeleted = true; entity.ModifiedBy = deletedBy; entity.ModifiedAt = DateTime.Now;
@@ -129,11 +130,11 @@ public class ShiftService : IShiftService
             {
                 EmployeeId = dto.EmployeeId, ShiftId = dto.ShiftId,
                 EffectiveFrom = dto.EffectiveFrom, EffectiveTo = dto.EffectiveTo,
-                CreatedBy = AppSession.UserId, CreatedAt = DateTime.Now
+                CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now
             };
             await _uow.EmployeeShifts.AddAsync(newAssign);
             await _uow.SaveChangesAsync();
-            await _audit.LogAsync("Shifts", "AssignShift", AppSession.UserId, "EmployeeShift", newAssign.Id);
+            await _audit.LogAsync("Shifts", "AssignShift", _currentUser.UserId, "EmployeeShift", newAssign.Id);
             return Result.Success();
         }
         catch (Exception ex) { AppLogger.Error("ShiftService.AssignShiftAsync", ex); return Result.Failure(ex.Message); }

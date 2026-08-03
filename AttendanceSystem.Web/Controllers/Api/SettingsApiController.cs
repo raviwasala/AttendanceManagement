@@ -1,19 +1,21 @@
-using AttendanceSystem.Application.DTOs;
+﻿using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Web.Filters;
+using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
+using Actions = AttendanceSystem.Common.Constants.AppConstants.Actions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/settings")]
-[ApiController]
 [SessionAuthorize]
-public class SettingsApiController : ControllerBase
+public class SettingsApiController : ApiControllerBase
 {
     private readonly ISettingsService _svc;
     public SettingsApiController(ISettingsService svc) => _svc = svc;
 
     [HttpGet]
+    [SessionAuthorize(Modules.Settings, Actions.View)]
     public async Task<IActionResult> Get()
     {
         var r = await _svc.GetAsync();
@@ -21,15 +23,16 @@ public class SettingsApiController : ControllerBase
     }
 
     [HttpPost]
+    [SessionAuthorize(Modules.Settings, Actions.Edit)]
     public async Task<IActionResult> Save([FromBody] CompanySettingsDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
-        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
-        var r = await _svc.SaveAsync(dto, currentUserId);
+        var r = await _svc.SaveAsync(dto, CurrentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 
     [HttpPost("upload-logo")]
+    [SessionAuthorize(Modules.Settings, Actions.Edit)]
     public async Task<IActionResult> UploadLogo()
     {
         var file = Request.Form.Files["file"] ?? Request.Form.Files["File"] ?? Request.Form.Files.FirstOrDefault();

@@ -1,12 +1,18 @@
+using AttendanceSystem.Common.Session;
+using AttendanceSystem.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace AttendanceSystem.Web.Filters;
 
 /// <summary>
-/// Action filter that verifies that a valid user session exists.
+/// Requires a valid session, and optionally a specific <c>{module}.{action}</c> permission.
+///
+/// Apply the permission-carrying form to every endpoint that reads or changes data. The
+/// parameterless form only proves that <em>someone</em> is signed in, which is not an
+/// authorization decision — an Employee-role session satisfies it just as well as an admin.
 /// </summary>
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]
 public class SessionAuthorizeAttribute : Attribute, IAuthorizationFilter
 {
     private readonly string? _module;
@@ -23,51 +29,39 @@ public class SessionAuthorizeAttribute : Attribute, IAuthorizationFilter
     public void OnAuthorization(AuthorizationFilterContext context)
     {
         var httpContext = context.HttpContext;
-        var userId = httpContext.Session.GetInt32("UserId");
+        var user = httpContext.RequestServices.GetService<ICurrentUserContext>();
 
-        if (!userId.HasValue || userId.Value <= 0)
+        if (user is null || !user.IsAuthenticated)
         {
-            if (IsApiRequest(httpContext))
-            {
-                context.Result = new UnauthorizedObjectResult(new 
-                { 
-                    isSuccess = false, 
-                    errorMessage = "Unauthorized access: Session expired or not logged in." 
-                });
-            }
-            else
-            {
-                context.Result = new RedirectToActionResult("Login", "Auth", null);
-            }
+            context.Result = IsApiRequest(httpContext)
+                ? new UnauthorizedObjectResult(new
+                {
+                    isSuccess = false,
+                    errorMessage = "Unauthorized access: Session expired or not logged in."
+                })
+                : new RedirectToActionResult("Login", "Auth", null);
             return;
         }
 
-        // Optional module permission check
-        if (!string.IsNullOrEmpty(_module) && !string.IsNullOrEmpty(_action))
+        if (string.IsNullOrEmpty(_module) || string.IsNullOrEmpty(_action)) return;
+
+        if (!user.HasPermission(_module, _action))
         {
-            var hasPermission = Helpers.PermissionExtensions.HasPermission(httpContext, _module, _action);
-            if (!hasPermission)
-            {
-                if (IsApiRequest(httpContext))
+            context.Result = IsApiRequest(httpContext)
+                ? new ObjectResult(new
                 {
-                    context.Result = new ObjectResult(new 
-                    { 
-                        isSuccess = false, 
-                        errorMessage = $"Access Denied: Required permission '{_module}.{_action}' is missing." 
-                    }) { StatusCode = StatusCodes.Status403Forbidden };
-                }
-                else
-                {
-                    context.Result = new RedirectToActionResult("Index", "Admin", null);
-                }
-            }
+                    isSuccess = false,
+                    errorMessage = $"Access Denied: Required permission '{PermissionKey.For(_module, _action)}' is missing."
+                })
+                { StatusCode = StatusCodes.Status403Forbidden }
+                // Deliberately not a redirect to the dashboard: a user who lacks dashboard
+                // access would bounce between the two forever.
+                : new RedirectToActionResult("AccessDenied", "Auth", null);
         }
     }
 
-    private static bool IsApiRequest(HttpContext context)
-    {
-        return context.Request.Path.StartsWithSegments("/api") ||
-               context.Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
-               context.Request.Headers["Accept"].ToString().Contains("application/json");
-    }
+    private static bool IsApiRequest(HttpContext context) =>
+        context.Request.Path.StartsWithSegments("/api") ||
+        context.Request.Headers["X-Requested-With"] == "XMLHttpRequest" ||
+        context.Request.Headers["Accept"].ToString().Contains("application/json");
 }

@@ -1,7 +1,16 @@
+using AttendanceSystem.Common.Constants;
+using AttendanceSystem.Web.Filters;
 using Microsoft.AspNetCore.Mvc;
+using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
+using Actions = AttendanceSystem.Common.Constants.AppConstants.Actions;
 
 namespace AttendanceSystem.Web.Controllers;
 
+/// <summary>
+/// Serves the admin pages. Each page requires the View permission for the module it shows;
+/// the data behind them is separately guarded on the API controllers, since hiding a page
+/// does nothing to stop a direct call to the endpoint it reads from.
+/// </summary>
 [Route("Admin")]
 [ApiExplorerSettings(IgnoreApi = true)]
 public class AdminController : BaseController
@@ -10,48 +19,59 @@ public class AdminController : BaseController
 
     public AdminController(ILogger<AdminController> logger) => _logger = logger;
 
-    private IActionResult? Auth() => RequireAuth();
-
     [HttpGet("")] [HttpGet("Index")]
-    public IActionResult Index()      { var a = Auth(); if (a != null) return a; return View(); }
+    [SessionAuthorize(Modules.Dashboard, Actions.View)]
+    public IActionResult Index() => View();
 
     [HttpGet("Departments")]
-    public IActionResult Departments(){ var a = Auth(); if (a != null) return a; return View(); }
+    [SessionAuthorize(Modules.Departments, Actions.View)]
+    public IActionResult Departments() => View();
 
     [HttpGet("Designations")]
-    public IActionResult Designations(){ var a = Auth(); if (a != null) return a; return View(); }
+    [SessionAuthorize(Modules.Designations, Actions.View)]
+    public IActionResult Designations() => View();
 
     [HttpGet("Branches")]
-    public IActionResult Branches()   { var a = Auth(); if (a != null) return a; return View(); }
+    [SessionAuthorize(Modules.Branches, Actions.View)]
+    public IActionResult Branches() => View();
 
     [HttpGet("Shifts")]
-    public IActionResult Shifts()     { var a = Auth(); if (a != null) return a; return View(); }
+    [SessionAuthorize(Modules.Shifts, Actions.View)]
+    public IActionResult Shifts() => View();
 
     [HttpGet("Employees")]
-    public IActionResult Employees()  { var a = Auth(); if (a != null) return a; return View(); }
+    [SessionAuthorize(Modules.Employees, Actions.View)]
+    public IActionResult Employees() => View();
 
     [HttpGet("Attendance")]
-    public IActionResult Attendance() { var a = Auth(); if (a != null) return a; return View(); }
+    [SessionAuthorize(Modules.Attendance, Actions.View)]
+    public IActionResult Attendance() => View();
 
     [HttpGet("Leave")]
-    public IActionResult Leave()      { var a = Auth(); if (a != null) return a; return View(); }
+    [SessionAuthorize(Modules.Leave, Actions.View)]
+    public IActionResult Leave() => View();
 
     [HttpGet("Holidays")]
-    public IActionResult Holidays()   { var a = Auth(); if (a != null) return a; return View(); }
+    [SessionAuthorize(Modules.Holidays, Actions.View)]
+    public IActionResult Holidays() => View();
 
     [HttpGet("Users")]
-    public IActionResult Users()      { var a = Auth(); if (a != null) return a; return View(); }
+    [SessionAuthorize(Modules.Users, Actions.View)]
+    public IActionResult Users() => View();
 
     [HttpGet("Roles")]
-    public IActionResult Roles()      { var a = Auth(); if (a != null) return a; return View(); }
+    [SessionAuthorize(Modules.Roles, Actions.View)]
+    public IActionResult Roles() => View();
 
     [HttpGet("Reports")]
-    public IActionResult Reports()    { var a = Auth(); if (a != null) return a; return View(); }
+    [SessionAuthorize(Modules.Reports, Actions.View)]
+    public IActionResult Reports() => View();
 
     [HttpGet("Import")]
-    public IActionResult Import()     { var a = Auth(); if (a != null) return a; return View(); }
+    [SessionAuthorize(Modules.Import, Actions.View)]
+    public IActionResult Import() => View();
 
     [HttpGet("Settings")]
-    public IActionResult Settings()   { var a = Auth(); if (a != null) return a; return View(); }
+    [SessionAuthorize(Modules.Settings, Actions.View)]
+    public IActionResult Settings() => View();
 }
-

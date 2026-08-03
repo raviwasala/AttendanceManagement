@@ -3,7 +3,7 @@ using AttendanceManagementSystem.UI.Theme;
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Common.Models;
-using AttendanceSystem.Common.Session;
+using AttendanceManagementSystem.Session;
 
 namespace AttendanceManagementSystem.UI.Forms;
 
@@ -128,7 +128,7 @@ public class UserForm : Form
         if (_gridUsers.SelectedRows.Count == 0) return;
         var u = (UserDto)_gridUsers.SelectedRows[0].DataBoundItem;
         if (MessageBox.Show($"Delete user '{u.Username}'?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-        var r = await _userService.DeleteAsync(u.Id, AppSession.UserId);
+        var r = await _userService.DeleteAsync(u.Id, DesktopSession.UserId);
         if (r.IsSuccess) await LoadAsync();
         else MessageBox.Show(r.ErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
@@ -148,7 +148,7 @@ public class UserForm : Form
         var u = (UserDto)_gridUsers.SelectedRows[0].DataBoundItem;
         var pwd = Microsoft.VisualBasic.Interaction.InputBox("Enter new password (min 8 chars, upper, digit):", "Reset Password", "");
         if (string.IsNullOrWhiteSpace(pwd)) return;
-        var r = await _userService.ResetPasswordAsync(u.Id, pwd, AppSession.UserId);
+        var r = await _userService.ResetPasswordAsync(u.Id, pwd, DesktopSession.UserId);
         if (r.IsSuccess) MessageBox.Show("Password reset successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
         else MessageBox.Show(r.ErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }

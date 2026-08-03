@@ -10,9 +10,22 @@ using AttendanceSystem.Domain.Interfaces;
 
 namespace AttendanceSystem.Application.Services;
 
-/// <summary>Handles user authentication, password management and session.</summary>
+/// <summary>
+/// Handles user authentication and password management.
+///
+/// This service does not establish a session. It authenticates and reports who the user is
+/// and what they may do; the host (web or desktop) decides how to persist that. Keeping
+/// session storage out of here is what allows the same service to serve concurrent web
+/// requests without one user's identity leaking into another's.
+/// </summary>
 public class AuthService : IAuthService
 {
+    /// <summary>How long an issued remember-me token stays valid.</summary>
+    private static readonly TimeSpan RememberTokenLifetime = TimeSpan.FromDays(30);
+
+    /// <summary>How long a password-reset token stays valid.</summary>
+    private static readonly TimeSpan ResetTokenLifetime = TimeSpan.FromHours(24);
+
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
     private readonly IEmailService _email;
@@ -24,19 +37,19 @@ public class AuthService : IAuthService
         _email = email;
     }
 
-    public async Task<Result<UserDto>> LoginAsync(LoginDto dto)
+    public async Task<Result<AuthResultDto>> LoginAsync(LoginDto dto)
     {
         try
         {
             var user = await _uow.Users.GetByUsernameAsync(dto.Username);
             if (user == null)
-                return Result<UserDto>.Failure("Invalid username or password.");
+                return Result<AuthResultDto>.Failure("Invalid username or password.");
 
             if (!user.IsActive)
-                return Result<UserDto>.Failure("Your account is inactive. Please contact administrator.");
+                return Result<AuthResultDto>.Failure("Your account is inactive. Please contact administrator.");
 
             if (user.IsLocked)
-                return Result<UserDto>.Failure("Your account is locked. Please contact administrator.");
+                return Result<AuthResultDto>.Failure("Your account is locked. Please contact administrator.");
 
             if (!PasswordHelper.VerifyPassword(dto.Password, user.PasswordHash))
             {
@@ -44,60 +57,96 @@ public class AuthService : IAuthService
                 if (user.FailedLoginAttempts + 1 >= AppConstants.MaxLoginAttempts)
                     await _uow.Users.LockUserAsync(user.Id);
                 await _uow.SaveChangesAsync();
-                return Result<UserDto>.Failure("Invalid username or password.");
+                return Result<AuthResultDto>.Failure("Invalid username or password.");
             }
 
             await _uow.Users.ResetFailedLoginAsync(user.Id);
             user.LastLoginAt = DateTime.Now;
+
+            var result = new AuthResultDto
+            {
+                User = MapToDto(user),
+                Permissions = GetPermissions(user)
+            };
+
             if (dto.RememberMe)
-                user.RememberToken = PasswordHelper.GenerateToken();
+                IssueRememberToken(user, result);
+
             await _uow.SaveChangesAsync();
-
-            var permissions = user.Role.RolePermissions
-                .Select(rp => $"{rp.Permission.Module}.{rp.Permission.Action}")
-                .ToList();
-
-            AppSession.SetSession(user.Id, user.Username, user.FullName,
-                user.Role.Name, user.RoleId, user.EmployeeId, permissions);
-
             await _audit.LogAsync(AppConstants.Modules.Dashboard, "Login", user.Id);
 
-            return Result<UserDto>.Success(MapToDto(user));
+            return Result<AuthResultDto>.Success(result);
         }
         catch (Exception ex)
         {
             AppLogger.Error("AuthService.LoginAsync", ex);
-            return Result<UserDto>.Failure("An error occurred during login.");
+            return Result<AuthResultDto>.Failure("An error occurred during login.");
         }
     }
 
-    public async Task<Result<UserDto>> ValidateRememberTokenAsync(string username, string token)
+    public async Task<Result<AuthResultDto>> ValidateRememberTokenAsync(string username, string token)
     {
         try
         {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(token))
-                return Result<UserDto>.Failure("Invalid token.");
+                return Result<AuthResultDto>.Failure("Invalid token.");
 
             var user = await _uow.Users.GetByUsernameAsync(username);
             if (user == null || !user.IsActive || user.IsLocked)
-                return Result<UserDto>.Failure("User not found or disabled.");
+                return Result<AuthResultDto>.Failure("User not found or disabled.");
 
-            if (user.RememberToken != token)
-                return Result<UserDto>.Failure("Invalid remember token.");
+            if (!TokenHelper.Verify(token, user.RememberTokenHash))
+                return Result<AuthResultDto>.Failure("Invalid remember token.");
 
-            var permissions = user.Role.RolePermissions
-                .Select(rp => $"{rp.Permission.Module}.{rp.Permission.Action}")
-                .ToList();
+            if (!user.RememberTokenExpiresAt.HasValue || user.RememberTokenExpiresAt.Value < DateTime.Now)
+            {
+                // Expired tokens are cleared rather than left to linger in the database.
+                user.RememberTokenHash = null;
+                user.RememberTokenExpiresAt = null;
+                await _uow.SaveChangesAsync();
+                return Result<AuthResultDto>.Failure("Remember token has expired. Please sign in again.");
+            }
 
-            AppSession.SetSession(user.Id, user.Username, user.FullName,
-                user.Role.Name, user.RoleId, user.EmployeeId, permissions);
+            user.LastLoginAt = DateTime.Now;
 
-            return Result<UserDto>.Success(MapToDto(user));
+            var result = new AuthResultDto
+            {
+                User = MapToDto(user),
+                Permissions = GetPermissions(user)
+            };
+
+            // Rotate on every use: a token that is replayed after the legitimate client
+            // has used it will no longer match, which turns silent theft into a visible logout.
+            IssueRememberToken(user, result);
+
+            await _uow.SaveChangesAsync();
+            await _audit.LogAsync(AppConstants.Modules.Dashboard, "LoginViaRememberToken", user.Id);
+
+            return Result<AuthResultDto>.Success(result);
         }
         catch (Exception ex)
         {
             AppLogger.Error("AuthService.ValidateRememberTokenAsync", ex);
-            return Result<UserDto>.Failure("Failed to validate remember token.");
+            return Result<AuthResultDto>.Failure("Failed to validate remember token.");
+        }
+    }
+
+    public async Task<Result> RevokeRememberTokenAsync(int userId)
+    {
+        try
+        {
+            var user = await _uow.Users.GetByIdAsync(userId);
+            if (user == null) return Result.Failure("User not found.");
+
+            user.RememberTokenHash = null;
+            user.RememberTokenExpiresAt = null;
+            await _uow.SaveChangesAsync();
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("AuthService.RevokeRememberTokenAsync", ex);
+            return Result.Failure("Failed to revoke remember token.");
         }
     }
 
@@ -109,26 +158,25 @@ public class AuthService : IAuthService
                 return Result.Failure("Email address or username is required.");
 
             var input = dto.Email.Trim();
-            var user = await _uow.Users.GetByEmailAsync(input);
-            if (user == null)
-            {
-                user = await _uow.Users.GetByUsernameAsync(input);
-            }
+            var user = await _uow.Users.GetByEmailAsync(input)
+                       ?? await _uow.Users.GetByUsernameAsync(input);
 
             if (user != null && user.IsActive)
             {
-                var token = Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N");
-                user.ResetPasswordToken = token;
-                user.ResetPasswordTokenExpiry = DateTime.Now.AddHours(24);
+                var rawToken = TokenHelper.GenerateRawToken();
+                user.ResetPasswordTokenHash = TokenHelper.Hash(rawToken);
+                user.ResetPasswordTokenExpiry = DateTime.Now.Add(ResetTokenLifetime);
                 await _uow.SaveChangesAsync();
 
                 var targetEmail = !string.IsNullOrWhiteSpace(user.Email) ? user.Email : input;
-                var resetLink = $"{baseUrl.TrimEnd('/')}/Auth/ResetPassword?email={Uri.EscapeDataString(targetEmail)}&token={token}";
+                var resetLink = $"{baseUrl.TrimEnd('/')}/Auth/ResetPassword?email={Uri.EscapeDataString(targetEmail)}&token={Uri.EscapeDataString(rawToken)}";
 
-                await _email.SendPasswordResetEmailAsync(targetEmail, resetLink, token);
+                await _email.SendPasswordResetEmailAsync(targetEmail, resetLink, rawToken);
                 await _audit.LogAsync(AppConstants.Modules.Users, "RequestPasswordReset", user.Id);
             }
 
+            // Always reports success — revealing whether an account exists would turn this
+            // endpoint into a username enumeration oracle.
             return Result.Success();
         }
         catch (Exception ex)
@@ -149,24 +197,29 @@ public class AuthService : IAuthService
             if (!isValid) return Result.Failure(msg);
 
             var input = dto.Email.Trim();
-            var user = await _uow.Users.GetByEmailAsync(input);
-            if (user == null)
-            {
-                user = await _uow.Users.GetByUsernameAsync(input);
-            }
+            var user = await _uow.Users.GetByEmailAsync(input)
+                       ?? await _uow.Users.GetByUsernameAsync(input);
 
-            if (user == null || user.ResetPasswordToken != dto.Token ||
-                !user.ResetPasswordTokenExpiry.HasValue || user.ResetPasswordTokenExpiry.Value < DateTime.Now)
+            if (user == null ||
+                !TokenHelper.Verify(dto.Token, user.ResetPasswordTokenHash) ||
+                !user.ResetPasswordTokenExpiry.HasValue ||
+                user.ResetPasswordTokenExpiry.Value < DateTime.Now)
             {
                 return Result.Failure("Invalid or expired password reset token. Please request a new password reset.");
             }
 
             user.PasswordHash = PasswordHelper.HashPassword(dto.NewPassword);
             user.PasswordChangedAt = DateTime.Now;
-            user.ResetPasswordToken = null;
+            user.ResetPasswordTokenHash = null;
             user.ResetPasswordTokenExpiry = null;
             user.FailedLoginAttempts = 0;
             user.IsLocked = false;
+
+            // A password reset invalidates every "remember me" session — otherwise a
+            // thief who already holds a token keeps their access after the victim recovers.
+            user.RememberTokenHash = null;
+            user.RememberTokenExpiresAt = null;
+
             await _uow.SaveChangesAsync();
 
             await _audit.LogAsync(AppConstants.Modules.Users, "ResetPasswordWithToken", user.Id);
@@ -197,6 +250,8 @@ public class AuthService : IAuthService
 
             user.PasswordHash = PasswordHelper.HashPassword(dto.NewPassword);
             user.PasswordChangedAt = DateTime.Now;
+            user.RememberTokenHash = null;
+            user.RememberTokenExpiresAt = null;
             await _uow.SaveChangesAsync();
 
             await _audit.LogAsync(AppConstants.Modules.Users, "ChangePassword", userId);
@@ -212,14 +267,35 @@ public class AuthService : IAuthService
     public async Task LogoutAsync(int userId)
     {
         await _audit.LogAsync(AppConstants.Modules.Dashboard, "Logout", userId);
-        AppSession.Clear();
+        await _uow.SaveChangesAsync();
     }
+
+    /// <summary>Mints a fresh remember-me token, storing only its hash and returning the raw value once.</summary>
+    private static void IssueRememberToken(User user, AuthResultDto result)
+    {
+        var rawToken = TokenHelper.GenerateRawToken();
+        var expiresAt = DateTime.Now.Add(RememberTokenLifetime);
+
+        user.RememberTokenHash = TokenHelper.Hash(rawToken);
+        user.RememberTokenExpiresAt = expiresAt;
+
+        result.RememberToken = rawToken;
+        result.RememberTokenExpiresAt = expiresAt;
+    }
+
+    private static List<string> GetPermissions(User user) =>
+        user.Role?.RolePermissions
+            .Where(rp => rp.Permission != null)
+            .Select(rp => PermissionKey.For(rp.Permission!.Module, rp.Permission.Action))
+            .Distinct(PermissionKey.Comparer)
+            .ToList()
+        ?? new List<string>();
 
     private static UserDto MapToDto(User u) => new()
     {
         Id = u.Id, Username = u.Username, Email = u.Email,
         FullName = u.FullName, RoleId = u.RoleId, RoleName = u.Role?.Name ?? string.Empty,
         EmployeeId = u.EmployeeId, IsActive = u.IsActive, IsLocked = u.IsLocked,
-        LastLoginAt = u.LastLoginAt, CreatedAt = u.CreatedAt, RememberToken = u.RememberToken
+        LastLoginAt = u.LastLoginAt, CreatedAt = u.CreatedAt
     };
 }

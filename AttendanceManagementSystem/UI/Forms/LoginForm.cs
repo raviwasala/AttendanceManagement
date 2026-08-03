@@ -3,6 +3,7 @@ using AttendanceManagementSystem.UI.Theme;
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Common.Exceptions;
+using AttendanceManagementSystem.Session;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AttendanceManagementSystem.UI.Forms;
@@ -167,6 +168,10 @@ public class LoginForm : Form
             var result = await _authService.LoginAsync(new LoginDto(username, password, _chkRemember.Checked));
             if (result.IsSuccess)
             {
+                var auth = result.Data!;
+                DesktopSession.SetSession(auth.User.Id, auth.User.Username, auth.User.FullName,
+                    auth.User.RoleName, auth.User.RoleId, auth.User.EmployeeId, auth.Permissions);
+
                 var main = _services.GetRequiredService<MainForm>();
                 main.Show();
                 Hide();

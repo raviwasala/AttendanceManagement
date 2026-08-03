@@ -13,7 +13,8 @@ public class HolidayService : IHolidayService
 {
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
-    public HolidayService(IUnitOfWork uow, IAuditService audit) { _uow = uow; _audit = audit; }
+    private readonly ICurrentUserContext _currentUser;
+    public HolidayService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser) { _uow = uow; _audit = audit; _currentUser = currentUser; }
 
     public async Task<Result<IEnumerable<HolidayDto>>> GetAllAsync()
     {
@@ -45,11 +46,11 @@ public class HolidayService : IHolidayService
                 {
                     Name = dto.Name.Trim(), HolidayDate = dto.HolidayDate.Date,
                     HolidayType = dto.HolidayType, Description = dto.Description?.Trim(),
-                    IsRecurring = dto.IsRecurring, CreatedBy = AppSession.UserId, CreatedAt = DateTime.Now
+                    IsRecurring = dto.IsRecurring, CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now
                 };
                 await _uow.Holidays.AddAsync(entity);
                 await _uow.SaveChangesAsync();
-                await _audit.LogAsync("Holidays", "Create", AppSession.UserId, "Holiday", entity.Id);
+                await _audit.LogAsync("Holidays", "Create", _currentUser.UserId, "Holiday", entity.Id);
                 return Result<HolidayDto>.Success(Map(entity));
             }
             else
@@ -59,7 +60,7 @@ public class HolidayService : IHolidayService
                 entity.Name = dto.Name.Trim(); entity.HolidayDate = dto.HolidayDate.Date;
                 entity.HolidayType = dto.HolidayType; entity.Description = dto.Description?.Trim();
                 entity.IsRecurring = dto.IsRecurring;
-                entity.ModifiedBy = AppSession.UserId; entity.ModifiedAt = DateTime.Now;
+                entity.ModifiedBy = _currentUser.UserId; entity.ModifiedAt = DateTime.Now;
                 await _uow.Holidays.UpdateAsync(entity);
                 await _uow.SaveChangesAsync();
                 return Result<HolidayDto>.Success(Map(entity));

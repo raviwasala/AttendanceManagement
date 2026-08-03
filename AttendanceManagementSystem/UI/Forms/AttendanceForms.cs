@@ -2,7 +2,7 @@ using AttendanceManagementSystem.UI.Controls;
 using AttendanceManagementSystem.UI.Theme;
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
-using AttendanceSystem.Common.Session;
+using AttendanceManagementSystem.Session;
 using AttendanceSystem.Domain.Enums;
 
 namespace AttendanceManagementSystem.UI.Forms;
@@ -96,9 +96,9 @@ public class AttendanceForm : Form
 
     private async Task LoadHistoryAsync(DateTime from, DateTime to)
     {
-        if (AppSession.EmployeeId.HasValue)
+        if (DesktopSession.EmployeeId.HasValue)
         {
-            var r = await _attendanceService.GetByEmployeeAndDateRangeAsync(AppSession.EmployeeId.Value, from, to);
+            var r = await _attendanceService.GetByEmployeeAndDateRangeAsync(DesktopSession.EmployeeId.Value, from, to);
             if (r.IsSuccess) { _gridHistory.DataSource = null; _gridHistory.DataSource = r.Data!.ToList(); ColorizeStatusRows(_gridHistory); }
         }
     }
@@ -145,7 +145,7 @@ public class AttendanceForm : Form
         var selected = (AttendanceLogDto)_grid.SelectedRows[0].DataBoundItem;
         using var dlg = new EditAttendanceDialog(selected);
         if (dlg.ShowDialog() != DialogResult.OK) return;
-        var r = await _attendanceService.EditAsync(dlg.GetDto(), AppSession.UserId);
+        var r = await _attendanceService.EditAsync(dlg.GetDto(), DesktopSession.UserId);
         if (r.IsSuccess) await LoadTodayAsync();
         else MessageBox.Show(r.ErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
@@ -155,7 +155,7 @@ public class AttendanceForm : Form
         if (_grid.SelectedRows.Count == 0) return;
         var selected = (AttendanceLogDto)_grid.SelectedRows[0].DataBoundItem;
         if (MessageBox.Show("Delete this attendance record?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-        var r = await _attendanceService.DeleteAsync(selected.Id, AppSession.UserId);
+        var r = await _attendanceService.DeleteAsync(selected.Id, DesktopSession.UserId);
         if (r.IsSuccess) await LoadTodayAsync();
         else MessageBox.Show(r.ErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }

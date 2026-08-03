@@ -1,4 +1,4 @@
-using AttendanceSystem.Application.DTOs;
+﻿using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Common.Helpers;
 using AttendanceSystem.Common.Logging;
@@ -15,10 +15,11 @@ public class AttendanceService : IAttendanceService
 {
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
+    private readonly ICurrentUserContext _currentUser;
 
-    public AttendanceService(IUnitOfWork uow, IAuditService audit)
+    public AttendanceService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser)
     {
-        _uow = uow; _audit = audit;
+        _uow = uow; _audit = audit; _currentUser = currentUser;
     }
 
     public async Task<Result<AttendanceLogDto>> CheckInAsync(CheckInDto dto)
@@ -58,11 +59,11 @@ public class AttendanceService : IAttendanceService
             {
                 EmployeeId = dto.EmployeeId, AttendanceDate = today, CheckIn = dto.CheckInTime,
                 Status = status, IsLate = isLate, LateMinutes = lateMinutes > 0 ? lateMinutes : null,
-                Remarks = dto.Remarks, IsManual = true, CreatedBy = AppSession.UserId, CreatedAt = DateTime.Now
+                Remarks = dto.Remarks, IsManual = true, CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now
             };
             await _uow.Attendance.AddAsync(log);
             await _uow.SaveChangesAsync();
-            await _audit.LogAsync("Attendance", "CheckIn", AppSession.UserId, "AttendanceLog", log.Id);
+            await _audit.LogAsync("Attendance", "CheckIn", _currentUser.UserId, "AttendanceLog", log.Id);
             return Result<AttendanceLogDto>.Success(await BuildLogDtoAsync(log));
         }
         catch (Exception ex) { AppLogger.Error("AttendanceService.CheckInAsync", ex); return Result<AttendanceLogDto>.Failure(ex.Message); }
@@ -95,10 +96,10 @@ public class AttendanceService : IAttendanceService
                 if (earlyMins > 0) { log.IsEarlyLeave = true; log.EarlyLeaveMinutes = earlyMins; }
             }
 
-            log.ModifiedBy = AppSession.UserId; log.ModifiedAt = DateTime.Now;
+            log.ModifiedBy = _currentUser.UserId; log.ModifiedAt = DateTime.Now;
             await _uow.Attendance.UpdateAsync(log);
             await _uow.SaveChangesAsync();
-            await _audit.LogAsync("Attendance", "CheckOut", AppSession.UserId, "AttendanceLog", log.Id);
+            await _audit.LogAsync("Attendance", "CheckOut", _currentUser.UserId, "AttendanceLog", log.Id);
             return Result<AttendanceLogDto>.Success(await BuildLogDtoAsync(log));
         }
         catch (Exception ex) { AppLogger.Error("AttendanceService.CheckOutAsync", ex); return Result<AttendanceLogDto>.Failure(ex.Message); }

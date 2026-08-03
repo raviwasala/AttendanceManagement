@@ -1,7 +1,20 @@
 /* ── Shared Site-wide JavaScript ── */
 
-window.getCurrentUserId = function () {
-    return parseInt(document.body.dataset.userId) || 1;
+/*
+ * Escapes text before it is placed into an HTML string.
+ *
+ * The table renderers build markup by concatenation, so any value that came from the
+ * database is executed as markup unless it goes through here. An employee whose name is
+ * `<img src=x onerror=alert(1)>` is enough to run script in every admin's browser.
+ */
+window.esc = function (value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 };
 
 /* ── Toastr Global Configuration & Notification Helpers ── */

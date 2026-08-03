@@ -1,19 +1,21 @@
-using AttendanceSystem.Application.DTOs;
+﻿using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Web.Filters;
+using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
+using Actions = AttendanceSystem.Common.Constants.AppConstants.Actions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/designations")]
-[ApiController]
 [SessionAuthorize]
-public class DesignationsApiController : ControllerBase
+public class DesignationsApiController : ApiControllerBase
 {
     private readonly IDesignationService _svc;
     public DesignationsApiController(IDesignationService svc) => _svc = svc;
 
     [HttpGet]
+    [SessionAuthorize(Modules.Designations, Actions.View)]
     public async Task<IActionResult> GetAll()
     {
         var r = await _svc.GetAllAsync();
@@ -21,6 +23,7 @@ public class DesignationsApiController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [SessionAuthorize(Modules.Designations, Actions.View)]
     public async Task<IActionResult> GetById(int id)
     {
         var r = await _svc.GetByIdAsync(id);
@@ -28,6 +31,7 @@ public class DesignationsApiController : ControllerBase
     }
 
     [HttpPost]
+    [SessionAuthorize(Modules.Designations, Actions.Edit)]
     public async Task<IActionResult> Save([FromBody] SaveDesignationDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -36,10 +40,10 @@ public class DesignationsApiController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [SessionAuthorize(Modules.Designations, Actions.Delete)]
     public async Task<IActionResult> Delete(int id)
     {
-        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
-        var r = await _svc.DeleteAsync(id, currentUserId);
+        var r = await _svc.DeleteAsync(id, CurrentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 }

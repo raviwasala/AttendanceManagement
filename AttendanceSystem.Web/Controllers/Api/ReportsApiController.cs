@@ -1,18 +1,20 @@
-using AttendanceSystem.Application.Interfaces;
+﻿using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Web.Filters;
+using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
+using Actions = AttendanceSystem.Common.Constants.AppConstants.Actions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/reports")]
-[ApiController]
 [SessionAuthorize]
-public class ReportsApiController : ControllerBase
+public class ReportsApiController : ApiControllerBase
 {
     private readonly IReportService _svc;
     public ReportsApiController(IReportService svc) => _svc = svc;
 
     [HttpGet("daily")]
+    [SessionAuthorize(Modules.Reports, Actions.View)]
     public async Task<IActionResult> Daily([FromQuery] DateTime date)
     {
         var data = await _svc.GetDailyAttendanceReportAsync(date);
@@ -20,6 +22,7 @@ public class ReportsApiController : ControllerBase
     }
 
     [HttpGet("monthly")]
+    [SessionAuthorize(Modules.Reports, Actions.View)]
     public async Task<IActionResult> Monthly([FromQuery] int month, [FromQuery] int year,
         [FromQuery] int? departmentId)
     {
@@ -28,6 +31,7 @@ public class ReportsApiController : ControllerBase
     }
 
     [HttpGet("late")]
+    [SessionAuthorize(Modules.Reports, Actions.View)]
     public async Task<IActionResult> Late([FromQuery] DateTime from, [FromQuery] DateTime to,
         [FromQuery] int? departmentId)
     {
@@ -36,6 +40,7 @@ public class ReportsApiController : ControllerBase
     }
 
     [HttpGet("absent")]
+    [SessionAuthorize(Modules.Reports, Actions.View)]
     public async Task<IActionResult> Absent([FromQuery] DateTime from, [FromQuery] DateTime to,
         [FromQuery] int? departmentId)
     {
@@ -44,6 +49,7 @@ public class ReportsApiController : ControllerBase
     }
 
     [HttpGet("leave")]
+    [SessionAuthorize(Modules.Reports, Actions.View)]
     public async Task<IActionResult> Leave([FromQuery] DateTime from, [FromQuery] DateTime to,
         [FromQuery] int? departmentId)
     {
@@ -52,6 +58,7 @@ public class ReportsApiController : ControllerBase
     }
 
     [HttpGet("employees")]
+    [SessionAuthorize(Modules.Reports, Actions.View)]
     public async Task<IActionResult> Employees([FromQuery] int? departmentId)
     {
         var data = await _svc.GetEmployeeListReportAsync(departmentId);

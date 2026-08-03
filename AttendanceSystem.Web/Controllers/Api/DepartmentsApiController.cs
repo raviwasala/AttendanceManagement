@@ -1,19 +1,21 @@
-using AttendanceSystem.Application.DTOs;
+﻿using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Web.Filters;
+using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
+using Actions = AttendanceSystem.Common.Constants.AppConstants.Actions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/departments")]
-[ApiController]
 [SessionAuthorize]
-public class DepartmentsApiController : ControllerBase
+public class DepartmentsApiController : ApiControllerBase
 {
     private readonly IDepartmentService _svc;
     public DepartmentsApiController(IDepartmentService svc) => _svc = svc;
 
     [HttpGet]
+    [SessionAuthorize(Modules.Departments, Actions.View)]
     public async Task<IActionResult> GetAll()
     {
         var r = await _svc.GetAllAsync();
@@ -21,6 +23,7 @@ public class DepartmentsApiController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [SessionAuthorize(Modules.Departments, Actions.View)]
     public async Task<IActionResult> GetById(int id)
     {
         var r = await _svc.GetByIdAsync(id);
@@ -28,6 +31,7 @@ public class DepartmentsApiController : ControllerBase
     }
 
     [HttpGet("search")]
+    [SessionAuthorize(Modules.Departments, Actions.View)]
     public async Task<IActionResult> Search([FromQuery] string q)
     {
         var r = await _svc.SearchAsync(q ?? "");
@@ -35,6 +39,7 @@ public class DepartmentsApiController : ControllerBase
     }
 
     [HttpPost]
+    [SessionAuthorize(Modules.Departments, Actions.Edit)]
     public async Task<IActionResult> Save([FromBody] SaveDepartmentDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -43,10 +48,10 @@ public class DepartmentsApiController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [SessionAuthorize(Modules.Departments, Actions.Delete)]
     public async Task<IActionResult> Delete(int id)
     {
-        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
-        var r = await _svc.DeleteAsync(id, currentUserId);
+        var r = await _svc.DeleteAsync(id, CurrentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 }

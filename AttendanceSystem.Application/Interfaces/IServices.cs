@@ -6,12 +6,15 @@ namespace AttendanceSystem.Application.Interfaces;
 /// <summary>Authentication service contract.</summary>
 public interface IAuthService
 {
-    Task<Result<UserDto>> LoginAsync(LoginDto dto);
+    Task<Result<AuthResultDto>> LoginAsync(LoginDto dto);
     Task<Result> ChangePasswordAsync(int userId, ChangePasswordDto dto);
     Task LogoutAsync(int userId);
     Task<Result> RequestPasswordResetAsync(ForgotPasswordDto dto, string baseUrl);
     Task<Result> ResetPasswordWithTokenAsync(ResetPasswordWithTokenDto dto);
-    Task<Result<UserDto>> ValidateRememberTokenAsync(string username, string token);
+    Task<Result<AuthResultDto>> ValidateRememberTokenAsync(string username, string token);
+
+    /// <summary>Invalidates the user's stored remember-me token (used on explicit sign-out).</summary>
+    Task<Result> RevokeRememberTokenAsync(int userId);
 }
 
 /// <summary>User management service contract.</summary>

@@ -1,19 +1,21 @@
-using AttendanceSystem.Application.DTOs;
+﻿using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Web.Filters;
+using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
+using Actions = AttendanceSystem.Common.Constants.AppConstants.Actions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/shifts")]
-[ApiController]
 [SessionAuthorize]
-public class ShiftsApiController : ControllerBase
+public class ShiftsApiController : ApiControllerBase
 {
     private readonly IShiftService _svc;
     public ShiftsApiController(IShiftService svc) => _svc = svc;
 
     [HttpGet]
+    [SessionAuthorize(Modules.Shifts, Actions.View)]
     public async Task<IActionResult> GetAll()
     {
         var r = await _svc.GetAllAsync();
@@ -21,6 +23,7 @@ public class ShiftsApiController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [SessionAuthorize(Modules.Shifts, Actions.View)]
     public async Task<IActionResult> GetById(int id)
     {
         var r = await _svc.GetByIdAsync(id);
@@ -28,6 +31,7 @@ public class ShiftsApiController : ControllerBase
     }
 
     [HttpPost]
+    [SessionAuthorize(Modules.Shifts, Actions.Edit)]
     public async Task<IActionResult> Save([FromBody] SaveShiftDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -36,14 +40,15 @@ public class ShiftsApiController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [SessionAuthorize(Modules.Shifts, Actions.Delete)]
     public async Task<IActionResult> Delete(int id)
     {
-        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
-        var r = await _svc.DeleteAsync(id, currentUserId);
+        var r = await _svc.DeleteAsync(id, CurrentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 
     [HttpGet("assignments")]
+    [SessionAuthorize(Modules.Shifts, Actions.View)]
     public async Task<IActionResult> GetAssignments()
     {
         var r = await _svc.GetEmployeeShiftsAsync();
@@ -51,6 +56,7 @@ public class ShiftsApiController : ControllerBase
     }
 
     [HttpPost("assign")]
+    [SessionAuthorize(Modules.Shifts, Actions.Edit)]
     public async Task<IActionResult> Assign([FromBody] AssignShiftDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);

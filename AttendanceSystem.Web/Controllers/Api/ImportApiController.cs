@@ -1,14 +1,15 @@
-using AttendanceSystem.Application.DTOs;
+﻿using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Web.Filters;
+using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
+using Actions = AttendanceSystem.Common.Constants.AppConstants.Actions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/import")]
-[ApiController]
 [SessionAuthorize]
-public class ImportApiController : ControllerBase
+public class ImportApiController : ApiControllerBase
 {
     private readonly IBiometricImportService _svc;
     private readonly IWebHostEnvironment _env;
@@ -20,6 +21,7 @@ public class ImportApiController : ControllerBase
     }
 
     [HttpPost("preview")]
+    [SessionAuthorize(Modules.Import, Actions.View)]
     [DisableRequestSizeLimit]
     public async Task<IActionResult> Preview()
     {
@@ -56,6 +58,7 @@ public class ImportApiController : ControllerBase
     }
 
     [HttpPost("file")]
+    [SessionAuthorize(Modules.Import, Actions.Create)]
     [DisableRequestSizeLimit]
     public async Task<IActionResult> ImportFile()
     {
@@ -92,6 +95,7 @@ public class ImportApiController : ControllerBase
     }
 
     [HttpPost("process-edited")]
+    [SessionAuthorize(Modules.Import, Actions.Create)]
     public async Task<IActionResult> ProcessEdited([FromBody] List<BiometricPunchDto> punches)
     {
         if (punches == null || punches.Count == 0) return BadRequest("No punch records provided for processing.");

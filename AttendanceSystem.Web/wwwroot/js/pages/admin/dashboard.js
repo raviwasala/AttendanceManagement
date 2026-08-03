@@ -8,11 +8,12 @@ async function loadDashboard() {
         if (!res.ok) throw new Error('Failed to load dashboard data');
         const d = await res.json();
 
-        // Stat cards
-        document.getElementById('statTotal').textContent   = d.TotalEmployees ?? 0;
-        document.getElementById('statPresent').textContent = d.PresentToday   ?? 0;
-        document.getElementById('statAbsent').textContent  = d.AbsentToday    ?? 0;
-        document.getElementById('statLeave').textContent   = d.OnLeaveToday   ?? 0;
+        // Stat cards — grouped digits so larger headcounts stay readable (1,240 not 1240)
+        const num = v => (v ?? 0).toLocaleString();
+        document.getElementById('statTotal').textContent   = num(d.TotalEmployees);
+        document.getElementById('statPresent').textContent = num(d.PresentToday);
+        document.getElementById('statAbsent').textContent  = num(d.AbsentToday);
+        document.getElementById('statLeave').textContent   = num(d.OnLeaveToday);
 
         // Pie labels
         const pct = d.AttendancePercentage ?? 0;

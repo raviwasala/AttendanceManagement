@@ -2,7 +2,7 @@ using AttendanceManagementSystem.UI.Controls;
 using AttendanceManagementSystem.UI.Theme;
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
-using AttendanceSystem.Common.Session;
+using AttendanceManagementSystem.Session;
 using AttendanceSystem.Domain.Enums;
 
 namespace AttendanceManagementSystem.UI.Forms;
@@ -98,7 +98,7 @@ public class HolidayForm : Form
         if (_grid.SelectedRows.Count == 0) return;
         var h = (HolidayDto)_grid.SelectedRows[0].DataBoundItem;
         if (MessageBox.Show($"Delete '{h.Name}'?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-        var r = await _service.DeleteAsync(h.Id, AppSession.UserId);
+        var r = await _service.DeleteAsync(h.Id, DesktopSession.UserId);
         if (r.IsSuccess) await LoadAsync();
         else MessageBox.Show(r.ErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }

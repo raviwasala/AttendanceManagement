@@ -2,7 +2,7 @@ using AttendanceManagementSystem.UI.Controls;
 using AttendanceManagementSystem.UI.Theme;
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
-using AttendanceSystem.Common.Session;
+using AttendanceManagementSystem.Session;
 
 namespace AttendanceManagementSystem.UI.Forms;
 
@@ -109,7 +109,7 @@ public class ShiftForm : Form
         if (_gridShifts.SelectedRows.Count == 0) return;
         var s = (ShiftDto)_gridShifts.SelectedRows[0].DataBoundItem;
         if (MessageBox.Show($"Delete shift '{s.Name}'?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-        var r = await _shiftService.DeleteAsync(s.Id, AppSession.UserId);
+        var r = await _shiftService.DeleteAsync(s.Id, DesktopSession.UserId);
         if (r.IsSuccess) await LoadAsync();
         else MessageBox.Show(r.ErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }

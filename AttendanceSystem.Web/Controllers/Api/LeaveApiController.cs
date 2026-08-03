@@ -1,21 +1,23 @@
-using AttendanceSystem.Application.DTOs;
+﻿using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Web.Filters;
+using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
+using Actions = AttendanceSystem.Common.Constants.AppConstants.Actions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/leave")]
-[ApiController]
 [SessionAuthorize]
-public class LeaveApiController : ControllerBase
+public class LeaveApiController : ApiControllerBase
 {
     private readonly ILeaveService _svc;
     public LeaveApiController(ILeaveService svc) => _svc = svc;
 
-    // ── Leave Types ────────────────────────────────────────────────────────
+    // â”€â”€ Leave Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [HttpGet("types")]
+    [SessionAuthorize(Modules.Leave, Actions.View)]
     public async Task<IActionResult> GetTypes()
     {
         var r = await _svc.GetLeaveTypesAsync();
@@ -23,6 +25,7 @@ public class LeaveApiController : ControllerBase
     }
 
     [HttpPost("types")]
+    [SessionAuthorize(Modules.Leave, Actions.Edit)]
     public async Task<IActionResult> SaveType([FromBody] SaveLeaveTypeDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -31,15 +34,17 @@ public class LeaveApiController : ControllerBase
     }
 
     [HttpDelete("types/{id}")]
+    [SessionAuthorize(Modules.Leave, Actions.Delete)]
     public async Task<IActionResult> DeleteType(int id)
     {
         var r = await _svc.DeleteLeaveTypeAsync(id);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 
-    // ── Leave Requests ─────────────────────────────────────────────────────
+    // â”€â”€ Leave Requests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     [HttpGet("requests")]
+    [SessionAuthorize(Modules.Leave, Actions.View)]
     public async Task<IActionResult> GetAll()
     {
         var r = await _svc.GetAllRequestsAsync();
@@ -47,6 +52,7 @@ public class LeaveApiController : ControllerBase
     }
 
     [HttpGet("requests/pending")]
+    [SessionAuthorize(Modules.Leave, Actions.View)]
     public async Task<IActionResult> GetPending()
     {
         var r = await _svc.GetPendingAsync();
@@ -54,6 +60,7 @@ public class LeaveApiController : ControllerBase
     }
 
     [HttpGet("requests/employee/{employeeId}")]
+    [SessionAuthorize(Modules.Leave, Actions.View)]
     public async Task<IActionResult> GetByEmployee(int employeeId)
     {
         var r = await _svc.GetByEmployeeAsync(employeeId);
@@ -61,6 +68,7 @@ public class LeaveApiController : ControllerBase
     }
 
     [HttpPost("requests")]
+    [SessionAuthorize(Modules.Leave, Actions.Create)]
     public async Task<IActionResult> Apply([FromBody] ApplyLeaveDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -69,23 +77,24 @@ public class LeaveApiController : ControllerBase
     }
 
     [HttpPost("requests/approve")]
+    [SessionAuthorize(Modules.Leave, Actions.Approve)]
     public async Task<IActionResult> Approve([FromBody] ApproveRejectLeaveDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
-        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
-        var r = await _svc.ApproveRejectAsync(dto, currentUserId);
+        var r = await _svc.ApproveRejectAsync(dto, CurrentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 
     [HttpPost("requests/{id}/cancel")]
+    [SessionAuthorize(Modules.Leave, Actions.Edit)]
     public async Task<IActionResult> Cancel(int id)
     {
-        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
-        var r = await _svc.CancelAsync(id, currentUserId);
+        var r = await _svc.CancelAsync(id, CurrentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 
     [HttpGet("balances/{employeeId}")]
+    [SessionAuthorize(Modules.Leave, Actions.View)]
     public async Task<IActionResult> Balances(int employeeId)
     {
         var r = await _svc.GetBalancesAsync(employeeId);

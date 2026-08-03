@@ -1,14 +1,15 @@
-using AttendanceSystem.Application.DTOs;
+﻿using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Web.Filters;
+using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
+using Actions = AttendanceSystem.Common.Constants.AppConstants.Actions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/users")]
-[ApiController]
 [SessionAuthorize]
-public class UsersApiController : ControllerBase
+public class UsersApiController : ApiControllerBase
 {
     private readonly IUserService _users;
     private readonly IRoleService _roles;
@@ -20,6 +21,7 @@ public class UsersApiController : ControllerBase
     }
 
     [HttpGet]
+    [SessionAuthorize(Modules.Users, Actions.View)]
     public async Task<IActionResult> GetAll()
     {
         var r = await _users.GetAllAsync();
@@ -27,6 +29,7 @@ public class UsersApiController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [SessionAuthorize(Modules.Users, Actions.View)]
     public async Task<IActionResult> GetById(int id)
     {
         var r = await _users.GetByIdAsync(id);
@@ -34,6 +37,7 @@ public class UsersApiController : ControllerBase
     }
 
     [HttpPost]
+    [SessionAuthorize(Modules.Users, Actions.Create)]
     public async Task<IActionResult> Create([FromBody] CreateUserDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -42,6 +46,7 @@ public class UsersApiController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [SessionAuthorize(Modules.Users, Actions.Edit)]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateUserDto dto)
     {
         dto.Id = id;
@@ -51,22 +56,23 @@ public class UsersApiController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [SessionAuthorize(Modules.Users, Actions.Delete)]
     public async Task<IActionResult> Delete(int id)
     {
-        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
-        var r = await _users.DeleteAsync(id, currentUserId);
+        var r = await _users.DeleteAsync(id, CurrentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 
     [HttpPost("{id}/reset-password")]
+    [SessionAuthorize(Modules.Users, Actions.Edit)]
     public async Task<IActionResult> ResetPassword(int id, [FromBody] ResetPasswordRequest req)
     {
-        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
-        var r = await _users.ResetPasswordAsync(id, req.NewPassword, currentUserId);
+        var r = await _users.ResetPasswordAsync(id, req.NewPassword, CurrentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 
     [HttpPost("{id}/lock")]
+    [SessionAuthorize(Modules.Users, Actions.Edit)]
     public async Task<IActionResult> Lock(int id)
     {
         var r = await _users.LockAsync(id);
@@ -74,6 +80,7 @@ public class UsersApiController : ControllerBase
     }
 
     [HttpPost("{id}/unlock")]
+    [SessionAuthorize(Modules.Users, Actions.Edit)]
     public async Task<IActionResult> Unlock(int id)
     {
         var r = await _users.UnlockAsync(id);
@@ -81,6 +88,7 @@ public class UsersApiController : ControllerBase
     }
 
     [HttpGet("roles")]
+    [SessionAuthorize(Modules.Roles, Actions.View)]
     public async Task<IActionResult> GetRoles()
     {
         var r = await _roles.GetAllAsync();

@@ -12,7 +12,7 @@ $(function () {
         depts.forEach(function (d) {
             var id = d.Id !== undefined ? d.Id : d.id;
             var name = d.Name || d.name || '';
-            opts += '<option value="' + id + '">' + name + '</option>';
+            opts += '<option value="' + esc(id) + '">' + esc(name) + '</option>';
         });
         $('#deptFilter').html(opts);
         loadEmps();
@@ -29,12 +29,12 @@ function renderTable(data) {
     var html = '';
     data.forEach(function (e) {
         html += '<tr>'
-            + '<td class="fw-semibold text-primary">' + e.EmployeeCode + '</td>'
-            + '<td>' + e.FullName + '</td>'
-            + '<td class="text-muted">' + e.Department + '</td>'
-            + '<td class="text-muted">' + e.Designation + '</td>'
-            + '<td class="text-muted">' + e.Branch + '</td>'
-            + '<td>' + (e.Phone || '—') + '</td>'
+            + '<td class="fw-semibold text-primary">' + esc(e.EmployeeCode) + '</td>'
+            + '<td>' + esc(e.FullName) + '</td>'
+            + '<td class="text-muted">' + esc(e.Department) + '</td>'
+            + '<td class="text-muted">' + esc(e.Designation) + '</td>'
+            + '<td class="text-muted">' + esc(e.Branch) + '</td>'
+            + '<td>' + (esc(e.Phone) || '—') + '</td>'
             + '<td>' + (e.IsActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>') + '</td>'
             + '<td>'
             + '<button class="btn btn-sm btn-outline-primary me-1" onclick="editEmp(' + e.Id + ')" title="Edit"><i class="fa fa-pencil"></i></button>'
@@ -58,11 +58,11 @@ function filterTable() {
 
 function fillDropdowns() {
     var dOpts = '<option value="">-- Department --</option>';
-    depts.forEach(function (d) { dOpts += '<option value="' + d.Id + '">' + d.Name + '</option>'; });
+    depts.forEach(function (d) { dOpts += '<option value="' + esc(d.Id) + '">' + esc(d.Name) + '</option>'; });
     var deOpts = '<option value="">-- Designation --</option>';
-    desigs.forEach(function (d) { deOpts += '<option value="' + d.Id + '">' + d.Name + '</option>'; });
+    desigs.forEach(function (d) { deOpts += '<option value="' + esc(d.Id) + '">' + esc(d.Name) + '</option>'; });
     var bOpts = '<option value="">-- Branch --</option>';
-    branches.forEach(function (b) { bOpts += '<option value="' + b.Id + '">' + b.Name + '</option>'; });
+    branches.forEach(function (b) { bOpts += '<option value="' + esc(b.Id) + '">' + esc(b.Name) + '</option>'; });
     $('#empDept').html(dOpts); $('#empDesig').html(deOpts); $('#empBranch').html(bOpts);
 }
 

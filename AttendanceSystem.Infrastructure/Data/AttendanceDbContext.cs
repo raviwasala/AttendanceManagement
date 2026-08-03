@@ -1,3 +1,5 @@
+using AttendanceSystem.Common.Constants;
+using AttendanceSystem.Common.Session;
 using AttendanceSystem.Domain.Entities;
 using AttendanceSystem.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +9,18 @@ namespace AttendanceSystem.Infrastructure.Data;
 /// <summary>Entity Framework Core database context for the Attendance Management System.</summary>
 public class AttendanceDbContext : DbContext
 {
-    public AttendanceDbContext(DbContextOptions<AttendanceDbContext> options) : base(options) { }
+    private readonly ICurrentUserContext _currentUser;
+
+    /// <summary>
+    /// Single constructor by design: EF Core cannot choose between overloads where one
+    /// parameter list is a subset of the other. Callers with no signed-in user (design-time
+    /// tooling, background work) pass <see cref="AnonymousUserContext.Instance"/>.
+    /// </summary>
+    public AttendanceDbContext(DbContextOptions<AttendanceDbContext> options, ICurrentUserContext currentUser)
+        : base(options)
+    {
+        _currentUser = currentUser;
+    }
 
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<Role> Roles { get; set; } = null!;
@@ -40,15 +53,13 @@ public class AttendanceDbContext : DbContext
         return base.SaveChanges();
     }
 
-    private static int GetCurrentUserId() =>
-        AttendanceSystem.Common.Session.AppSession.UserId > 0 
-            ? AttendanceSystem.Common.Session.AppSession.UserId 
-            : 1;
-
     private void ApplyAuditAndSoftDelete()
     {
         var now = DateTime.Now;
-        var currentUserId = GetCurrentUserId();
+
+        // Null when nobody is signed in (background jobs, seeding, design-time). Previously this
+        // fell back to user 1, which silently attributed system writes to the admin account.
+        var currentUserId = _currentUser.UserId;
 
         foreach (var entry in ChangeTracker.Entries<BaseEntity>())
         {
@@ -116,6 +127,8 @@ public class AttendanceDbContext : DbContext
             e.Property(x => x.PasswordHash).IsRequired().HasMaxLength(500);
             e.Property(x => x.Email).IsRequired().HasMaxLength(200);
             e.Property(x => x.FullName).IsRequired().HasMaxLength(200);
+            e.Property(x => x.RememberTokenHash).HasMaxLength(100);
+            e.Property(x => x.ResetPasswordTokenHash).HasMaxLength(100);
             e.HasIndex(x => x.Username).IsUnique();
             e.HasIndex(x => x.Email).IsUnique();
             e.HasOne(x => x.Role).WithMany(x => x.Users).HasForeignKey(x => x.RoleId);
@@ -283,6 +296,8 @@ public class AttendanceDbContext : DbContext
             }
         );
 
+        SeedPermissions(modelBuilder);
+
         // Seed default Branch
         modelBuilder.Entity<Branch>().HasData(
             new Branch { Id = 1, Name = "Head Office", IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
@@ -339,5 +354,87 @@ public class AttendanceDbContext : DbContext
                 CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             }
         );
+    }
+
+    /// <summary>
+    /// The catalogue of permissions and the default grant for each seeded role.
+    ///
+    /// Without these rows every permission check denies, because a check can only ever
+    /// answer "yes" for a permission that exists and is granted. Ids are assigned by
+    /// position in this table, so entries may be appended but must never be reordered
+    /// or removed — doing so would silently re-point existing RolePermission rows.
+    /// </summary>
+    private static readonly (string Module, string[] Actions)[] PermissionCatalogue =
+    [
+        (AppConstants.Modules.Dashboard,    [AppConstants.Actions.View]),
+        (AppConstants.Modules.Employees,    [AppConstants.Actions.View, AppConstants.Actions.Create, AppConstants.Actions.Edit, AppConstants.Actions.Delete, AppConstants.Actions.Export]),
+        (AppConstants.Modules.Departments,  [AppConstants.Actions.View, AppConstants.Actions.Create, AppConstants.Actions.Edit, AppConstants.Actions.Delete]),
+        (AppConstants.Modules.Designations, [AppConstants.Actions.View, AppConstants.Actions.Create, AppConstants.Actions.Edit, AppConstants.Actions.Delete]),
+        (AppConstants.Modules.Branches,     [AppConstants.Actions.View, AppConstants.Actions.Create, AppConstants.Actions.Edit, AppConstants.Actions.Delete]),
+        (AppConstants.Modules.Shifts,       [AppConstants.Actions.View, AppConstants.Actions.Create, AppConstants.Actions.Edit, AppConstants.Actions.Delete]),
+        (AppConstants.Modules.Attendance,   [AppConstants.Actions.View, AppConstants.Actions.Create, AppConstants.Actions.Edit, AppConstants.Actions.Delete, AppConstants.Actions.Export]),
+        (AppConstants.Modules.Leave,        [AppConstants.Actions.View, AppConstants.Actions.Create, AppConstants.Actions.Edit, AppConstants.Actions.Delete, AppConstants.Actions.Approve]),
+        (AppConstants.Modules.Holidays,     [AppConstants.Actions.View, AppConstants.Actions.Create, AppConstants.Actions.Edit, AppConstants.Actions.Delete]),
+        (AppConstants.Modules.Reports,      [AppConstants.Actions.View, AppConstants.Actions.Export]),
+        (AppConstants.Modules.Users,        [AppConstants.Actions.View, AppConstants.Actions.Create, AppConstants.Actions.Edit, AppConstants.Actions.Delete]),
+        (AppConstants.Modules.Roles,        [AppConstants.Actions.View, AppConstants.Actions.Create, AppConstants.Actions.Edit, AppConstants.Actions.Delete]),
+        (AppConstants.Modules.Settings,     [AppConstants.Actions.View, AppConstants.Actions.Edit]),
+        (AppConstants.Modules.Import,       [AppConstants.Actions.View, AppConstants.Actions.Create]),
+        (AppConstants.Modules.AuditLogs,    [AppConstants.Actions.View]),
+    ];
+
+    private static void SeedPermissions(ModelBuilder modelBuilder)
+    {
+        var seedDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var permissions = new List<Permission>();
+        var idByKey = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var nextId = 1;
+
+        foreach (var (module, actions) in PermissionCatalogue)
+        {
+            foreach (var action in actions)
+            {
+                permissions.Add(new Permission
+                {
+                    Id = nextId,
+                    Module = module,
+                    Action = action,
+                    DisplayName = $"{action} {module}",
+                    IsDeleted = false,
+                    CreatedAt = seedDate
+                });
+                idByKey[$"{module}.{action}"] = nextId;
+                nextId++;
+            }
+        }
+
+        modelBuilder.Entity<Permission>().HasData(permissions);
+
+        // Administrator: everything.
+        var grants = permissions.Select(p => new RolePermission { RoleId = 1, PermissionId = p.Id }).ToList();
+
+        // HR Manager: full operational access, but no control over users, roles or settings.
+        var hrExcludedModules = new[] { AppConstants.Modules.Users, AppConstants.Modules.Roles, AppConstants.Modules.AuditLogs };
+        grants.AddRange(permissions
+            .Where(p => !hrExcludedModules.Contains(p.Module, StringComparer.OrdinalIgnoreCase))
+            .Where(p => !(p.Module == AppConstants.Modules.Settings && p.Action == AppConstants.Actions.Edit))
+            .Select(p => new RolePermission { RoleId = 2, PermissionId = p.Id }));
+
+        // Employee: self-service only — see the dashboard, own attendance, request leave.
+        string[] employeeGrants =
+        [
+            $"{AppConstants.Modules.Dashboard}.{AppConstants.Actions.View}",
+            $"{AppConstants.Modules.Attendance}.{AppConstants.Actions.View}",
+            $"{AppConstants.Modules.Attendance}.{AppConstants.Actions.Create}",
+            $"{AppConstants.Modules.Leave}.{AppConstants.Actions.View}",
+            $"{AppConstants.Modules.Leave}.{AppConstants.Actions.Create}",
+            $"{AppConstants.Modules.Holidays}.{AppConstants.Actions.View}",
+        ];
+        grants.AddRange(employeeGrants
+            .Where(idByKey.ContainsKey)
+            .Select(key => new RolePermission { RoleId = 3, PermissionId = idByKey[key] }));
+
+        modelBuilder.Entity<RolePermission>().HasData(grants);
     }
 }

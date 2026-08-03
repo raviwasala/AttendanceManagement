@@ -69,8 +69,9 @@ public class EmailService : IEmailService
 </body>
 </html>";
 
-            // Always log link & token in application logger for dev inspection
-            AppLogger.Info($"[PasswordResetEmail] To: {toEmail} | Link: {resetLink} | Token: {token}");
+            // The token is a credential — logging it would let anyone with read access to the
+            // log files take over an account. Record only that a mail was attempted.
+            AppLogger.Info($"[PasswordResetEmail] Sending password reset mail to {toEmail}.");
 
             if (!string.IsNullOrWhiteSpace(host) && int.TryParse(portStr, out var port))
             {

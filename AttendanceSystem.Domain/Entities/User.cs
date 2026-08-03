@@ -16,8 +16,15 @@ public class User : BaseEntity
     public int FailedLoginAttempts { get; set; }
     public DateTime? LastLoginAt { get; set; }
     public DateTime? PasswordChangedAt { get; set; }
-    public string? RememberToken { get; set; }
-    public string? ResetPasswordToken { get; set; }
+    /// <summary>
+    /// SHA-256 hash of the remember-me token. The raw token is shown to the client once and
+    /// never stored, so a database leak does not hand out usable long-lived credentials.
+    /// </summary>
+    public string? RememberTokenHash { get; set; }
+    public DateTime? RememberTokenExpiresAt { get; set; }
+
+    /// <summary>SHA-256 hash of the password-reset token — same reasoning as <see cref="RememberTokenHash"/>.</summary>
+    public string? ResetPasswordTokenHash { get; set; }
     public DateTime? ResetPasswordTokenExpiry { get; set; }
 
     public ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();

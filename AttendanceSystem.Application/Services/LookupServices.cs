@@ -13,7 +13,8 @@ public class DepartmentService : IDepartmentService
 {
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
-    public DepartmentService(IUnitOfWork uow, IAuditService audit) { _uow = uow; _audit = audit; }
+    private readonly ICurrentUserContext _currentUser;
+    public DepartmentService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser) { _uow = uow; _audit = audit; _currentUser = currentUser; }
 
     public async Task<Result<IEnumerable<DepartmentDto>>> GetAllAsync()
     {
@@ -56,10 +57,10 @@ public class DepartmentService : IDepartmentService
 
             if (dto.Id == 0)
             {
-                var entity = new Department { Name = dto.Name.Trim(), Description = dto.Description?.Trim(), IsActive = dto.IsActive, CreatedBy = AppSession.UserId, CreatedAt = DateTime.Now };
+                var entity = new Department { Name = dto.Name.Trim(), Description = dto.Description?.Trim(), IsActive = dto.IsActive, CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now };
                 await _uow.Departments.AddAsync(entity);
                 await _uow.SaveChangesAsync();
-                await _audit.LogAsync("Departments", "Create", AppSession.UserId, "Department", entity.Id);
+                await _audit.LogAsync("Departments", "Create", _currentUser.UserId, "Department", entity.Id);
                 return Result<DepartmentDto>.Success(Map(entity));
             }
             else
@@ -67,10 +68,10 @@ public class DepartmentService : IDepartmentService
                 var entity = await _uow.Departments.GetByIdAsync(dto.Id);
                 if (entity == null) return Result<DepartmentDto>.Failure("Department not found.");
                 entity.Name = dto.Name.Trim(); entity.Description = dto.Description?.Trim(); entity.IsActive = dto.IsActive;
-                entity.ModifiedBy = AppSession.UserId; entity.ModifiedAt = DateTime.Now;
+                entity.ModifiedBy = _currentUser.UserId; entity.ModifiedAt = DateTime.Now;
                 await _uow.Departments.UpdateAsync(entity);
                 await _uow.SaveChangesAsync();
-                await _audit.LogAsync("Departments", "Update", AppSession.UserId, "Department", entity.Id);
+                await _audit.LogAsync("Departments", "Update", _currentUser.UserId, "Department", entity.Id);
                 return Result<DepartmentDto>.Success(Map(entity));
             }
         }
@@ -114,7 +115,8 @@ public class DesignationService : IDesignationService
 {
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
-    public DesignationService(IUnitOfWork uow, IAuditService audit) { _uow = uow; _audit = audit; }
+    private readonly ICurrentUserContext _currentUser;
+    public DesignationService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser) { _uow = uow; _audit = audit; _currentUser = currentUser; }
 
     public async Task<Result<IEnumerable<DesignationDto>>> GetAllAsync()
     {
@@ -146,10 +148,10 @@ public class DesignationService : IDesignationService
 
             if (dto.Id == 0)
             {
-                var entity = new Designation { Name = dto.Name.Trim(), Description = dto.Description?.Trim(), IsActive = dto.IsActive, CreatedBy = AppSession.UserId, CreatedAt = DateTime.Now };
+                var entity = new Designation { Name = dto.Name.Trim(), Description = dto.Description?.Trim(), IsActive = dto.IsActive, CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now };
                 await _uow.Designations.AddAsync(entity);
                 await _uow.SaveChangesAsync();
-                await _audit.LogAsync("Designations", "Create", AppSession.UserId, "Designation", entity.Id);
+                await _audit.LogAsync("Designations", "Create", _currentUser.UserId, "Designation", entity.Id);
                 return Result<DesignationDto>.Success(Map(entity));
             }
             else
@@ -157,7 +159,7 @@ public class DesignationService : IDesignationService
                 var entity = await _uow.Designations.GetByIdAsync(dto.Id);
                 if (entity == null) return Result<DesignationDto>.Failure("Not found.");
                 entity.Name = dto.Name.Trim(); entity.Description = dto.Description?.Trim(); entity.IsActive = dto.IsActive;
-                entity.ModifiedBy = AppSession.UserId; entity.ModifiedAt = DateTime.Now;
+                entity.ModifiedBy = _currentUser.UserId; entity.ModifiedAt = DateTime.Now;
                 await _uow.Designations.UpdateAsync(entity);
                 await _uow.SaveChangesAsync();
                 return Result<DesignationDto>.Success(Map(entity));
@@ -190,7 +192,8 @@ public class BranchService : IBranchService
 {
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
-    public BranchService(IUnitOfWork uow, IAuditService audit) { _uow = uow; _audit = audit; }
+    private readonly ICurrentUserContext _currentUser;
+    public BranchService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser) { _uow = uow; _audit = audit; _currentUser = currentUser; }
 
     public async Task<Result<IEnumerable<BranchDto>>> GetAllAsync()
     {
@@ -218,7 +221,7 @@ public class BranchService : IBranchService
         {
             if (dto.Id == 0)
             {
-                var entity = new Branch { Name = dto.Name.Trim(), Address = dto.Address?.Trim(), Phone = dto.Phone?.Trim(), IsActive = dto.IsActive, CreatedBy = AppSession.UserId, CreatedAt = DateTime.Now };
+                var entity = new Branch { Name = dto.Name.Trim(), Address = dto.Address?.Trim(), Phone = dto.Phone?.Trim(), IsActive = dto.IsActive, CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now };
                 await _uow.Branches.AddAsync(entity);
                 await _uow.SaveChangesAsync();
                 return Result<BranchDto>.Success(Map(entity));
@@ -228,7 +231,7 @@ public class BranchService : IBranchService
                 var entity = await _uow.Branches.GetByIdAsync(dto.Id);
                 if (entity == null) return Result<BranchDto>.Failure("Not found.");
                 entity.Name = dto.Name.Trim(); entity.Address = dto.Address?.Trim(); entity.Phone = dto.Phone?.Trim(); entity.IsActive = dto.IsActive;
-                entity.ModifiedBy = AppSession.UserId; entity.ModifiedAt = DateTime.Now;
+                entity.ModifiedBy = _currentUser.UserId; entity.ModifiedAt = DateTime.Now;
                 await _uow.Branches.UpdateAsync(entity);
                 await _uow.SaveChangesAsync();
                 return Result<BranchDto>.Success(Map(entity));
