@@ -75,13 +75,17 @@
                 <div class="navbar-wrapper">
 
                     <!-- Logo -->
+                    @* Element order matches the stock Adminty template. The theme absolutely
+                       positions .mobile-menu at the left of this block and expects the logo
+                       after it; putting the logo first with flex-grow-1 consumed that space
+                       and the hamburger landed on top of the logo on small screens. *@
                     <div class="navbar-logo">
-                        <a asp-controller="Admin" asp-action="Index" class="d-flex align-items-center flex-grow-1 px-1">
+                        <a class="mobile-menu" id="mobile-collapse" href="#!">
+                            <i class="feather icon-menu"></i>
+                        </a>
+                        <a asp-controller="Admin" asp-action="Index">
                             <img class="img-fluid header-brand-logo" src="~/assets/images/samanmal_logo.png" alt="Samanmal Life Style Store"
                                  onerror="this.src='/assets/images/logo.png'" />
-                        </a>
-                        <a class="mobile-menu" id="mobile-collapse" href="#!">
-                            <i class="feather icon-toggle-right"></i>
                         </a>
                         <a class="mobile-options">
                             <i class="feather icon-more-horizontal"></i>

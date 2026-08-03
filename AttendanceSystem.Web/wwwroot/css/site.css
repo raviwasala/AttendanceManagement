@@ -93,16 +93,24 @@ body {
 .header-navbar .navbar-container i:hover {
   color: #01a9ac !important;
 }
+/* Colour and height apply at every width; the sidebar-matching geometry is desktop only.
+   Below 992px the theme switches this block to its own full-width mobile header, and a
+   hard 240px minimum plus flex centring overrode that — which is what pushed the header
+   past a phone viewport. Let the template's own responsive rules win under 992px. */
 .navbar-logo {
-  min-width: 240px !important;
   height: 56px !important;
   background-color: #404E67 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  padding: 0 12px !important;
   border: none !important;
   box-shadow: none !important;
+}
+@media (min-width: 992px) {
+  .navbar-logo {
+    min-width: 240px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0 12px !important;
+  }
 }
 .navbar-logo a.mobile-menu {
   margin-left: 8px !important;
