@@ -27,31 +27,40 @@ public class AttendanceDbContext : DbContext
     public DbSet<AuditLog> AuditLogs { get; set; } = null!;
     public DbSet<CompanySettings> CompanySettings { get; set; } = null!;
 
-    // ── Auto-timestamp via SaveChanges interception ────────────────────────────
+    // ── Auto-timestamp & Soft-Delete interception ─────────────────────────────
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        var now = DateTime.UtcNow;
-        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
-        {
-            if (entry.State == EntityState.Added)
-                entry.Entity.CreatedAt = now;
-            else if (entry.State == EntityState.Modified)
-                entry.Entity.ModifiedAt = now;
-        }
+        ApplyAuditAndSoftDelete();
         return await base.SaveChangesAsync(cancellationToken);
     }
 
     public override int SaveChanges()
     {
+        ApplyAuditAndSoftDelete();
+        return base.SaveChanges();
+    }
+
+    private void ApplyAuditAndSoftDelete()
+    {
         var now = DateTime.UtcNow;
         foreach (var entry in ChangeTracker.Entries<BaseEntity>())
         {
             if (entry.State == EntityState.Added)
+            {
                 entry.Entity.CreatedAt = now;
+            }
             else if (entry.State == EntityState.Modified)
+            {
                 entry.Entity.ModifiedAt = now;
+            }
+            else if (entry.State == EntityState.Deleted)
+            {
+                // Soft-delete interceptor
+                entry.State = EntityState.Modified;
+                entry.Entity.IsDeleted = true;
+                entry.Entity.ModifiedAt = now;
+            }
         }
-        return base.SaveChanges();
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -84,6 +93,7 @@ public class AttendanceDbContext : DbContext
             e.HasKey(x => new { x.RoleId, x.PermissionId });
             e.HasOne(x => x.Role).WithMany(x => x.RolePermissions).HasForeignKey(x => x.RoleId);
             e.HasOne(x => x.Permission).WithMany(x => x.RolePermissions).HasForeignKey(x => x.PermissionId);
+            e.HasQueryFilter(rp => !rp.Role.IsDeleted && !rp.Permission.IsDeleted);
         });
 
         // ── User ──────────────────────────────────────────────────────────────

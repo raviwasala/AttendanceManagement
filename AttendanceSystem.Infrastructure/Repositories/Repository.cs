@@ -21,17 +21,17 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
     public virtual async Task<T?> GetByIdAsync(int id) =>
         await _dbSet.FindAsync(id);
 
-    /// <summary>Returns all records. Supply page/pageSize to paginate — always use pagination for high-volume tables.</summary>
+    /// <summary>Returns all records without tracking. Supply page/pageSize for deterministic pagination.</summary>
     public virtual async Task<IEnumerable<T>> GetAllAsync(int? page = null, int? pageSize = null)
     {
-        var query = _dbSet.AsQueryable();
+        var query = _dbSet.AsNoTracking().AsQueryable();
         if (page.HasValue && pageSize.HasValue)
-            query = query.Skip((page.Value - 1) * pageSize.Value).Take(pageSize.Value);
+            query = query.OrderBy(e => e.Id).Skip((page.Value - 1) * pageSize.Value).Take(pageSize.Value);
         return await query.ToListAsync();
     }
 
     public virtual async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate) =>
-        await _dbSet.Where(predicate).ToListAsync();
+        await _dbSet.AsNoTracking().Where(predicate).ToListAsync();
 
     public virtual async Task<T> AddAsync(T entity)
     {

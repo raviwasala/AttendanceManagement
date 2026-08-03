@@ -1,0 +1,387 @@
+@{
+    ViewData["Title"] = "Role & Access Control";
+}
+
+<div class="page-header">
+    <div class="row align-items-center">
+        <div class="col-auto">
+            <h5 class="page-title mb-0">Role & Access Control</h5>
+        </div>
+        <div class="col-auto ms-auto">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a asp-controller="Admin" asp-action="Index">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Role & Access Control</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<div id="alertContainer"></div>
+
+<div class="row">
+    <!-- ── Left Column: Roles Selection ── -->
+    <div class="col-xl-3 col-md-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center" style="background:#01a9ac;">
+                <h5 class="card-header-text text-white mb-0">
+                    <i class="fa fa-users me-2"></i>System Roles
+                </h5>
+                <button class="btn btn-sm text-white" style="background:rgba(255,255,255,0.25);" onclick="openAddRoleModal()">
+                    <i class="fa fa-plus me-1"></i>New Role
+                </button>
+            </div>
+            <div class="card-block p-0">
+                <div class="list-group list-group-flush" id="roleList">
+                    <div class="text-center p-4 text-muted">
+                        <i class="fa fa-spinner fa-spin fa-2x"></i>
+                        <p class="mt-2 mb-0">Loading system roles...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-block p-3">
+                <h6 class="fw-bold mb-2" style="color:#01a9ac;">
+                    <i class="fa fa-info-circle me-1"></i>Matrix Legend
+                </h6>
+                <p class="text-muted mb-1" style="font-size:.84rem;">
+                    <span class="badge bg-primary me-1">Page View</span> Grants access to open the module page.
+                </p>
+                <p class="text-muted mb-0" style="font-size:.84rem;">
+                    <span class="badge bg-success me-1">Actions</span> Controls Add, Edit/Save, Delete, &amp; Print/Export buttons.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Right Column: Page-by-Page & Transaction-Type Permission Matrix ── -->
+    <div class="col-xl-9 col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h5 class="card-header-text mb-0" id="selectedRoleTitle">
+                        <i class="fa fa-shield me-2" style="color:#01a9ac;"></i>Select a Role to Manage Permissions
+                    </h5>
+                    <small class="text-muted" id="selectedRoleDesc">Configure page access rights &amp; transaction privileges.</small>
+                </div>
+                <div id="roleActions" style="display:none;">
+                    <button class="btn btn-sm btn-outline-secondary me-1" onclick="toggleAllPermissions(true)">
+                        <i class="fa fa-check-square-o me-1"></i>Select All
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary me-2" onclick="toggleAllPermissions(false)">
+                        <i class="fa fa-square-o me-1"></i>Deselect All
+                    </button>
+                    <button class="btn btn-sm text-white px-3" style="background:#01a9ac;" onclick="saveRolePermissions()">
+                        <i class="fa fa-save me-1"></i>Save Access Rules
+                    </button>
+                </div>
+            </div>
+
+            <div class="card-block p-0">
+                <div id="permissionMatrixContainer">
+                    <div class="text-center p-5 text-muted">
+                        <i class="fa fa-hand-o-left fa-3x mb-3" style="color:#01a9ac;"></i>
+                        <h5>No Role Selected</h5>
+                        <p class="mb-0">Please pick a system role from the left panel to configure its transaction matrix.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Add/Edit Role Modal ── -->
+<div class="modal fade" id="roleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header text-white" style="background:#01a9ac;">
+                <h5 class="modal-title" id="roleModalTitle">Add System Role</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="roleForm">
+                    <input type="hidden" id="roleId" value="0" />
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Role Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="roleName" required placeholder="e.g. HR Manager / Supervisor" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Description</label>
+                        <textarea class="form-control" id="roleDescription" rows="3" placeholder="Description of permissions granted to this role..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn text-white" style="background:#01a9ac;" onclick="saveRole()">Save Role</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    var currentRoleId = 0;
+    var allRoles = [];
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadRoles();
+    });
+
+    function loadRoles() {
+        fetch('/api/roles')
+            .then(res => res.json())
+            .then(data => {
+                allRoles = data || [];
+                renderRoleList(allRoles);
+                if (allRoles.length > 0 && currentRoleId === 0) {
+                    var firstId = getRoleId(allRoles[0]);
+                    selectRole(firstId);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showAlert('danger', 'Error fetching system roles.');
+            });
+    }
+
+    function getRoleId(r) {
+        if (!r) return 0;
+        return r.id !== undefined ? r.id : (r.Id !== undefined ? r.Id : 0);
+    }
+
+    function getRoleName(r) {
+        if (!r) return 'Role';
+        return r.name || r.Name || 'Role';
+    }
+
+    function getRoleDesc(r) {
+        if (!r) return '';
+        return r.description || r.Description || 'System access role';
+    }
+
+    function renderRoleList(roles) {
+        var container = document.getElementById('roleList');
+        if (!roles || roles.length === 0) {
+            container.innerHTML = '<div class="p-3 text-muted">No roles found.</div>';
+            return;
+        }
+        var html = '';
+        roles.forEach(r => {
+            var rid = getRoleId(r);
+            var rname = getRoleName(r);
+            var rdesc = getRoleDesc(r);
+
+            var activeClass = (rid === currentRoleId) ? 'active' : '';
+            var bgStyle = (rid === currentRoleId) ? 'background:#01a9ac !important;color:#fff !important;' : '';
+            html += `
+                <a href="#" class="list-group-item list-group-item-action ${activeClass}" style="${bgStyle}" onclick="selectRole(${rid}); return false;">
+                    <div class="d-flex w-100 justify-content-between align-items-center">
+                        <h6 class="mb-1 fw-bold">${rname}</h6>
+                        <small class="badge bg-secondary">ID: ${rid}</small>
+                    </div>
+                    <p class="mb-0 text-truncate" style="font-size:.82rem;opacity:.9;">${rdesc}</p>
+                </a>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+    function selectRole(roleId) {
+        currentRoleId = roleId;
+        renderRoleList(allRoles);
+
+        var role = allRoles.find(r => getRoleId(r) === roleId);
+        if (role) {
+            var rname = getRoleName(role);
+            var rdesc = getRoleDesc(role);
+            document.getElementById('selectedRoleTitle').innerHTML = '<i class="fa fa-shield me-2" style="color:#01a9ac;"></i>' + rname + ' Permission Matrix';
+            document.getElementById('selectedRoleDesc').innerText = rdesc || 'Page-level & Transaction-level permissions.';
+            document.getElementById('roleActions').style.display = 'block';
+        }
+
+        fetch('/api/roles/' + roleId + '/permissions')
+            .then(res => res.json())
+            .then(perms => {
+                renderMatrixTable(perms);
+            })
+            .catch(err => {
+                console.error(err);
+                showAlert('danger', 'Failed to load permissions for role.');
+            });
+    }
+
+    function renderMatrixTable(perms) {
+        var container = document.getElementById('permissionMatrixContainer');
+        if (!perms || perms.length === 0) {
+            container.innerHTML = '<div class="p-4 text-center text-muted">No permission definitions found.</div>';
+            return;
+        }
+
+        // Group permissions by Module
+        var modulesMap = {};
+        perms.forEach(p => {
+            var m = p.module || p.Module || 'General';
+            var a = p.action || p.Action || 'View';
+            var pid = p.id !== undefined ? p.id : p.Id;
+            var granted = p.isGranted !== undefined ? p.isGranted : p.IsGranted;
+
+            if (!modulesMap[m]) modulesMap[m] = {};
+            modulesMap[m][a] = { id: pid, isGranted: granted, displayName: p.displayName || p.DisplayName };
+        });
+
+        var actionsList = ['View', 'Add', 'Edit', 'Delete', 'Print'];
+
+        var html = `
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="font-size:.9rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="min-width:200px;" class="ps-3">System Page / Module</th>
+                            <th class="text-center" style="width:110px;">
+                                <span class="badge bg-primary me-1">View</span><br>Page Access
+                            </th>
+                            <th class="text-center" style="width:90px;">
+                                <span class="badge bg-success me-1">Add</span><br>Create
+                            </th>
+                            <th class="text-center" style="width:90px;">
+                                <span class="badge bg-success me-1">Edit</span><br>Save
+                            </th>
+                            <th class="text-center" style="width:90px;">
+                                <span class="badge bg-danger me-1">Delete</span><br>Remove
+                            </th>
+                            <th class="text-center" style="width:100px;">
+                                <span class="badge bg-info me-1">Print</span><br>Export
+                            </th>
+                            <th class="text-center" style="width:100px;">Toggle Row</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        Object.keys(modulesMap).forEach(moduleName => {
+            var mod = modulesMap[moduleName];
+            var safeModId = moduleName.replace(/[^a-zA-Z0-9]/g, '_');
+
+            html += `<tr>`;
+            html += `<td class="ps-3 fw-bold text-dark"><i class="fa fa-folder-o me-2" style="color:#01a9ac;"></i>${moduleName}</td>`;
+
+            actionsList.forEach(act => {
+                var item = mod[act];
+                if (item) {
+                    var chk = item.isGranted ? 'checked' : '';
+                    html += `
+                        <td class="text-center">
+                            <input class="form-check-input perm-chk row-${safeModId} col-${act}"
+                                   type="checkbox" value="${item.id}" id="perm_${item.id}" ${chk} style="width:18px;height:18px;cursor:pointer;">
+                        </td>
+                    `;
+                } else {
+                    html += `<td class="text-center text-muted">—</td>`;
+                }
+            });
+
+            html += `
+                <td class="text-center">
+                    <button class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:.78rem;" onclick="toggleRow('${safeModId}')">
+                        Row
+                    </button>
+                </td>
+            `;
+            html += `</tr>`;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    function toggleRow(safeModId) {
+        var chks = document.querySelectorAll('.row-' + safeModId);
+        var anyUnchecked = Array.from(chks).some(c => !c.checked);
+        chks.forEach(c => c.checked = anyUnchecked);
+    }
+
+    function toggleAllPermissions(check) {
+        document.querySelectorAll('.perm-chk').forEach(c => c.checked = check);
+    }
+
+    function saveRolePermissions() {
+        if (!currentRoleId) {
+            showAlert('warning', 'Please select a role first.');
+            return;
+        }
+
+        var selectedIds = [];
+        document.querySelectorAll('.perm-chk:checked').forEach(c => {
+            selectedIds.push(parseInt(c.value));
+        });
+
+        fetch('/api/roles/' + currentRoleId + '/permissions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ permissionIds: selectedIds })
+        })
+        .then(res => {
+            if (res.ok) {
+                showAlert('success', 'Transaction & page access rules updated successfully!');
+            } else {
+                showAlert('danger', 'Failed to update permissions.');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showAlert('danger', 'Error connecting to server.');
+        });
+    }
+
+    function openAddRoleModal() {
+        document.getElementById('roleId').value = 0;
+        document.getElementById('roleName').value = '';
+        document.getElementById('roleDescription').value = '';
+        document.getElementById('roleModalTitle').innerText = 'Add System Role';
+        new bootstrap.Modal(document.getElementById('roleModal')).show();
+    }
+
+    function saveRole() {
+        var id = parseInt(document.getElementById('roleId').value);
+        var name = document.getElementById('roleName').value.trim();
+        var desc = document.getElementById('roleDescription').value.trim();
+
+        if (!name) { alert('Role title is required.'); return; }
+
+        fetch('/api/roles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id, name: name, description: desc })
+        })
+        .then(res => res.json())
+        .then(data => {
+            bootstrap.Modal.getInstance(document.getElementById('roleModal')).hide();
+            showAlert('success', 'Role saved successfully.');
+            loadRoles();
+        })
+        .catch(err => {
+            console.error(err);
+            showAlert('danger', 'Failed to save role.');
+        });
+    }
+
+    function showAlert(type, message) {
+        var container = document.getElementById('alertContainer');
+        container.innerHTML = `
+            <div class="alert alert-${type} alert-dismissible fade show mb-3" role="alert">
+                <i class="fa fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+    }
+</script>
+}

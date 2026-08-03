@@ -11,13 +11,15 @@ public class EmployeeRepository : Repository<Employee>, IEmployeeRepository
     public EmployeeRepository(AttendanceDbContext context) : base(context) { }
 
     public async Task<Employee?> GetWithDetailsAsync(int id) =>
-        await _dbSet.Include(e => e.Department)
+        await _dbSet.AsNoTracking()
+                    .Include(e => e.Department)
                     .Include(e => e.Designation)
                     .Include(e => e.Branch)
                     .FirstOrDefaultAsync(e => e.Id == id);
 
     public async Task<IEnumerable<Employee>> GetActiveEmployeesAsync() =>
-        await _dbSet.Include(e => e.Department)
+        await _dbSet.AsNoTracking()
+                    .Include(e => e.Department)
                     .Include(e => e.Designation)
                     .Include(e => e.Branch)
                     .Where(e => e.IsActive)
@@ -43,7 +45,8 @@ public class EmployeeRepository : Repository<Employee>, IEmployeeRepository
     public async Task<IEnumerable<Employee>> SearchAsync(string keyword)
     {
         var pattern = $"%{keyword}%";
-        return await _dbSet.Include(e => e.Department)
+        return await _dbSet.AsNoTracking()
+                           .Include(e => e.Department)
                            .Include(e => e.Designation)
                            .Include(e => e.Branch)
                            .Where(e => EF.Functions.Like(e.FirstName, pattern)

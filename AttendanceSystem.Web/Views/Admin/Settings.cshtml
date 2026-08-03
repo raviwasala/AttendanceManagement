@@ -5,6 +5,38 @@
 <h5 class="mb-3">Company Settings</h5>
 <div id="settingsAlert"></div>
 
+<!-- Company Logo Upload Card -->
+<div class="card mb-4 border-0 shadow-sm">
+    <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="mb-0 fw-bold text-dark"><i class="feather icon-image text-primary me-2"></i>Company Logo & Branding</h6>
+    </div>
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-4 text-center border-end py-2">
+                <div class="p-3 bg-dark rounded d-inline-block shadow-sm">
+                    <img id="currentLogoPreview" src="~/assets/images/samanmal_logo.png" alt="Company Logo"
+                         style="max-height: 60px; max-width: 200px; object-fit: contain;"
+                         onerror="this.src='/assets/images/logo.png'" />
+                </div>
+                <div class="text-muted small mt-2">Current System Logo Preview</div>
+            </div>
+            <div class="col-md-8 ps-md-4 mt-3 mt-md-0">
+                <label class="form-label fw-semibold">Upload New Company Logo</label>
+                <div class="input-group">
+                    <input type="file" id="logoFileInput" class="form-control" accept="image/*" />
+                    <button class="btn btn-primary px-4" onclick="uploadCompanyLogo()">
+                        <i class="feather icon-upload me-1"></i> Upload Logo
+                    </button>
+                </div>
+                <div class="form-text mt-2 text-muted">
+                    Recommended: High-resolution PNG or WEBP with transparent or dark background. Supported formats: PNG, JPG, JPEG, WEBP, SVG.
+                </div>
+                <div id="logoUploadAlert" class="mt-2"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-body">
         <div class="row g-3">
@@ -68,6 +100,34 @@ $(function () {
         $('#settingsAlert').html('<div class="alert alert-danger">Failed to load settings.</div>');
     });
 });
+
+function uploadCompanyLogo() {
+    var fileInput = document.getElementById('logoFileInput');
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Please select an image file first.');
+        return;
+    }
+    var formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    $.ajax({
+        url: '/api/settings/upload-logo',
+        type: 'POST',
+        data: formData,
+        contentType: false,
+        processData: false,
+        success: function (res) {
+            $('#logoUploadAlert').html('<div class="alert alert-success alert-dismissible fade show py-2">Company Logo updated successfully! <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
+            var newUrl = res.logoUrl;
+            $('#currentLogoPreview').attr('src', newUrl);
+            $('.header-brand-logo').attr('src', newUrl);
+            fileInput.value = '';
+        },
+        error: function (xhr) {
+            $('#logoUploadAlert').html('<div class="alert alert-danger py-2">Upload failed: ' + (xhr.responseText || 'Error uploading logo') + '</div>');
+        }
+    });
+}
 
 function saveSettings() {
     var name = $('#companyName').val().trim();

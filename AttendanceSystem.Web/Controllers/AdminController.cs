@@ -42,6 +42,9 @@ public class AdminController : BaseController
     [HttpGet("Users")]
     public IActionResult Users()      { var a = Auth(); if (a != null) return a; return View(); }
 
+    [HttpGet("Roles")]
+    public IActionResult Roles()      { var a = Auth(); if (a != null) return a; return View(); }
+
     [HttpGet("Reports")]
     public IActionResult Reports()    { var a = Auth(); if (a != null) return a; return View(); }
 

@@ -1,3 +1,4 @@
+using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,29 +18,91 @@ public class ImportApiController : ControllerBase
     }
 
     [HttpPost("preview")]
-    public async Task<IActionResult> Preview(IFormFile file)
+    [DisableRequestSizeLimit]
+    public async Task<IActionResult> Preview()
     {
-        if (file == null || file.Length == 0) return BadRequest("No file uploaded.");
+        if (!Request.HasFormContentType || Request.Form.Files.Count == 0)
+        {
+            return BadRequest("No file uploaded. Please choose a biometric file.");
+        }
+
+        var file = Request.Form.Files["file"] ?? Request.Form.Files["File"] ?? Request.Form.Files[0];
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest("Uploaded file is empty.");
+        }
+
+        DateTime.TryParse(Request.Form["fromDate"], out var fromDate);
+        DateTime.TryParse(Request.Form["toDate"], out var toDate);
+
         var path = await SaveTemp(file);
         try
         {
-            var result = await _svc.PreviewFileAsync(path);
+            var start = fromDate == default ? new DateTime(2000, 1, 1) : fromDate;
+            var end = toDate == default ? DateTime.Today : toDate;
+            var result = await _svc.PreviewFileAsync(path, start, end);
             return Ok(result);
         }
-        finally { if (System.IO.File.Exists(path)) System.IO.File.Delete(path); }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        finally
+        {
+            if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
+        }
     }
 
     [HttpPost("file")]
-    public async Task<IActionResult> ImportFile(IFormFile file, [FromForm] DateTime fromDate, [FromForm] DateTime toDate)
+    [DisableRequestSizeLimit]
+    public async Task<IActionResult> ImportFile()
     {
-        if (file == null || file.Length == 0) return BadRequest("No file uploaded.");
+        if (!Request.HasFormContentType || Request.Form.Files.Count == 0)
+        {
+            return BadRequest("No file uploaded. Please choose a biometric file.");
+        }
+
+        var file = Request.Form.Files["file"] ?? Request.Form.Files["File"] ?? Request.Form.Files[0];
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest("Uploaded file is empty.");
+        }
+
+        DateTime.TryParse(Request.Form["fromDate"], out var fromDate);
+        DateTime.TryParse(Request.Form["toDate"], out var toDate);
+
         var path = await SaveTemp(file);
         try
         {
-            var result = await _svc.ImportFromFileAsync(path, fromDate, toDate);
+            var start = fromDate == default ? new DateTime(2000, 1, 1) : fromDate;
+            var end = toDate == default ? DateTime.Today : toDate;
+            var result = await _svc.ImportFromFileAsync(path, start, end);
             return Ok(result);
         }
-        finally { if (System.IO.File.Exists(path)) System.IO.File.Delete(path); }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        finally
+        {
+            if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
+        }
+    }
+
+    [HttpPost("process-edited")]
+    public async Task<IActionResult> ProcessEdited([FromBody] List<BiometricPunchDto> punches)
+    {
+        if (punches == null || punches.Count == 0) return BadRequest("No punch records provided for processing.");
+
+        try
+        {
+            var result = await _svc.ProcessEditedPunchesAsync(punches);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     private async Task<string> SaveTemp(IFormFile file)

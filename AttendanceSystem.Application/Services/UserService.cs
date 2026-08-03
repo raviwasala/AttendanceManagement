@@ -208,17 +208,40 @@ public class RoleService : IRoleService
     {
         try
         {
-            var allPerms = await _uow.Permissions.GetAllAsync();
+            var allPerms = (await _uow.Permissions.GetAllAsync()).ToList();
+            if (!allPerms.Any())
+            {
+                // Auto-seed system permissions
+                allPerms = GetSystemSeedPermissions();
+                foreach (var p in allPerms)
+                {
+                    await _uow.Permissions.AddAsync(p);
+                }
+                await _uow.SaveChangesAsync();
+                allPerms = (await _uow.Permissions.GetAllAsync()).ToList();
+            }
+
             var rolePerms = await _uow.GetRolePermissionsAsync(roleId);
             var grantedIds = rolePerms.Select(rp => rp.PermissionId).ToHashSet();
+            
+            // Administrator role gets all permissions granted by default
+            var isAdmin = roleId == 1;
+
             var dtos = allPerms.Select(p => new PermissionDto
             {
-                Id = p.Id, Module = p.Module, Action = p.Action,
-                DisplayName = p.DisplayName, IsGranted = grantedIds.Contains(p.Id)
+                Id = p.Id,
+                Module = p.Module,
+                Action = p.Action,
+                DisplayName = p.DisplayName,
+                IsGranted = isAdmin || grantedIds.Contains(p.Id)
             });
             return Result<IEnumerable<PermissionDto>>.Success(dtos);
         }
-        catch (Exception ex) { return Result<IEnumerable<PermissionDto>>.Failure(ex.Message); }
+        catch (Exception ex)
+        {
+            AppLogger.Error("RoleService.GetPermissionsForRoleAsync", ex);
+            return Result<IEnumerable<PermissionDto>>.Failure(ex.Message);
+        }
     }
 
     public async Task<Result> SavePermissionsAsync(int roleId, IEnumerable<int> permissionIds)
@@ -226,8 +249,41 @@ public class RoleService : IRoleService
         try
         {
             await _uow.SavePermissionsAsync(roleId, permissionIds);
+            await _uow.SaveChangesAsync();
             return Result.Success();
         }
-        catch (Exception ex) { return Result.Failure(ex.Message); }
+        catch (Exception ex)
+        {
+            AppLogger.Error("RoleService.SavePermissionsAsync", ex);
+            return Result.Failure(ex.Message);
+        }
+    }
+
+    private static List<Permission> GetSystemSeedPermissions()
+    {
+        var modules = new[]
+        {
+            "Departments", "Designations", "Branches", "Shifts", "Employees",
+            "Attendance Records", "Leave Management", "Holidays", "Biometric Import",
+            "System Reports", "System Users", "Role Access Control", "System Settings"
+        };
+        var actions = new[] { "View", "Add", "Edit", "Delete", "Print" };
+
+        var list = new List<Permission>();
+        foreach (var m in modules)
+        {
+            foreach (var a in actions)
+            {
+                var label = a == "View" ? $"View {m} Page" : $"{a} {m}";
+                list.Add(new Permission
+                {
+                    Module = m,
+                    Action = a,
+                    DisplayName = label,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+        }
+        return list;
     }
 }

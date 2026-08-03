@@ -63,12 +63,12 @@
 
                     <!-- Logo -->
                     <div class="navbar-logo">
-                        <a class="mobile-menu" id="mobile-collapse" href="#!">
-                            <i class="feather icon-menu"></i>
+                        <a asp-controller="Admin" asp-action="Index" class="d-flex align-items-center flex-grow-1 px-1">
+                            <img class="img-fluid header-brand-logo" src="~/assets/images/samanmal_logo.png" alt="Samanmal Life Style Store"
+                                 onerror="this.src='/assets/images/logo.png'" />
                         </a>
-                        <a asp-controller="Admin" asp-action="Index">
-                            <img class="img-fluid" src="~/assets/images/logo.png" alt="AttendanceMS"
-                                 onerror="this.outerHTML='<span style=\'color:#fff;font-size:18px;font-weight:700;\'>AMS</span>'" />
+                        <a class="mobile-menu" id="mobile-collapse" href="#!">
+                            <i class="feather icon-toggle-right"></i>
                         </a>
                         <a class="mobile-options">
                             <i class="feather icon-more-horizontal"></i>
@@ -269,18 +269,10 @@
                                     </a>
                                 </li>
 
-                                <!-- Users (system users) -->
-                                <li class="@Nav("Admin","Users")">
-                                    <a asp-controller="Admin" asp-action="Users">
-                                        <span class="pcoded-micon"><i class="feather icon-user-check"></i></span>
-                                        <span class="pcoded-mtext">System Users</span>
-                                    </a>
-                                </li>
-
                             </ul>
 
-                            <!-- ── ATTENDANCE ────────────────────────── -->
-                            <div class="pcoded-navigatio-lavel">Attendance</div>
+                            <!-- ── ATTENDANCE & LEAVE ───────────────────── -->
+                            <div class="pcoded-navigatio-lavel">Attendance &amp; Leave</div>
                             <ul class="pcoded-item pcoded-left-item">
 
                                 <!-- Attendance Records -->
@@ -312,6 +304,28 @@
                                     <a asp-controller="Admin" asp-action="Import">
                                         <span class="pcoded-micon"><i class="feather icon-upload"></i></span>
                                         <span class="pcoded-mtext">Biometric Import</span>
+                                    </a>
+                                </li>
+
+                            </ul>
+
+                            <!-- ── USER ACCESS & SECURITY ───────────────── -->
+                            <div class="pcoded-navigatio-lavel">User Access &amp; Security</div>
+                            <ul class="pcoded-item pcoded-left-item">
+
+                                <!-- Users (system users) -->
+                                <li class="@Nav("Admin","Users")">
+                                    <a asp-controller="Admin" asp-action="Users">
+                                        <span class="pcoded-micon"><i class="feather icon-user-check"></i></span>
+                                        <span class="pcoded-mtext">System Users</span>
+                                    </a>
+                                </li>
+
+                                <!-- Roles & Access Permissions -->
+                                <li class="@Nav("Admin","Roles")">
+                                    <a asp-controller="Admin" asp-action="Roles">
+                                        <span class="pcoded-micon"><i class="feather icon-shield"></i></span>
+                                        <span class="pcoded-mtext">Role &amp; Access Control</span>
                                     </a>
                                 </li>
 

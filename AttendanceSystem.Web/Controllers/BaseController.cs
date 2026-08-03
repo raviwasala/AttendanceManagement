@@ -28,4 +28,22 @@ public abstract class BaseController : Controller
             return RedirectToAction("Login", "Auth");
         return null!;
     }
+
+    protected bool UserHasPermission(string module, string action)
+    {
+        return Helpers.PermissionExtensions.HasPermission(HttpContext, module, action);
+    }
+
+    protected IActionResult? RequirePermission(string module, string action)
+    {
+        var authResult = RequireAuth();
+        if (authResult != null) return authResult;
+
+        if (!UserHasPermission(module, action))
+        {
+            TempData["Error"] = "Access Denied: You do not have sufficient permissions to perform this action.";
+            return RedirectToAction("Index", "Admin");
+        }
+        return null;
+    }
 }

@@ -163,8 +163,11 @@ public interface IBiometricImportService
     Task<BiometricImportResultDto> ImportFromFileAsync(string filePath, DateTime fromDate, DateTime toDate);
 
     /// <summary>Parse raw punch rows and return preview without saving.</summary>
-    Task<List<BiometricPunchDto>> PreviewFileAsync(string filePath);
+    Task<List<BiometricPunchDto>> PreviewFileAsync(string filePath, DateTime? fromDate = null, DateTime? toDate = null);
 
     /// <summary>Read raw punch rows from an Access database without saving them.</summary>
     Task<List<BiometricPunchDto>> PreviewAccessFileAsync(string mdbFilePath, DateTime fromDate, DateTime toDate);
+
+    /// <summary>Process and import user-edited biometric punches into attendance logs.</summary>
+    Task<BiometricImportResultDto> ProcessEditedPunchesAsync(List<BiometricPunchDto> punches);
 }

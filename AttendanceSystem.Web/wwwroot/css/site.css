@@ -66,6 +66,109 @@ body {
   color: #fff !important;
 }
 
+/* ── Header & Navbar Logo Customizations (Original Adminty Palette) ── */
+.header-navbar {
+  height: 56px !important;
+  min-height: 56px !important;
+  max-height: 56px !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.05) !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+.header-navbar .navbar-wrapper {
+  height: 56px !important;
+  background-color: #ffffff !important;
+}
+.header-navbar .navbar-container {
+  height: 56px !important;
+  background-color: #ffffff !important;
+  color: #333333 !important;
+}
+.header-navbar .navbar-container a,
+.header-navbar .navbar-container i,
+.header-navbar .navbar-container span:not(.badge) {
+  color: #555555 !important;
+}
+.header-navbar .navbar-container a:hover,
+.header-navbar .navbar-container i:hover {
+  color: #01a9ac !important;
+}
+.navbar-logo {
+  min-width: 240px !important;
+  height: 56px !important;
+  background-color: #404E67 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 12px !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.navbar-logo a.mobile-menu {
+  margin-left: 8px !important;
+  font-size: 1.3rem !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+}
+.navbar-logo img.header-brand-logo {
+  max-height: 38px !important;
+  height: 38px !important;
+  width: auto !important;
+  max-width: 160px !important;
+  object-fit: contain !important;
+  display: block !important;
+  vertical-align: middle !important;
+  margin: 0 !important;
+  mix-blend-mode: screen !important; /* Blends black logo background seamlessly onto #404E67 */
+}
+
+/* ── Original Adminty Layout & Content Structure ── */
+.pcoded-main-container {
+  margin-top: 56px !important;
+  padding-top: 0 !important;
+}
+.pcoded-navbar {
+  background-color: #404E67 !important;
+  top: 56px !important;
+  margin-top: 0 !important;
+  border-top: none !important;
+  box-shadow: none !important;
+}
+.pcoded-navbar .pcoded-inner-navbar {
+  background-color: #404E67 !important;
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+.pcoded-navbar .pcoded-navigatio-lavel {
+  margin-top: 0 !important;
+  padding-top: 15px !important;
+  padding-bottom: 5px !important;
+}
+
+.pcoded-content {
+  padding: 0 !important;
+}
+.pcoded-inner-content {
+  padding: 10px 20px !important;
+}
+.main-body {
+  padding: 0 !important;
+}
+.page-wrapper {
+  padding: 15px 20px !important;
+}
+.page-header {
+  margin-top: 10px !important;
+  margin-bottom: 20px !important;
+  padding: 0 !important;
+}
+.page-header .page-header-title h4,
+.page-header .page-header-title h5 {
+  margin-top: 0 !important;
+  line-height: 1.4 !important;
+}
+
 /* btn-success / danger / warning / info / inverse → adminty palette */
 .btn-success  { background-color: var(--ams-success)  !important; border-color: var(--ams-success)  !important; color:#fff !important; }
 .btn-danger   { background-color: var(--ams-danger)   !important; border-color: var(--ams-danger)   !important; color:#fff !important; }
