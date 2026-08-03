@@ -142,12 +142,87 @@ public class AttendanceService : IAttendanceService
     {
         try
         {
-            var logs = await _uow.Attendance.GetByDateAsync(DateTime.Today);
+            var today = DateTime.Today;
+            var logs = (await _uow.Attendance.GetByDateAsync(today)).ToList();
+
             var dtos = new List<AttendanceLogDto>();
             foreach (var log in logs) dtos.Add(await BuildLogDtoAsync(log));
-            return Result<IEnumerable<AttendanceLogDto>>.Success(dtos);
+
+            // Employees with no log today are still part of "today's attendance" — in fact they
+            // are the ones you most want to see. Without this the view silently omitted everyone
+            // who did not turn up, so an Absent filter could never match anything and the list
+            // disagreed with the dashboard's Absent count.
+            var loggedEmployeeIds = logs.Select(l => l.EmployeeId).ToHashSet();
+            var activeEmployees = await _uow.Employees.FindAsync(e => e.IsActive && !e.IsDeleted);
+            var missing = activeEmployees.Where(e => !loggedEmployeeIds.Contains(e.Id)).ToList();
+
+            if (missing.Count > 0)
+            {
+                var isHoliday = await _uow.Holidays.IsHolidayAsync(today);
+
+                var approvedLeave = await _uow.Leaves.FindAsync(
+                    l => l.Status == LeaveStatus.Approved && !l.IsDeleted
+                         && l.FromDate.Date <= today && l.ToDate.Date >= today);
+                var onLeaveEmployeeIds = approvedLeave.Select(l => l.EmployeeId).ToHashSet();
+
+                foreach (var emp in missing)
+                    dtos.Add(await BuildAbsenceDtoAsync(emp, today, isHoliday, onLeaveEmployeeIds));
+            }
+
+            return Result<IEnumerable<AttendanceLogDto>>.Success(
+                dtos.OrderBy(d => d.EmployeeName).ToList());
         }
-        catch (Exception ex) { return Result<IEnumerable<AttendanceLogDto>>.Failure(ex.Message); }
+        catch (Exception ex) { AppLogger.Error("AttendanceService.GetTodayAsync", ex); return Result<IEnumerable<AttendanceLogDto>>.Failure(ex.Message); }
+    }
+
+    /// <summary>
+    /// Builds the synthetic row for an employee with no attendance log on <paramref name="date"/>.
+    ///
+    /// <c>Id = 0</c> marks it as not persisted — there is nothing to edit, check out or delete,
+    /// and callers must not treat it as a real record. Status precedence mirrors
+    /// <see cref="CheckInAsync"/>: leave and holidays outrank a plain absence, so someone on
+    /// approved leave is never reported as absent.
+    /// </summary>
+    private async Task<AttendanceLogDto> BuildAbsenceDtoAsync(
+        Employee emp, DateTime date, bool isHoliday, HashSet<int> onLeaveEmployeeIds)
+    {
+        var status = onLeaveEmployeeIds.Contains(emp.Id) ? AttendanceStatus.OnLeave
+                   : isHoliday                           ? AttendanceStatus.Holiday
+                   : await IsWeeklyOffAsync(emp.Id, date) ? AttendanceStatus.WeeklyOff
+                   : AttendanceStatus.Absent;
+
+        var dept = await _uow.Departments.GetByIdAsync(emp.DepartmentId);
+
+        return new AttendanceLogDto
+        {
+            Id = 0,
+            EmployeeId = emp.Id,
+            EmployeeCode = emp.EmployeeCode,
+            EmployeeName = $"{emp.FirstName} {emp.LastName}",
+            Department = dept?.Name ?? string.Empty,
+            AttendanceDate = date,
+            Status = status
+        };
+    }
+
+    /// <summary>True when the date falls on a weekly off day of the employee's effective shift.</summary>
+    private async Task<bool> IsWeeklyOffAsync(int employeeId, DateTime date)
+    {
+        var assignments = await _uow.EmployeeShifts.FindAsync(
+            es => es.EmployeeId == employeeId && !es.IsDeleted
+                  && es.EffectiveFrom <= date
+                  && (es.EffectiveTo == null || es.EffectiveTo >= date));
+
+        var assignment = assignments.OrderByDescending(es => es.EffectiveFrom).FirstOrDefault();
+        if (assignment == null) return false;
+
+        var shift = await _uow.Shifts.GetByIdAsync(assignment.ShiftId);
+        if (shift == null) return false;
+
+        return shift.WeeklyOffDays
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(d => d.Trim())
+            .Contains(date.DayOfWeek.ToString(), StringComparer.OrdinalIgnoreCase);
     }
 
     public async Task<Result<IEnumerable<AttendanceLogDto>>> GetByEmployeeAndDateRangeAsync(

@@ -14,7 +14,8 @@ function showTab(t) {
 function badge(s) {
     const map = {
         Present : 'success', Absent : 'danger',
-        Late    : 'warning', OnLeave: 'info', Holiday: 'secondary'
+        Late    : 'warning', OnLeave: 'info', Holiday: 'secondary',
+        WeeklyOff: 'secondary', HalfDay: 'warning'
     };
     const cls = map[s] ?? 'light';
     return `<span class="badge bg-${cls} ${cls==='warning'?'text-dark':''}">${s}</span>`;
@@ -45,31 +46,48 @@ function renderToday(rows) {
         tbody.innerHTML = '<tr><td colspan="9" class="text-center py-3 text-muted">No records for today.</td></tr>';
         return;
     }
-    tbody.innerHTML = rows.map(r => `
-        <tr>
-            <td>${r.EmployeeCode ?? '—'}</td>
-            <td>${r.EmployeeName ?? '—'}</td>
-            <td>${r.Department   ?? '—'}</td>
+    tbody.innerHTML = rows.map(r => {
+        // Id === 0 means the row was derived (no attendance record exists yet), so there is
+        // nothing to check out, edit or delete — offer a check-in instead.
+        const hasRecord = (r.Id ?? 0) > 0;
+        const name = esc(r.EmployeeName ?? '');
+        const actions = hasRecord
+            ? `${!r.CheckOut ? `<button class="btn btn-xs btn-success btn-sm py-0 px-2 me-1" onclick="openCheckOut(${r.Id},'${(r.EmployeeName??'').replace(/'/g,"\\'")}')">Out</button>` : ''}
+               <button class="btn btn-xs btn-outline-primary btn-sm py-0 px-2" onclick="openEdit(${r.Id},'${toLocal(r.CheckIn)}','${toLocal(r.CheckOut)}',${r.Status ?? 0},'${(r.Remarks??'').replace(/'/g,"\\'")}')">Edit</button>`
+            : `<button class="btn btn-xs btn-outline-success btn-sm py-0 px-2" onclick="openCheckIn(${r.EmployeeId})">Check In</button>`;
+
+        return `
+        <tr${hasRecord ? '' : ' class="table-light text-muted"'}>
+            <td>${esc(r.EmployeeCode) || '—'}</td>
+            <td>${name || '—'}</td>
+            <td>${esc(r.Department)   || '—'}</td>
             <td>${fmtDT(r.CheckIn)}</td>
             <td>${fmtDT(r.CheckOut)}</td>
             <td>${r.WorkingHours != null ? r.WorkingHours.toFixed(1) + ' h' : '—'}</td>
             <td>${badge(r.StatusDisplay ?? r.Status)}</td>
             <td>${r.IsLate ? `<span class="badge bg-warning text-dark">${r.LateMinutes} min</span>` : '—'}</td>
-            <td>
-                ${!r.CheckOut ? `<button class="btn btn-xs btn-success btn-sm py-0 px-2 me-1" onclick="openCheckOut(${r.Id},'${(r.EmployeeName??'').replace(/'/g,"\\'")}')">Out</button>` : ''}
-                <button class="btn btn-xs btn-outline-primary btn-sm py-0 px-2" onclick="openEdit(${r.Id},'${toLocal(r.CheckIn)}','${toLocal(r.CheckOut)}',${r.Status ?? 0},'${(r.Remarks??'').replace(/'/g,"\\'")}')">Edit</button>
-            </td>
-        </tr>`).join('');
+            <td>${actions}</td>
+        </tr>`;
+    }).join('');
 }
 
 function filterToday() {
     const q  = (document.getElementById('searchToday').value  ?? '').toLowerCase();
     const st = (document.getElementById('statusFilter').value ?? '').toLowerCase();
+
+    // "checkedin" is a grouping, not a stored status — it matches anyone who actually
+    // turned up, which is how the dashboard counts "Present Today".
+    const matchesStatus = r => {
+        if (!st) return true;
+        const s = (r.StatusDisplay ?? r.Status ?? '').toString().toLowerCase();
+        return st === 'checkedin' ? (s === 'present' || s === 'late') : s === st;
+    };
+
     renderToday(todayRows.filter(r =>
         (!q  || (r.EmployeeName??'').toLowerCase().includes(q) ||
                  (r.EmployeeCode??'').toLowerCase().includes(q) ||
                  (r.Department??'').toLowerCase().includes(q)) &&
-        (!st || (r.StatusDisplay??r.Status??'').toString().toLowerCase() === st)
+        matchesStatus(r)
     ));
 }
 
@@ -111,7 +129,12 @@ async function loadMonthly() {
 }
 
 // ── CHECK-IN ──────────────────────────────────────────────────
-async function openCheckIn() {
+/**
+ * Opens the manual check-in dialog.
+ * @param {number} [preselectEmployeeId] pre-selects an employee — used by the "Check In"
+ *        button on a derived (absent) row, so the user doesn't re-pick someone they just clicked.
+ */
+async function openCheckIn(preselectEmployeeId) {
     document.getElementById('ciError').textContent = '';
     document.getElementById('ciTime').value   = toLocal(new Date().toISOString());
     document.getElementById('ciRemarks').value = '';
@@ -122,7 +145,8 @@ async function openCheckIn() {
         const r = await fetch('/api/employees');
         const emps = r.ok ? await r.json() : [];
         sel.innerHTML = '<option value="">— Select Employee —</option>' +
-            emps.map(e => `<option value="${e.Id}">${e.EmployeeCode} – ${e.FullName}</option>`).join('');
+            emps.map(e => `<option value="${e.Id}">${esc(e.EmployeeCode)} – ${esc(e.FullName)}</option>`).join('');
+        if (preselectEmployeeId) sel.value = String(preselectEmployeeId);
     } catch { sel.innerHTML = '<option value="">Failed to load employees</option>'; }
 
     new bootstrap.Modal(document.getElementById('checkInModal')).show();
@@ -215,7 +239,29 @@ async function saveEdit() {
     }
 }
 
+/*
+ * Applies a ?status= value from the URL to the status dropdown.
+ *
+ * The dashboard tiles deep-link here (e.g. /Admin/Attendance?status=Absent) so the user
+ * lands on the rows behind the number they clicked rather than an unfiltered list.
+ * Unrecognised values are ignored, leaving the default "All Statuses".
+ */
+function applyStatusFromQuery() {
+    const wanted = new URLSearchParams(window.location.search).get('status');
+    if (!wanted) return;
+
+    const select = document.getElementById('statusFilter');
+    const match = Array.from(select.options)
+        .find(o => o.value.toLowerCase() === wanted.toLowerCase());
+    if (!match) return;
+
+    select.value = match.value;
+    filterToday();
+}
+
 // ── Init ──────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', function () {
-    loadToday();
+document.addEventListener('DOMContentLoaded', async function () {
+    // Await the load so the filter runs against populated rows, not an empty table.
+    await loadToday();
+    applyStatusFromQuery();
 });

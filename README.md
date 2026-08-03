@@ -11,6 +11,14 @@ Employee attendance, leave and shift management. Two front-ends share one applic
 | `AttendanceSystem.Web` | ASP.NET Core MVC + JSON API |
 | `AttendanceManagementSystem` | WinForms desktop client |
 
+## Documentation
+
+| Document | Audience |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layering, data access, authorization model, domain rules, known issues |
+| [docs/DEVELOPER-GUIDE.md](docs/DEVELOPER-GUIDE.md) | Setup, migrations, adding a feature, conventions, troubleshooting |
+| [docs/USER-GUIDE.md](docs/USER-GUIDE.md) | Day-to-day use for administrators, HR staff and employees |
+
 ---
 
 ## Configuration & secrets

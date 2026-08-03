@@ -1,7 +1,25 @@
 /* ── Admin Leave Management JavaScript ── */
 
 var allReqs = [], allTypes = [];
-$(function () { loadRequests(); loadTypes(); loadApplyDropdowns(); });
+
+/*
+ * Applies a ?status= value from the URL to the request-status dropdown.
+ *
+ * The dashboard's "On Leave Today" tile deep-links here with status=Approved. Set before
+ * loadRequests(), because loadRequests() calls filterRequests() once the data arrives —
+ * so the filter is already in place by then. Unrecognised values are ignored.
+ */
+function applyStatusFromQuery() {
+    var wanted = new URLSearchParams(window.location.search).get('status');
+    if (!wanted) return;
+
+    var match = $('#reqStatusFilter option').filter(function () {
+        return this.value.toLowerCase() === wanted.toLowerCase();
+    }).first();
+    if (match.length) $('#reqStatusFilter').val(match.val());
+}
+
+$(function () { applyStatusFromQuery(); loadRequests(); loadTypes(); loadApplyDropdowns(); });
 
 function loadApplyDropdowns() {
     $.getJSON('/api/employees', function (d) {

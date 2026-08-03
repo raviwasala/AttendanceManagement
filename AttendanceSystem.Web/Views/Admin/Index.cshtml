@@ -1,5 +1,42 @@
 @{
     ViewData["Title"] = "Dashboard";
+
+    // Each tile links to the screen that explains its number, pre-filtered where the target
+    // page supports it. A tile is only a link when the user may open the destination —
+    // otherwise it renders as a plain tile, so nobody is invited into an Access Denied page.
+    var tiles = new[]
+    {
+        new {
+            Label = "Total Employees", ValueId = "statTotal",
+            Icon = "icon-users",       Colour = "bg-c-yellow",
+            Module = AppConstants.Modules.Employees,
+            Href = Url.Action("Employees", "Admin"),
+            Hint = "View all employees"
+        },
+        new {
+            Label = "Present Today",   ValueId = "statPresent",
+            Icon = "icon-user-check",  Colour = "bg-c-green",
+            Module = AppConstants.Modules.Attendance,
+            // CheckedIn, not Present: the dashboard counts Present + Late as "present today",
+            // so a plain Present filter would show fewer people than the tile's number.
+            Href = Url.Action("Attendance", "Admin") + "?status=CheckedIn",
+            Hint = "View everyone who checked in today"
+        },
+        new {
+            Label = "Absent Today",    ValueId = "statAbsent",
+            Icon = "icon-user-x",      Colour = "bg-c-pink",
+            Module = AppConstants.Modules.Attendance,
+            Href = Url.Action("Attendance", "Admin") + "?status=Absent",
+            Hint = "View today's absent records"
+        },
+        new {
+            Label = "On Leave Today",  ValueId = "statLeave",
+            Icon = "icon-calendar",    Colour = "bg-c-blue",
+            Module = AppConstants.Modules.Leave,
+            Href = Url.Action("Leave", "Admin") + "?status=Approved",
+            Hint = "View approved leave requests"
+        }
+    };
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -11,51 +48,192 @@
 @* Gradient classes (bg-c-yellow / green / pink / blue) come from the Adminty theme rather
    than being redefined here, so these tiles stay in step with the rest of the template. *@
 <div class="row g-3 mb-4" id="statCards">
-    <div class="col-xl-3 col-md-6">
-        <div class="card stat-card bg-c-yellow">
-            <div class="card-body stat-card-body">
-                <div class="stat-card-text">
-                    <p class="stat-card-label">Total Employees</p>
-                    <h3 class="stat-card-value" id="statTotal">—</h3>
+    @foreach (var t in tiles)
+    {
+        var canOpen = ViewContext.HasPermission(t.Module, AppConstants.Actions.View);
+        <div class="col-xl-3 col-md-6">
+            @if (canOpen)
+            {
+                <a href="@t.Href" class="stat-card-link" title="@t.Hint" aria-label="@t.Label — @t.Hint">
+                    <div class="card stat-card @t.Colour">
+                        <div class="card-body stat-card-body">
+                            <div class="stat-card-text">
+                                <p class="stat-card-label">@t.Label</p>
+                                <h3 class="stat-card-value" id="@t.ValueId">—</h3>
+                            </div>
+                            <i class="feather @t.Icon stat-card-icon" aria-hidden="true"></i>
+                        </div>
+                    </div>
+                </a>
+            }
+            else
+            {
+                <div class="card stat-card @t.Colour">
+                    <div class="card-body stat-card-body">
+                        <div class="stat-card-text">
+                            <p class="stat-card-label">@t.Label</p>
+                            <h3 class="stat-card-value" id="@t.ValueId">—</h3>
+                        </div>
+                        <i class="feather @t.Icon stat-card-icon" aria-hidden="true"></i>
+                    </div>
                 </div>
-                <i class="feather icon-users stat-card-icon" aria-hidden="true"></i>
-            </div>
+            }
         </div>
-    </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="card stat-card bg-c-green">
-            <div class="card-body stat-card-body">
-                <div class="stat-card-text">
-                    <p class="stat-card-label">Present Today</p>
-                    <h3 class="stat-card-value" id="statPresent">—</h3>
-                </div>
-                <i class="feather icon-user-check stat-card-icon" aria-hidden="true"></i>
-            </div>
-        </div>
-    </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="card stat-card bg-c-pink">
-            <div class="card-body stat-card-body">
-                <div class="stat-card-text">
-                    <p class="stat-card-label">Absent Today</p>
-                    <h3 class="stat-card-value" id="statAbsent">—</h3>
-                </div>
-                <i class="feather icon-user-x stat-card-icon" aria-hidden="true"></i>
-            </div>
-        </div>
-    </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="card stat-card bg-c-blue">
-            <div class="card-body stat-card-body">
-                <div class="stat-card-text">
-                    <p class="stat-card-label">On Leave Today</p>
-                    <h3 class="stat-card-value" id="statLeave">—</h3>
-                </div>
-                <i class="feather icon-calendar stat-card-icon" aria-hidden="true"></i>
-            </div>
-        </div>
-    </div>
+    }
 </div>
+
+@* ── Attendance trend ─────────────────────────────────────────────────────────
+   Each analytics panel is gated on the module whose data it exposes, because the
+   dashboard itself is visible to roles that cannot see attendance or leave. *@
+@if (ViewContext.HasPermission(AppConstants.Modules.Attendance, AppConstants.Actions.View))
+{
+    <div class="row g-3 mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <strong>Attendance Trend</strong>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="small text-muted" id="trendAvg"></span>
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Trend range">
+                            <button type="button" class="btn btn-outline-primary active" id="trendBtn7"
+                                    onclick="loadTrend(7)">7 days</button>
+                            <button type="button" class="btn btn-outline-primary" id="trendBtn30"
+                                    onclick="loadTrend(30)">30 days</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="trendWarning" class="alert alert-warning py-2 small d-none" role="status"></div>
+                    <div style="position:relative;height:260px;">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+}
+
+@* ── Punctuality ────────────────────────────────────────────────────────────
+   Requires Employees.View rather than Attendance.View: this names individuals and
+   ranks them by lateness, which is HR territory. The Employee role holds
+   Attendance.View so staff can see their own records — that must not also reveal
+   a leaderboard of their colleagues. *@
+@if (ViewContext.HasPermission(AppConstants.Modules.Employees, AppConstants.Actions.View))
+{
+    <div class="row g-3 mb-3">
+        <div class="col-xl-5">
+            <div class="card h-100">
+                <div class="card-header"><strong>Punctuality</strong>
+                    <span class="text-muted small ms-1">last 30 days</span>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center g-2 mb-3">
+                        <div class="col-4">
+                            <div class="fw-bold fs-5" id="punLatePct">—</div>
+                            <div class="text-muted small">Late arrivals</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="fw-bold fs-5" id="punAvgMins">—</div>
+                            <div class="text-muted small">Avg late</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="fw-bold fs-5" id="punEarly">—</div>
+                            <div class="text-muted small">Early leave</div>
+                        </div>
+                    </div>
+                    <div style="position:relative;height:170px;">
+                        <canvas id="weekdayChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-7">
+            <div class="card h-100">
+                <div class="card-header"><strong>Most Late Arrivals</strong>
+                    <span class="text-muted small ms-1">last 30 days</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Employee</th>
+                                    <th>Department</th>
+                                    <th class="text-end">Times late</th>
+                                    <th class="text-end">Avg mins</th>
+                                    <th class="text-end pe-3">Total mins</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topLateBody">
+                                <tr><td colspan="5" class="text-center py-3 text-muted">Loading…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* ── Leave overview ─────────────────────────────────────────────────────────── *@
+@if (ViewContext.HasPermission(AppConstants.Modules.Leave, AppConstants.Actions.View))
+{
+    <div class="row g-3 mb-3">
+        <div class="col-xl-7">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Pending Leave Approvals</strong>
+                    <a asp-controller="Admin" asp-action="Leave" class="btn btn-sm btn-outline-primary">Open Leave</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Employee</th>
+                                    <th>Type</th>
+                                    <th>Dates</th>
+                                    <th class="text-end pe-3">Days</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pendingLeaveBody">
+                                <tr><td colspan="4" class="text-center py-3 text-muted">Loading…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-5">
+            <div class="card h-100">
+                <div class="card-header"><strong>Leave Utilisation</strong>
+                    <span class="text-muted small ms-1">this year</span>
+                </div>
+                <div class="card-body" id="leaveUtilBody">
+                    <div class="text-muted small">Loading…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* ── Operations health ──────────────────────────────────────────────────────── *@
+@if (ViewContext.HasPermission(AppConstants.Modules.Employees, AppConstants.Actions.View))
+{
+    <div class="row g-3 mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header"><strong>Data Health</strong>
+                    <span class="text-muted small ms-1">issues that silently distort attendance</span>
+                </div>
+                <div class="card-body" id="opsBody">
+                    <div class="text-muted small">Loading…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <div class="row g-3">
     <!-- Attendance % card -->

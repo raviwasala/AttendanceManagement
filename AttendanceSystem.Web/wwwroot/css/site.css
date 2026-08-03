@@ -223,15 +223,102 @@ body {
 a { color: var(--ams-primary); }
 a:hover { color: var(--ams-primary-d); }
 
-/* Remove divider lines from profile dropdown */
+/* ── Header profile dropdown ─────────────────────────────────────────────────
+   The Adminty theme targets Bootstrap 4, where anchors have no underline by
+   default. This project runs Bootstrap 5, whose reset applies
+   `a { text-decoration: underline }` — the theme colours these links but never
+   clears that, so every dropdown entry rendered underlined. Reset it explicitly
+   rather than relying on the theme. */
+.header-navbar a,
+.profile-notification a,
+.show-notification a {
+  text-decoration: none !important;
+}
+
+/* Toggle: no focus ring artefacts, no stray borders, comfortable hit area. */
+.user-profile .dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .25rem .5rem;
+  border: 0;
+  border-radius: 6px;
+  outline: none;
+  transition: background-color .2s ease;
+}
+.user-profile .dropdown-toggle:hover {
+  background-color: rgba(1, 169, 172, .08);
+}
+.user-profile .dropdown-toggle:focus-visible {
+  box-shadow: 0 0 0 2px rgba(1, 169, 172, .55);
+}
+/* The chevron should follow the menu state instead of sitting static. */
+.user-profile .dropdown-toggle .icon-chevron-down {
+  font-size: .85rem;
+  transition: transform .2s ease;
+}
+.user-profile .dropdown.show .dropdown-toggle .icon-chevron-down {
+  transform: rotate(180deg);
+}
+
+.profile-notification {
+  min-width: 232px;
+  padding: .5rem 0 !important;
+  border: 1px solid rgba(0, 0, 0, .06) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .12) !important;
+}
+
 .profile-notification hr,
 .profile-notification .dropdown-divider {
   display: none !important;
   border: none !important;
 }
 .profile-notification li {
-  border-bottom: none !important;
-  border-top: none !important;
+  border: 0 !important;
+}
+
+/* One divider only, under the identity block at the top. */
+.profile-notification li.profile-header {
+  border-bottom: 1px solid rgba(0, 0, 0, .07) !important;
+  margin-bottom: .35rem;
+  padding-bottom: .6rem !important;
+}
+
+.profile-notification li > a {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  padding: .55rem 1rem;
+  color: #4a5568 !important;
+  font-size: .875rem;
+  line-height: 1.2;
+  border-radius: 0;
+  transition: background-color .15s ease, color .15s ease;
+}
+/* Fixed icon column keeps the labels aligned regardless of glyph width. */
+.profile-notification li > a > i {
+  width: 1rem;
+  text-align: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+  color: inherit !important;
+}
+.profile-notification li > a:hover,
+.profile-notification li > a:focus {
+  background-color: rgba(1, 169, 172, .1);
+  color: var(--ams-primary) !important;
+}
+
+/* Logout is destructive — tint it red on hover instead of the primary teal.
+   Styled here rather than with an inline style on the anchor. */
+.profile-notification li > a.logout-link {
+  color: var(--ams-danger) !important;
+}
+.profile-notification li > a.logout-link:hover,
+.profile-notification li > a.logout-link:focus {
+  background-color: rgba(254, 93, 112, .1);
+  color: var(--ams-danger) !important;
 }
 
 /* ── Dashboard stat tiles ───────────────────────────────────────────────────
@@ -247,6 +334,45 @@ a:hover { color: var(--ams-primary-d); }
 .stat-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 8px 22px 0 rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Tiles that link to a detail screen. The anchor wraps the whole card so the entire
+   tile is the hit target, not just the text. */
+.stat-card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+.stat-card-link:hover,
+.stat-card-link:focus {
+  text-decoration: none;
+  color: inherit;
+}
+.stat-card-link .stat-card {
+  cursor: pointer;
+}
+/* Nudge the icon on hover so it reads as interactive rather than decorative. */
+.stat-card-link:hover .stat-card-icon {
+  opacity: 0.6;
+  transform: scale(1.06);
+}
+.stat-card-icon {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+/* Keyboard users get a visible target; the card is dark, so the ring is white. */
+.stat-card-link:focus-visible {
+  outline: none;
+}
+.stat-card-link:focus-visible .stat-card {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9),
+              0 0 0 5px rgba(1, 169, 172, 0.9) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-card,
+  .stat-card-icon { transition: none; }
+  .stat-card:hover,
+  .stat-card-link:hover .stat-card-icon { transform: none; }
 }
 
 .stat-card-body {

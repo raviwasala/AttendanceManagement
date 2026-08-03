@@ -22,6 +22,7 @@ public static class ApplicationServiceExtensions
         services.AddScoped<IHolidayService, HolidayService>();
         services.AddScoped<ISettingsService, SettingsService>();
         services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<IAnalyticsService, AnalyticsService>();
         return services;
     }
 }

@@ -34,13 +34,18 @@
                            placeholder="Search name / code / dept…" oninput="filterToday()">
                 </div>
                 <div class="col-md-3">
+                    @* "Checked In" spans Present + Late, matching how the dashboard counts
+                       "Present Today". Without it, clicking that tile could never show the
+                       same set of people the number referred to. *@
                     <select id="statusFilter" class="form-select form-select-sm" onchange="filterToday()">
                         <option value="">All Statuses</option>
+                        <option value="CheckedIn">Checked In (Present + Late)</option>
                         <option value="Present">Present</option>
-                        <option value="Absent">Absent</option>
                         <option value="Late">Late</option>
+                        <option value="Absent">Absent</option>
                         <option value="OnLeave">On Leave</option>
                         <option value="Holiday">Holiday</option>
+                        <option value="WeeklyOff">Weekly Off</option>
                     </select>
                 </div>
                 <div class="col-md-2">

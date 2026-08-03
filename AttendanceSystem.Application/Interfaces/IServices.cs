@@ -145,6 +145,25 @@ public interface IAuditService
     Task<Result<IEnumerable<AuditLogDto>>> GetByModuleAsync(string module);
 }
 
+/// <summary>
+/// Read-only dashboard analytics. Separate from <see cref="IAttendanceService"/> because these
+/// are aggregate read models over several entities, with no write side.
+/// </summary>
+public interface IAnalyticsService
+{
+    /// <summary>Daily attendance breakdown for the last <paramref name="days"/> days, ending today.</summary>
+    Task<Result<AttendanceTrendDto>> GetAttendanceTrendAsync(int days = 7);
+
+    /// <summary>Lateness and early-leave analysis over a date range.</summary>
+    Task<Result<PunctualityDto>> GetPunctualityAsync(DateTime from, DateTime to, int topCount = 10);
+
+    /// <summary>Pending approvals, entitlement utilisation and upcoming absences.</summary>
+    Task<Result<LeaveOverviewDto>> GetLeaveOverviewAsync();
+
+    /// <summary>Data-quality signals that cause silently wrong attendance.</summary>
+    Task<Result<OperationsHealthDto>> GetOperationsHealthAsync(DateTime from, DateTime to);
+}
+
 /// <summary>Reporting service contract.</summary>
 public interface IReportService
 {
