@@ -1,4 +1,18 @@
-﻿// Please see documentation at https://learn.microsoft.com/aspnet/core/client-side/bundling-and-minification
-// for details on configuring this project to bundle and minify static web assets.
+/* ── Shared Site-wide JavaScript ── */
 
-// Write your JavaScript code.
+window.getCurrentUserId = function () {
+    return parseInt(document.body.dataset.userId) || 1;
+};
+
+document.addEventListener('DOMContentLoaded', function () {
+    /* ── Logout confirmation ── */
+    var trigger = document.getElementById('logoutTrigger');
+    if (trigger) {
+        trigger.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (confirm('Are you sure you want to log out?')) {
+                document.getElementById('logoutForm').submit();
+            }
+        });
+    }
+});

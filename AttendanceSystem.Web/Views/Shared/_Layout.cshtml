@@ -36,7 +36,7 @@
     @RenderSection("Styles", required: false)
 </head>
 
-<body>
+<body data-user-id="@(Context.Session.GetInt32("UserId") ?? 1)">
     <!-- Pre-loader start -->
     <div class="theme-loader">
         <div class="ball-scale">
@@ -413,22 +413,9 @@
     <script src="~/assets/pages/dashboard/custom-dashboard.js"></script>
     <!-- App script (local assets) -->
     <script src="~/assets/js/script.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
 
     @RenderSection("Scripts", required: false)
-
-    <script>
-        /* ── Logout confirmation ── */
-        document.addEventListener('DOMContentLoaded', function () {
-            var trigger = document.getElementById('logoutTrigger');
-            if (trigger) {
-                trigger.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    if (confirm('Are you sure you want to log out?')) {
-                        document.getElementById('logoutForm').submit();
-                    }
-                });
-            }
-        });
-    </script>
 </body>
 </html>
+
