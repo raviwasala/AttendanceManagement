@@ -6,20 +6,44 @@ namespace AttendanceSystem.Web.Controllers;
 
 public class AuthController : BaseController
 {
-    private readonly IAuthService  _auth;
-    private readonly IUserService  _users;
+    private readonly IAuthService _auth;
+    private readonly IUserService _users;
 
     public AuthController(IAuthService auth, IUserService users)
     {
-        _auth  = auth;
+        _auth = auth;
         _users = users;
     }
 
     [HttpGet]
-    public IActionResult Login()
+    public async Task<IActionResult> Login()
     {
         if (IsAuthenticated) return RedirectToAction("Index", "Admin");
-        return View();
+
+        var model = new LoginDto("", "");
+
+        if (Request.Cookies.TryGetValue("Auth_RememberUser", out var savedUser) &&
+            Request.Cookies.TryGetValue("Auth_RememberToken", out var savedToken) &&
+            !string.IsNullOrEmpty(savedUser) && !string.IsNullOrEmpty(savedToken))
+        {
+            var result = await _auth.ValidateRememberTokenAsync(savedUser, savedToken);
+            if (result.IsSuccess)
+            {
+                var user = result.Data!;
+                HttpContext.Session.SetInt32(SessionUserId, user.Id);
+                HttpContext.Session.SetString(SessionUsername, user.Username);
+                HttpContext.Session.SetString(SessionFullName, user.FullName);
+                HttpContext.Session.SetInt32(SessionRoleId, user.RoleId);
+                HttpContext.Session.SetString(SessionEmail, user.Email ?? "");
+                HttpContext.Session.SetString(SessionRoleName, user.RoleName ?? "");
+
+                return RedirectToAction("Index", "Admin");
+            }
+
+            model = new LoginDto(savedUser, "", true);
+        }
+
+        return View(model);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -35,14 +59,92 @@ public class AuthController : BaseController
         }
 
         var user = result.Data!;
-        HttpContext.Session.SetInt32(SessionUserId,   user.Id);
+        HttpContext.Session.SetInt32(SessionUserId, user.Id);
         HttpContext.Session.SetString(SessionUsername, user.Username);
         HttpContext.Session.SetString(SessionFullName, user.FullName);
-        HttpContext.Session.SetInt32(SessionRoleId,   user.RoleId);
-        HttpContext.Session.SetString(SessionEmail,   user.Email ?? "");
+        HttpContext.Session.SetInt32(SessionRoleId, user.RoleId);
+        HttpContext.Session.SetString(SessionEmail, user.Email ?? "");
         HttpContext.Session.SetString(SessionRoleName, user.RoleName ?? "");
 
+        if (dto.RememberMe)
+        {
+            var cookieOptions = new CookieOptions
+            {
+                Expires = DateTime.UtcNow.AddDays(30),
+                HttpOnly = true,
+                IsEssential = true,
+                SameSite = SameSiteMode.Lax
+            };
+            if (!string.IsNullOrEmpty(user.Username))
+                Response.Cookies.Append("Auth_RememberUser", user.Username, cookieOptions);
+
+            var rememberToken = user.RememberToken ?? Guid.NewGuid().ToString("N");
+            Response.Cookies.Append("Auth_RememberToken", rememberToken, cookieOptions);
+        }
+        else
+        {
+            Response.Cookies.Delete("Auth_RememberUser");
+            Response.Cookies.Delete("Auth_RememberToken");
+        }
+
         return RedirectToAction("Index", "Admin");
+    }
+
+    [HttpGet]
+    public IActionResult ForgotPassword()
+    {
+        if (IsAuthenticated) return RedirectToAction("Index", "Admin");
+        return View();
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordDto dto)
+    {
+        if (IsAuthenticated) return RedirectToAction("Index", "Admin");
+
+        if (string.IsNullOrWhiteSpace(dto.Email))
+        {
+            ModelState.AddModelError("Email", "Please enter your registered email address or username.");
+            return View(dto);
+        }
+
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var result = await _auth.RequestPasswordResetAsync(dto, baseUrl);
+        if (!result.IsSuccess)
+        {
+            ModelState.AddModelError("", result.ErrorMessage ?? "Failed to request password reset.");
+            return View(dto);
+        }
+
+        ViewBag.SuccessMessage = "If an account matching that email address exists, a password reset link has been sent. Please check your inbox and follow the instructions.";
+        return View();
+    }
+
+    [HttpGet]
+    public IActionResult ResetPassword(string? email, string? token)
+    {
+        if (IsAuthenticated) return RedirectToAction("Index", "Admin");
+
+        var model = new ResetPasswordWithTokenDto(email ?? "", token ?? "", "", "");
+        return View(model);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(ResetPasswordWithTokenDto dto)
+    {
+        if (IsAuthenticated) return RedirectToAction("Index", "Admin");
+
+        if (!ModelState.IsValid) return View(dto);
+
+        var result = await _auth.ResetPasswordWithTokenAsync(dto);
+        if (!result.IsSuccess)
+        {
+            ModelState.AddModelError("", result.ErrorMessage ?? "Failed to reset password.");
+            return View(dto);
+        }
+
+        ViewBag.SuccessMessage = "Your password has been reset successfully! You can now sign in with your new password.";
+        return View();
     }
 
     [HttpGet]
@@ -57,6 +159,8 @@ public class AuthController : BaseController
         if (CurrentUserId.HasValue)
             await _auth.LogoutAsync(CurrentUserId.Value);
         HttpContext.Session.Clear();
+        Response.Cookies.Delete("Auth_RememberUser");
+        Response.Cookies.Delete("Auth_RememberToken");
         return RedirectToAction("Login");
     }
 
@@ -107,7 +211,6 @@ public class AuthController : BaseController
             return RedirectToAction("Profile");
         }
 
-        // Update active session data
         HttpContext.Session.SetString(SessionFullName, updateDto.FullName);
         HttpContext.Session.SetString(SessionEmail, updateDto.Email);
 

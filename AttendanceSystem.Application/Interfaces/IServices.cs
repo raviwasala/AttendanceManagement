@@ -9,6 +9,9 @@ public interface IAuthService
     Task<Result<UserDto>> LoginAsync(LoginDto dto);
     Task<Result> ChangePasswordAsync(int userId, ChangePasswordDto dto);
     Task LogoutAsync(int userId);
+    Task<Result> RequestPasswordResetAsync(ForgotPasswordDto dto, string baseUrl);
+    Task<Result> ResetPasswordWithTokenAsync(ResetPasswordWithTokenDto dto);
+    Task<Result<UserDto>> ValidateRememberTokenAsync(string username, string token);
 }
 
 /// <summary>User management service contract.</summary>

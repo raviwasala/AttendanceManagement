@@ -197,7 +197,36 @@ public class LoginForm : Form
 
     private void ShowForgotPassword()
     {
-        MessageBox.Show("Please contact your system administrator to reset your password.",
-            "Forgot Password", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        using var prompt = new Form
+        {
+            Width = 360, Height = 220, FormBorderStyle = FormBorderStyle.FixedDialog,
+            Text = "Reset Password", StartPosition = FormStartPosition.CenterParent,
+            MaximizeBox = false, MinimizeBox = false, BackColor = AppTheme.FormBg
+        };
+        var lbl = new Label { Left = 20, Top = 15, Width = 300, Height = 35, Text = "Enter your registered Email address or Username:" };
+        var txt = new TextBox { Left = 20, Top = 55, Width = 300 };
+        var btnSubmit = new AppButton { Text = "Reset", Left = 120, Top = 110, Width = 90 };
+        var btnCancel = new Button { Text = "Cancel", Left = 225, Top = 110, Width = 95, DialogResult = DialogResult.Cancel };
+        btnSubmit.Click += async (s, e) =>
+        {
+            var val = txt.Text.Trim();
+            if (string.IsNullOrEmpty(val)) { MessageBox.Show("Please enter an email or username.", "Input Error", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            btnSubmit.Enabled = false;
+            var res = await _authService.RequestPasswordResetAsync(new ForgotPasswordDto(val), "https://localhost:7196");
+            if (res.IsSuccess)
+            {
+                MessageBox.Show("If an account matching that email address exists, a password reset link has been sent to your email inbox.", "Reset Requested", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                prompt.Close();
+            }
+            else
+            {
+                MessageBox.Show(res.ErrorMessage, "Reset Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                btnSubmit.Enabled = true;
+            }
+        };
+        prompt.Controls.AddRange([lbl, txt, btnSubmit, btnCancel]);
+        prompt.AcceptButton = btnSubmit;
+        prompt.CancelButton = btnCancel;
+        prompt.ShowDialog(this);
     }
 }

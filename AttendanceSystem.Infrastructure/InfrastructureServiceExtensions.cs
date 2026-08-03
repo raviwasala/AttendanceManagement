@@ -24,6 +24,7 @@ public static class InfrastructureServiceExtensions
         services.AddSingleton<DapperContext>();
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IBiometricImportService, BiometricImportService>();
+        services.AddScoped<IEmailService, EmailService>();
 
         return services;
     }

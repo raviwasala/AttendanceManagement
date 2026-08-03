@@ -14,7 +14,13 @@ public record ChangePasswordDto(
     [Required, MinLength(8)] string NewPassword,
     [Required] string ConfirmPassword);
 
-public record ForgotPasswordDto([Required, EmailAddress] string Email);
+public record ForgotPasswordDto([Required] string Email);
+
+public record ResetPasswordWithTokenDto(
+    [Required] string Email,
+    [Required] string Token,
+    [Required, MinLength(8)] string NewPassword,
+    [Required] string ConfirmPassword);
 
 // ── User ───────────────────────────────────────────────────────────────────────
 
@@ -32,6 +38,7 @@ public class UserDto
     public bool IsLocked { get; set; }
     public DateTime? LastLoginAt { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? RememberToken { get; set; }
 }
 
 public class CreateUserDto
