@@ -45,6 +45,12 @@ public class AuthController : BaseController
         return RedirectToAction("Index", "Admin");
     }
 
+    [HttpGet]
+    public async Task<IActionResult> LogoutGet()
+    {
+        return await Logout();
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
@@ -67,6 +73,48 @@ public class AuthController : BaseController
         return View(result.Data);
     }
 
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateProfile(string fullName, string email)
+    {
+        var auth = RequireAuth();
+        if (auth != null) return auth;
+
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            TempData["Error"] = "Full name cannot be empty.";
+            return RedirectToAction("Profile");
+        }
+
+        var userResult = await _users.GetByIdAsync(CurrentUserId!.Value);
+        if (!userResult.IsSuccess || userResult.Data == null)
+            return RedirectToAction("Index", "Admin");
+
+        var user = userResult.Data;
+        var updateDto = new UpdateUserDto
+        {
+            Id = user.Id,
+            FullName = fullName.Trim(),
+            Email = email?.Trim() ?? string.Empty,
+            RoleId = user.RoleId,
+            EmployeeId = user.EmployeeId,
+            IsActive = user.IsActive
+        };
+
+        var result = await _users.UpdateAsync(updateDto);
+        if (!result.IsSuccess)
+        {
+            TempData["Error"] = result.ErrorMessage ?? "Failed to update profile details.";
+            return RedirectToAction("Profile");
+        }
+
+        // Update active session data
+        HttpContext.Session.SetString(SessionFullName, updateDto.FullName);
+        HttpContext.Session.SetString(SessionEmail, updateDto.Email);
+
+        TempData["Success"] = "Profile details updated successfully.";
+        return RedirectToAction("Profile");
+    }
+
     [HttpGet]
     public IActionResult ChangePassword()
     {
@@ -80,16 +128,16 @@ public class AuthController : BaseController
     {
         var auth = RequireAuth();
         if (auth != null) return auth;
-        if (!ModelState.IsValid) return View(dto);
+        if (!ModelState.IsValid) return View("Profile", (await _users.GetByIdAsync(CurrentUserId!.Value)).Data);
 
         var result = await _auth.ChangePasswordAsync(CurrentUserId!.Value, dto);
         if (!result.IsSuccess)
         {
-            ModelState.AddModelError("", result.ErrorMessage ?? "Failed to change password.");
-            return View(dto);
+            TempData["Error"] = result.ErrorMessage ?? "Failed to change password.";
+            return View("Profile", (await _users.GetByIdAsync(CurrentUserId!.Value)).Data);
         }
 
         TempData["Success"] = "Password changed successfully.";
-        return RedirectToAction("Index", "Admin");
+        return RedirectToAction("Profile");
     }
 }

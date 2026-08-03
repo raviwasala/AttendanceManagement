@@ -120,4 +120,13 @@ body {
 a { color: var(--ams-primary); }
 a:hover { color: var(--ams-primary-d); }
 
+/* Remove divider lines from profile dropdown */
+.profile-notification hr,
+.profile-notification .dropdown-divider {
+  display: none !important;
+  border: none !important;
 }
+.profile-notification li {
+  border-bottom: none !important;
+  border-top: none !important;
+}

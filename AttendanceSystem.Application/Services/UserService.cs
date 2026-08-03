@@ -209,7 +209,7 @@ public class RoleService : IRoleService
         try
         {
             var allPerms = await _uow.Permissions.GetAllAsync();
-            var rolePerms = await _uow.RolePermissions.FindAsync(rp => rp.RoleId == roleId);
+            var rolePerms = await _uow.GetRolePermissionsAsync(roleId);
             var grantedIds = rolePerms.Select(rp => rp.PermissionId).ToHashSet();
             var dtos = allPerms.Select(p => new PermissionDto
             {

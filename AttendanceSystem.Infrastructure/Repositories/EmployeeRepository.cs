@@ -36,17 +36,21 @@ public class EmployeeRepository : Repository<Employee>, IEmployeeRepository
         return $"EMP-{next:D5}";
     }
 
+    /// <summary>
+    /// Uses EF.Functions.Like for index-friendly, case-insensitive search
+    /// (relies on database collation — avoids client-side LOWER() that bypasses indexes).
+    /// </summary>
     public async Task<IEnumerable<Employee>> SearchAsync(string keyword)
     {
-        var lower = keyword.ToLower();
+        var pattern = $"%{keyword}%";
         return await _dbSet.Include(e => e.Department)
                            .Include(e => e.Designation)
                            .Include(e => e.Branch)
-                           .Where(e => e.FirstName.ToLower().Contains(lower)
-                                    || e.LastName.ToLower().Contains(lower)
-                                    || e.EmployeeCode.ToLower().Contains(lower)
-                                    || (e.Email != null && e.Email.ToLower().Contains(lower))
-                                    || (e.Phone != null && e.Phone.Contains(lower)))
+                           .Where(e => EF.Functions.Like(e.FirstName, pattern)
+                                    || EF.Functions.Like(e.LastName, pattern)
+                                    || EF.Functions.Like(e.EmployeeCode, pattern)
+                                    || (e.Email != null && EF.Functions.Like(e.Email, pattern))
+                                    || (e.Phone != null && EF.Functions.Like(e.Phone, pattern)))
                            .OrderBy(e => e.FirstName)
                            .ToListAsync();
     }

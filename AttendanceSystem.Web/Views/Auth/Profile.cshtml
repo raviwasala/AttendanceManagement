@@ -1,6 +1,7 @@
 @model AttendanceSystem.Application.DTOs.UserDto
 @{
     ViewData["Title"] = "My Profile";
+    var _initial = Model?.FullName?.Length > 0 ? Model.FullName.Substring(0,1).ToUpper() : "U";
 }
 
 <div class="page-header">
@@ -36,59 +37,59 @@
 
 <div class="row">
 
-    <!-- ── Profile Info Card ── -->
+    <!-- ── Left Profile Avatar Card ── -->
     <div class="col-xl-4 col-md-5">
         <div class="card user-card">
-            <div class="card-block text-center">
+            <div class="card-block text-center p-4">
                 <!-- Avatar -->
-                <div class="usre-image mb-3">
-                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle"
-                         style="width:100px;height:100px;background:#01a9ac;font-size:2.5rem;color:#fff;font-weight:700;">
-                        @(Model?.FullName?.Substring(0,1).ToUpper() ?? "U")
+                <div class="user-image mb-3">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle shadow-sm"
+                         style="width:110px;height:110px;background:linear-gradient(135deg, #01a9ac, #007678);font-size:2.8rem;color:#fff;font-weight:700;">
+                        @_initial
                     </div>
                 </div>
 
                 <h4 class="f-w-600 mb-1">@Model?.FullName</h4>
-                <p class="text-muted mb-1">@Model?.Username</p>
+                <p class="text-muted mb-2">@@@Model?.Username</p>
                 <span class="badge"
-                      style="background:#01a9ac;font-size:.82rem;padding:.35em .7em;">
-                    @Model?.RoleName
+                      style="background:#01a9ac;font-size:.85rem;padding:.4em .8em;">
+                    <i class="fa fa-shield me-1"></i>@Model?.RoleName
                 </span>
 
                 <hr class="my-3">
 
                 <!-- Info list -->
-                <ul class="list-unstyled text-start" style="font-size:.9rem;">
+                <ul class="list-unstyled text-start mb-0" style="font-size:.92rem;line-height:1.8;">
                     <li class="d-flex align-items-center mb-2">
-                        <i class="fa fa-envelope me-2" style="color:#01a9ac;width:18px;"></i>
-                        <span class="text-muted me-1">Email:</span>
-                        <span>@(string.IsNullOrEmpty(Model?.Email) ? "—" : Model.Email)</span>
+                        <i class="fa fa-envelope me-2 text-teal" style="width:20px;color:#01a9ac;"></i>
+                        <span class="text-muted me-2">Email:</span>
+                        <strong class="text-dark">@(string.IsNullOrEmpty(Model?.Email) ? "—" : Model.Email)</strong>
                     </li>
                     @if (!string.IsNullOrEmpty(Model?.EmployeeName))
                     {
                         <li class="d-flex align-items-center mb-2">
-                            <i class="fa fa-user me-2" style="color:#01a9ac;width:18px;"></i>
-                            <span class="text-muted me-1">Employee:</span>
-                            <span>@Model.EmployeeName</span>
+                            <i class="fa fa-id-badge me-2 text-teal" style="width:20px;color:#01a9ac;"></i>
+                            <span class="text-muted me-2">Employee:</span>
+                            <strong class="text-dark">@Model.EmployeeName</strong>
                         </li>
                     }
                     <li class="d-flex align-items-center mb-2">
-                        <i class="fa fa-calendar me-2" style="color:#01a9ac;width:18px;"></i>
-                        <span class="text-muted me-1">Member Since:</span>
+                        <i class="fa fa-calendar me-2 text-teal" style="width:20px;color:#01a9ac;"></i>
+                        <span class="text-muted me-2">Member Since:</span>
                         <span>@Model?.CreatedAt.ToString("MMM dd, yyyy")</span>
                     </li>
                     <li class="d-flex align-items-center mb-2">
-                        <i class="fa fa-clock-o me-2" style="color:#01a9ac;width:18px;"></i>
-                        <span class="text-muted me-1">Last Login:</span>
+                        <i class="fa fa-clock-o me-2 text-teal" style="width:20px;color:#01a9ac;"></i>
+                        <span class="text-muted me-2">Last Login:</span>
                         <span>
                             @(Model?.LastLoginAt.HasValue == true
                                 ? Model.LastLoginAt.Value.ToString("MMM dd, yyyy HH:mm")
-                                : "—")
+                                : "Never")
                         </span>
                     </li>
                     <li class="d-flex align-items-center">
-                        <i class="fa fa-circle me-2" style="color:@(Model?.IsActive == true ? "#0ac282" : "#fe5d70");width:18px;"></i>
-                        <span class="text-muted me-1">Status:</span>
+                        <i class="fa fa-circle me-2" style="color:@(Model?.IsActive == true ? "#0ac282" : "#fe5d70");width:20px;"></i>
+                        <span class="text-muted me-2">Account Status:</span>
                         @if (Model?.IsActive == true)
                         {
                             <span class="badge bg-success">Active</span>
@@ -103,118 +104,188 @@
         </div>
     </div>
 
-    <!-- ── Change Password Card ── -->
+    <!-- ── Right Tabbed Management Area ── -->
     <div class="col-xl-8 col-md-7">
         <div class="card">
-            <div class="card-header" style="background:#01a9ac;">
-                <h5 class="card-header-text text-white mb-0">
-                    <i class="fa fa-lock me-2"></i>Change Password
-                </h5>
+            <!-- Navigation Tabs -->
+            <div class="card-header border-bottom-0 pb-0">
+                <ul class="nav nav-tabs md-tabs card-header-tabs" role="tablist" id="profileTabs">
+                    <li class="nav-item">
+                        <a class="nav-link active fw-semibold" id="tab-details-link" data-bs-toggle="tab" href="#tab-details" role="tab">
+                            <i class="fa fa-user me-2" style="color:#01a9ac;"></i>Profile Details
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link fw-semibold" id="tab-security-link" data-bs-toggle="tab" href="#tab-security" role="tab">
+                            <i class="fa fa-lock me-2" style="color:#01a9ac;"></i>Security & Password
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link fw-semibold" id="tab-overview-link" data-bs-toggle="tab" href="#tab-overview" role="tab">
+                            <i class="fa fa-info-circle me-2" style="color:#01a9ac;"></i>Overview
+                        </a>
+                    </li>
+                </ul>
             </div>
-            <div class="card-block p-4">
 
-                <form asp-controller="Auth" asp-action="ChangePassword" method="post" id="pwForm">
-                    @Html.AntiForgeryToken()
+            <div class="card-block p-4 tab-content">
 
-                    <div asp-validation-summary="All" class="alert alert-danger py-2 mb-3"
-                         style="font-size:.85rem;display:none;" id="valSummary"></div>
+                <!-- ── TAB 1: Profile Details ── -->
+                <div class="tab-pane fade show active" id="tab-details" role="tabpanel">
+                    <form asp-controller="Auth" asp-action="UpdateProfile" method="post">
+                        @Html.AntiForgeryToken()
 
-                    <div class="form-group mb-3">
-                        <label class="form-label fw-semibold">
-                            <i class="fa fa-lock me-1" style="color:#01a9ac;"></i>Current Password
-                        </label>
-                        <div class="input-group">
-                            <input name="CurrentPassword"
-                                   class="form-control" type="password"
-                                   placeholder="Enter current password"
-                                   autocomplete="current-password" id="curPw">
-                            <span class="input-group-text toggle-pw" data-target="curPw"
-                                  style="cursor:pointer;">
-                                <i class="fa fa-eye-slash" id="curPwIcon"></i>
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label class="form-label fw-semibold">
-                            <i class="fa fa-key me-1" style="color:#01a9ac;"></i>New Password
-                        </label>
-                        <div class="input-group">
-                            <input name="NewPassword"
-                                   class="form-control" type="password"
-                                   placeholder="At least 8 characters"
-                                   autocomplete="new-password" id="newPw">
-                            <span class="input-group-text toggle-pw" data-target="newPw"
-                                  style="cursor:pointer;">
-                                <i class="fa fa-eye-slash" id="newPwIcon"></i>
-                            </span>
-                        </div>
-                        <!-- strength bar -->
-                        <div class="mt-2">
-                            <div class="progress" style="height:5px;">
-                                <div id="strengthBar" class="progress-bar" style="width:0%;"></div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Username</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fa fa-at"></i></span>
+                                    <input type="text" class="form-control bg-light" value="@Model?.Username" readonly />
+                                </div>
+                                <small class="text-muted">Username cannot be modified.</small>
                             </div>
-                            <small id="strengthLabel" class="text-muted" style="font-size:.78rem;"></small>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Role</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fa fa-shield"></i></span>
+                                    <input type="text" class="form-control bg-light" value="@Model?.RoleName" readonly />
+                                </div>
+                                <small class="text-muted">Assigned system permissions.</small>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label class="form-label fw-semibold">
+                                Full Name <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fa fa-user"></i></span>
+                                <input name="FullName" class="form-control" type="text" value="@Model?.FullName" required placeholder="Enter full name" />
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-4">
+                            <label class="form-label fw-semibold">Email Address</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fa fa-envelope"></i></span>
+                                <input name="Email" class="form-control" type="email" value="@Model?.Email" placeholder="Enter email address" />
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn text-white px-4" style="background:#01a9ac;">
+                                <i class="fa fa-save me-1"></i> Save Profile Details
+                            </button>
+                            <a asp-controller="Admin" asp-action="Index" class="btn btn-secondary px-4">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- ── TAB 2: Change Password ── -->
+                <div class="tab-pane fade" id="tab-security" role="tabpanel">
+                    <form asp-controller="Auth" asp-action="ChangePassword" method="post" id="pwForm">
+                        @Html.AntiForgeryToken()
+
+                        <div class="form-group mb-3">
+                            <label class="form-label fw-semibold">
+                                Current Password <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fa fa-lock"></i></span>
+                                <input name="CurrentPassword" class="form-control" type="password"
+                                       placeholder="Enter current password" required autocomplete="current-password" id="curPw">
+                                <span class="input-group-text toggle-pw" data-target="curPw" style="cursor:pointer;">
+                                    <i class="fa fa-eye-slash" id="curPwIcon"></i>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label class="form-label fw-semibold">
+                                New Password <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fa fa-key"></i></span>
+                                <input name="NewPassword" class="form-control" type="password"
+                                       placeholder="At least 8 characters" required autocomplete="new-password" id="newPw">
+                                <span class="input-group-text toggle-pw" data-target="newPw" style="cursor:pointer;">
+                                    <i class="fa fa-eye-slash" id="newPwIcon"></i>
+                                </span>
+                            </div>
+                            <!-- Strength Indicator -->
+                            <div class="mt-2">
+                                <div class="progress" style="height:6px;">
+                                    <div id="strengthBar" class="progress-bar" style="width:0%;"></div>
+                                </div>
+                                <small id="strengthLabel" class="text-muted" style="font-size:.8rem;"></small>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-4">
+                            <label class="form-label fw-semibold">
+                                Confirm New Password <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fa fa-check-circle"></i></span>
+                                <input name="ConfirmPassword" class="form-control" type="password"
+                                       placeholder="Re-enter new password" required autocomplete="new-password" id="conPw">
+                                <span class="input-group-text toggle-pw" data-target="conPw" style="cursor:pointer;">
+                                    <i class="fa fa-eye-slash" id="conPwIcon"></i>
+                                </span>
+                            </div>
+                            <small id="matchMsg" style="font-size:.8rem;"></small>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn text-white px-4" style="background:#01a9ac;">
+                                <i class="fa fa-shield me-1"></i> Update Password
+                            </button>
+                            <a asp-controller="Admin" asp-action="Index" class="btn btn-secondary px-4">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- ── TAB 3: Account Overview ── -->
+                <div class="tab-pane fade" id="tab-overview" role="tabpanel">
+                    <div class="row text-center mb-4">
+                        <div class="col-4">
+                            <div class="p-3 border rounded bg-light">
+                                <h4 class="f-w-700 mb-0" style="color:#01a9ac;">@Model?.RoleName</h4>
+                                <small class="text-muted">User Role</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="p-3 border rounded bg-light">
+                                <h4 class="f-w-700 mb-0" style="color:@(Model?.IsActive == true ? "#0ac282" : "#fe5d70");">
+                                    @(Model?.IsActive == true ? "Active" : "Inactive")
+                                </h4>
+                                <small class="text-muted">Account Status</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="p-3 border rounded bg-light">
+                                <h4 class="f-w-700 mb-0" style="color:#01a9ac;">
+                                    @(Model?.LastLoginAt.HasValue == true
+                                        ? Model.LastLoginAt.Value.ToString("dd MMM")
+                                        : "N/A")
+                                </h4>
+                                <small class="text-muted">Last Activity</small>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-group mb-4">
-                        <label class="form-label fw-semibold">
-                            <i class="fa fa-check-circle me-1" style="color:#01a9ac;"></i>Confirm New Password
-                        </label>
-                        <div class="input-group">
-                            <input name="ConfirmPassword"
-                                   class="form-control" type="password"
-                                   placeholder="Re-enter new password"
-                                   autocomplete="new-password" id="conPw">
-                            <span class="input-group-text toggle-pw" data-target="conPw"
-                                  style="cursor:pointer;">
-                                <i class="fa fa-eye-slash" id="conPwIcon"></i>
-                            </span>
+                    <div class="alert alert-info d-flex align-items-center mb-0">
+                        <i class="fa fa-info-circle fa-2x me-3" style="color:#01a9ac;"></i>
+                        <div>
+                            <h6 class="mb-1 fw-bold">Active Session Details</h6>
+                            <p class="mb-0 text-muted" style="font-size:.88rem;">
+                                Logged in as <strong>@Model?.Username</strong>. Session is secured with Anti-Forgery validation and encrypted credentials.
+                            </p>
                         </div>
-                        <small id="matchMsg" style="font-size:.78rem;"></small>
-                    </div>
-
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary px-4">
-                            <i class="fa fa-save me-1"></i>Update Password
-                        </button>
-                        <a asp-controller="Admin" asp-action="Index"
-                           class="btn btn-secondary px-4">Cancel</a>
-                    </div>
-                </form>
-
-            </div>
-        </div>
-
-        <!-- Account Summary Card -->
-        <div class="card mt-0">
-            <div class="card-header">
-                <h5 class="card-header-text mb-0">
-                    <i class="fa fa-info-circle me-2" style="color:#01a9ac;"></i>Account Summary
-                </h5>
-            </div>
-            <div class="card-block p-3">
-                <div class="row text-center">
-                    <div class="col-4">
-                        <h4 class="f-w-700 mb-0" style="color:#01a9ac;">@Model?.RoleName</h4>
-                        <p class="text-muted mb-0" style="font-size:.82rem;">Role</p>
-                    </div>
-                    <div class="col-4 border-start border-end">
-                        <h4 class="f-w-700 mb-0" style="color:#01a9ac;">
-                            @(Model?.IsActive == true ? "Active" : "Inactive")
-                        </h4>
-                        <p class="text-muted mb-0" style="font-size:.82rem;">Account Status</p>
-                    </div>
-                    <div class="col-4">
-                        <h4 class="f-w-700 mb-0" style="color:#01a9ac;">
-                            @(Model?.LastLoginAt.HasValue == true
-                                ? Model.LastLoginAt.Value.ToString("dd MMM")
-                                : "—")
-                        </h4>
-                        <p class="text-muted mb-0" style="font-size:.82rem;">Last Login</p>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
@@ -223,59 +294,57 @@
 
 @section Scripts {
 <script>
-    /* ── toggle show/hide password ── */
+    /* ── Show/Hide password toggle ── */
     document.querySelectorAll('.toggle-pw').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            var t = document.getElementById(this.dataset.target);
-            var i = this.querySelector('i');
-            if (t.type === 'password') {
-                t.type = 'text';
-                i.classList.replace('fa-eye-slash', 'fa-eye');
+            var targetInput = document.getElementById(this.dataset.target);
+            var icon = this.querySelector('i');
+            if (targetInput.type === 'password') {
+                targetInput.type = 'text';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
             } else {
-                t.type = 'password';
-                i.classList.replace('fa-eye', 'fa-eye-slash');
+                targetInput.type = 'password';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
             }
         });
     });
 
-    /* ── password strength ── */
+    /* ── Password strength evaluation ── */
     var newPw = document.getElementById('newPw');
     var bar   = document.getElementById('strengthBar');
     var lbl   = document.getElementById('strengthLabel');
-    newPw.addEventListener('input', function () {
-        var v = this.value;
-        var score = 0;
-        if (v.length >= 8)  score++;
-        if (/[A-Z]/.test(v)) score++;
-        if (/[0-9]/.test(v)) score++;
-        if (/[^A-Za-z0-9]/.test(v)) score++;
-        var pct  = score * 25;
-        var cols = ['#fe5d70','#fe9365','#f4c22b','#0ac282'];
-        var lbls = ['Weak','Fair','Good','Strong'];
-        bar.style.width = pct + '%';
-        bar.style.backgroundColor = cols[score - 1] || '#ddd';
-        lbl.textContent = score > 0 ? lbls[score - 1] : '';
-        lbl.style.color  = cols[score - 1] || '#aaa';
-    });
+    if (newPw) {
+        newPw.addEventListener('input', function () {
+            var v = this.value;
+            var score = 0;
+            if (v.length >= 8) score++;
+            if (/[A-Z]/.test(v)) score++;
+            if (/[0-9]/.test(v)) score++;
+            if (/[^A-Za-z0-9]/.test(v)) score++;
+            var pct  = score * 25;
+            var cols = ['#fe5d70','#fe9365','#f4c22b','#0ac282'];
+            var lbls = ['Weak','Fair','Good','Strong'];
+            bar.style.width = pct + '%';
+            bar.style.backgroundColor = cols[score - 1] || '#ddd';
+            lbl.textContent = score > 0 ? lbls[score - 1] : '';
+            lbl.style.color  = cols[score - 1] || '#aaa';
+        });
+    }
 
-    /* ── confirm password match ── */
+    /* ── Confirm password match check ── */
     var conPw = document.getElementById('conPw');
     var msg   = document.getElementById('matchMsg');
-    conPw.addEventListener('input', function () {
-        if (this.value === '' || newPw.value === '') { msg.textContent = ''; return; }
-        if (this.value === newPw.value) {
-            msg.textContent = '✓ Passwords match';
-            msg.style.color = '#0ac282';
-        } else {
-            msg.textContent = '✗ Passwords do not match';
-            msg.style.color = '#fe5d70';
-        }
-    });
-
-    /* ── show server validation summary if errors ── */
-    var vs = document.getElementById('valSummary');
-    if (vs && vs.querySelectorAll('li').length > 0) {
-        vs.style.display = 'block';
+    if (conPw && newPw) {
+        conPw.addEventListener('input', function () {
+            if (this.value === '' || newPw.value === '') { msg.textContent = ''; return; }
+            if (this.value === newPw.value) {
+                msg.textContent = '✓ Passwords match';
+                msg.style.color = '#0ac282';
+            } else {
+                msg.textContent = '✗ Passwords do not match';
+                msg.style.color = '#fe5d70';
+            }
+        });
     }
 </script>
 }

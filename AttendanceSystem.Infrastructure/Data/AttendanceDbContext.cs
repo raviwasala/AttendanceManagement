@@ -9,23 +9,50 @@ public class AttendanceDbContext : DbContext
 {
     public AttendanceDbContext(DbContextOptions<AttendanceDbContext> options) : base(options) { }
 
-    public DbSet<User> Users => Set<User>();
-    public DbSet<Role> Roles => Set<Role>();
-    public DbSet<Permission> Permissions => Set<Permission>();
-    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
-    public DbSet<Employee> Employees => Set<Employee>();
-    public DbSet<Department> Departments => Set<Department>();
-    public DbSet<Designation> Designations => Set<Designation>();
-    public DbSet<Branch> Branches => Set<Branch>();
-    public DbSet<Shift> Shifts => Set<Shift>();
-    public DbSet<EmployeeShift> EmployeeShifts => Set<EmployeeShift>();
-    public DbSet<AttendanceLog> AttendanceLogs => Set<AttendanceLog>();
-    public DbSet<AttendanceSummary> AttendanceSummaries => Set<AttendanceSummary>();
-    public DbSet<LeaveType> LeaveTypes => Set<LeaveType>();
-    public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
-    public DbSet<Holiday> Holidays => Set<Holiday>();
-    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-    public DbSet<CompanySettings> CompanySettings => Set<CompanySettings>();
+    public DbSet<User> Users { get; set; } = null!;
+    public DbSet<Role> Roles { get; set; } = null!;
+    public DbSet<Permission> Permissions { get; set; } = null!;
+    public DbSet<RolePermission> RolePermissions { get; set; } = null!;
+    public DbSet<Employee> Employees { get; set; } = null!;
+    public DbSet<Department> Departments { get; set; } = null!;
+    public DbSet<Designation> Designations { get; set; } = null!;
+    public DbSet<Branch> Branches { get; set; } = null!;
+    public DbSet<Shift> Shifts { get; set; } = null!;
+    public DbSet<EmployeeShift> EmployeeShifts { get; set; } = null!;
+    public DbSet<AttendanceLog> AttendanceLogs { get; set; } = null!;
+    public DbSet<AttendanceSummary> AttendanceSummaries { get; set; } = null!;
+    public DbSet<LeaveType> LeaveTypes { get; set; } = null!;
+    public DbSet<LeaveRequest> LeaveRequests { get; set; } = null!;
+    public DbSet<Holiday> Holidays { get; set; } = null!;
+    public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+    public DbSet<CompanySettings> CompanySettings { get; set; } = null!;
+
+    // ── Auto-timestamp via SaveChanges interception ────────────────────────────
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+        {
+            if (entry.State == EntityState.Added)
+                entry.Entity.CreatedAt = now;
+            else if (entry.State == EntityState.Modified)
+                entry.Entity.ModifiedAt = now;
+        }
+        return await base.SaveChangesAsync(cancellationToken);
+    }
+
+    public override int SaveChanges()
+    {
+        var now = DateTime.UtcNow;
+        foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+        {
+            if (entry.State == EntityState.Added)
+                entry.Entity.CreatedAt = now;
+            else if (entry.State == EntityState.Modified)
+                entry.Entity.ModifiedAt = now;
+        }
+        return base.SaveChanges();
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -217,9 +244,9 @@ public class AttendanceDbContext : DbContext
     {
         // Seed Roles
         modelBuilder.Entity<Role>().HasData(
-            new Role { Id = 1, Name = "Administrator", Description = "Full system access", IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) },
-            new Role { Id = 2, Name = "HR Manager", Description = "HR module access", IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) },
-            new Role { Id = 3, Name = "Employee", Description = "Self-service access", IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) }
+            new Role { Id = 1, Name = "Administrator", Description = "Full system access",  IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Role { Id = 2, Name = "HR Manager",    Description = "HR module access",    IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Role { Id = 3, Name = "Employee",      Description = "Self-service access", IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
         );
 
         // Seed default Admin user (password: Admin@123)
@@ -229,29 +256,30 @@ public class AttendanceDbContext : DbContext
                 Id = 1, Username = "admin", FullName = "System Administrator",
                 Email = "admin@company.com",
                 PasswordHash = "$2a$12$nO.92cNvowz6VFNOT/FerO6E0f.7B9VFm3ziDnofYlZi4NWOgJ3nW", // Admin@123
-                RoleId = 1, IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1)
+                RoleId = 1, IsActive = true, IsDeleted = false,
+                CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             }
         );
 
         // Seed default Branch
         modelBuilder.Entity<Branch>().HasData(
-            new Branch { Id = 1, Name = "Head Office", IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) }
+            new Branch { Id = 1, Name = "Head Office", IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
         );
 
         // Seed default Department
         modelBuilder.Entity<Department>().HasData(
-            new Department { Id = 1, Name = "Administration", IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) },
-            new Department { Id = 2, Name = "Information Technology", IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) },
-            new Department { Id = 3, Name = "Human Resources", IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) },
-            new Department { Id = 4, Name = "Finance", IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) }
+            new Department { Id = 1, Name = "Administration",       IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Department { Id = 2, Name = "Information Technology", IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Department { Id = 3, Name = "Human Resources",      IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Department { Id = 4, Name = "Finance",              IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
         );
 
         // Seed default Designation
         modelBuilder.Entity<Designation>().HasData(
-            new Designation { Id = 1, Name = "Manager", IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) },
-            new Designation { Id = 2, Name = "Software Engineer", IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) },
-            new Designation { Id = 3, Name = "HR Executive", IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) },
-            new Designation { Id = 4, Name = "Accountant", IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) }
+            new Designation { Id = 1, Name = "Manager",           IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Designation { Id = 2, Name = "Software Engineer", IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Designation { Id = 3, Name = "HR Executive",      IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new Designation { Id = 4, Name = "Accountant",        IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
         );
 
         // Seed default Shift
@@ -260,19 +288,20 @@ public class AttendanceDbContext : DbContext
             {
                 Id = 1, Name = "General Shift",
                 StartTime = new TimeSpan(9, 0, 0),
-                EndTime = new TimeSpan(18, 0, 0),
+                EndTime   = new TimeSpan(18, 0, 0),
                 GraceMinutes = 15,
                 WeeklyOffDays = "Saturday,Sunday",
-                IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1)
+                IsActive = true, IsDeleted = false,
+                CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             }
         );
 
         // Seed Leave Types
         modelBuilder.Entity<LeaveType>().HasData(
-            new LeaveType { Id = 1, Name = "Annual Leave", TotalDays = 14, IsPaid = true, IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) },
-            new LeaveType { Id = 2, Name = "Sick Leave", TotalDays = 10, IsPaid = true, IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) },
-            new LeaveType { Id = 3, Name = "Casual Leave", TotalDays = 7, IsPaid = true, IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) },
-            new LeaveType { Id = 4, Name = "Unpaid Leave", TotalDays = 30, IsPaid = false, IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1) }
+            new LeaveType { Id = 1, Name = "Annual Leave",  TotalDays = 14, IsPaid = true,  IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new LeaveType { Id = 2, Name = "Sick Leave",    TotalDays = 10, IsPaid = true,  IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new LeaveType { Id = 3, Name = "Casual Leave",  TotalDays =  7, IsPaid = true,  IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+            new LeaveType { Id = 4, Name = "Unpaid Leave",  TotalDays = 30, IsPaid = false, IsActive = true, IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
         );
 
         // Seed Company Settings
@@ -281,10 +310,11 @@ public class AttendanceDbContext : DbContext
             {
                 Id = 1, CompanyName = "My Company Ltd.",
                 WorkStartTime = new TimeSpan(9, 0, 0),
-                WorkEndTime = new TimeSpan(18, 0, 0),
-                WeekendDays = "Saturday,Sunday",
+                WorkEndTime   = new TimeSpan(18, 0, 0),
+                WeekendDays   = "Saturday,Sunday",
                 MaxLateMinutes = 15,
-                IsDeleted = false, CreatedAt = new DateTime(2024, 1, 1)
+                IsDeleted = false,
+                CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             }
         );
     }

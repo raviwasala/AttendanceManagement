@@ -98,7 +98,7 @@
                             <!-- Notifications -->
                             <li class="header-notification">
                                 <div class="dropdown-primary dropdown">
-                                    <div class="dropdown-toggle" data-toggle="dropdown">
+                                    <div class="dropdown-toggle" data-bs-toggle="dropdown" data-toggle="dropdown" style="cursor:pointer;">
                                         <i class="feather icon-bell"></i>
                                         <span class="badge bg-c-pink">5</span>
                                     </div>
@@ -142,7 +142,7 @@
                             }
                             <li class="user-profile header-notification">
                                 <div class="dropdown-primary dropdown">
-                                    <div class="dropdown-toggle" data-toggle="dropdown">
+                                    <div class="dropdown-toggle" data-bs-toggle="dropdown" data-toggle="dropdown" style="cursor:pointer;">
                                         <!-- Avatar initials instead of a missing image -->
                                         <span class="d-inline-flex align-items-center justify-content-center img-radius"
                                               style="width:40px;height:40px;background:#01a9ac;color:#fff;font-weight:700;font-size:1rem;flex-shrink:0;">
@@ -170,7 +170,6 @@
                                                 </div>
                                             </div>
                                         </li>
-                                        <li><hr class="dropdown-divider my-1"></li>
 
                                         <li>
                                             <a asp-controller="Auth" asp-action="Profile">
@@ -182,7 +181,6 @@
                                                 <i class="feather icon-settings"></i> Settings
                                             </a>
                                         </li>
-                                        <li><hr class="dropdown-divider my-1"></li>
                                         <li>
                                             <a href="#" id="logoutTrigger" style="color:#fe5d70 !important;">
                                                 <i class="feather icon-log-out"></i> Logout

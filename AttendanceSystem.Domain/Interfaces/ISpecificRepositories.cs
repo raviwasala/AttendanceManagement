@@ -45,6 +45,11 @@ public interface IHolidayRepository : IRepository<Holiday>
     Task<IEnumerable<Holiday>> GetByYearAsync(int year);
 }
 
+/// <summary>
+/// Audit log repository — standalone interface because AuditLog is an append-only entity
+/// that does not inherit BaseEntity (no soft-delete, no ModifiedAt).
+/// Writes are staged via AddAsync and must be committed by the Unit of Work.
+/// </summary>
 public interface IAuditLogRepository
 {
     Task AddAsync(AuditLog log);

@@ -35,9 +35,12 @@ public class AttendanceRepository : Repository<AttendanceLog>, IAttendanceReposi
         await _dbSet.CountAsync(a => a.AttendanceDate.Date == date.Date
                                   && (a.Status == AttendanceStatus.Present || a.Status == AttendanceStatus.Late));
 
+    /// <summary>Inlined present count to avoid a second DB round-trip.</summary>
     public async Task<int> GetAbsentCountTodayAsync(DateTime date, int totalEmployees)
     {
-        var present = await GetPresentCountTodayAsync(date);
+        var present = await _dbSet.CountAsync(a =>
+            a.AttendanceDate.Date == date.Date &&
+            (a.Status == AttendanceStatus.Present || a.Status == AttendanceStatus.Late));
         return Math.Max(0, totalEmployees - present);
     }
 
