@@ -53,19 +53,26 @@ function editItem(id) {
 
 function saveItem() {
     var name = $('#itemName').val().trim();
-    if (!name) { alert('Name is required.'); return; }
+    if (!name) { notifyError('Designation name is required.', 'Validation Error'); return; }
     var dto = { Id: parseInt($('#itemId').val()) || 0, Name: name, Description: $('#itemDesc').val().trim(), IsActive: $('#itemActive').is(':checked') };
     $.ajax({ url: '/api/designations', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
-        success: function () { bootstrap.Modal.getInstance('#editModal').hide(); loadItems(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Save failed.')); }
+        success: function () { 
+            bootstrap.Modal.getInstance('#editModal').hide(); 
+            notifySuccess('Designation saved successfully.');
+            loadItems(); 
+        },
+        error: function (xhr) { notifyError(xhr.responseText || 'Save failed.'); }
     });
 }
 
 function deleteItem(id) {
-    if (!confirm('Delete this designation?')) return;
-    var uid = window.getCurrentUserId ? window.getCurrentUserId() : 1;
-    $.ajax({ url: '/api/designations/' + id + '?deletedBy=' + uid, type: 'DELETE',
-        success: function () { loadItems(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Delete failed.')); }
+    notifyConfirm({ title: 'Delete Designation', text: 'Are you sure you want to delete this designation?', confirmText: 'Delete', icon: 'warning' }, function () {
+        $.ajax({ url: '/api/designations/' + id, type: 'DELETE',
+            success: function () { 
+                notifySuccess('Designation deleted successfully.');
+                loadItems(); 
+            },
+            error: function (xhr) { notifyError(xhr.responseText || 'Delete failed.'); }
+        });
     });
 }

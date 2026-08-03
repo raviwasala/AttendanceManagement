@@ -4,12 +4,16 @@ var allEmps = [], depts = [], desigs = [], branches = [];
 
 $(function () {
     $.when(
-        $.getJSON('/api/departments', function (d) { depts = d.filter(function(x){return x.IsActive;}); }),
-        $.getJSON('/api/designations', function (d) { desigs = d.filter(function(x){return x.IsActive;}); }),
-        $.getJSON('/api/branches', function (d) { branches = d.filter(function(x){return x.IsActive;}); })
-    ).then(function () {
+        $.getJSON('/api/departments', function (d) { depts = (d || []).filter(function(x){ return x.IsActive || x.isActive; }); }),
+        $.getJSON('/api/designations', function (d) { desigs = (d || []).filter(function(x){ return x.IsActive || x.isActive; }); }),
+        $.getJSON('/api/branches', function (d) { branches = (d || []).filter(function(x){ return x.IsActive || x.isActive; }); })
+    ).always(function () {
         var opts = '<option value="">All Departments</option>';
-        depts.forEach(function (d) { opts += '<option value="' + d.Id + '">' + d.Name + '</option>'; });
+        depts.forEach(function (d) {
+            var id = d.Id !== undefined ? d.Id : d.id;
+            var name = d.Name || d.name || '';
+            opts += '<option value="' + id + '">' + name + '</option>';
+        });
         $('#deptFilter').html(opts);
         loadEmps();
     });
@@ -90,7 +94,7 @@ function editEmp(id) {
 
 function saveEmp() {
     if (!$('#empFirst').val().trim() || !$('#empLast').val().trim() || !$('#empDept').val() || !$('#empDesig').val() || !$('#empBranch').val() || !$('#empJoin').val()) {
-        alert('First Name, Last Name, Department, Designation, Branch and Joining Date are required.'); return;
+        notifyError('First Name, Last Name, Department, Designation, Branch and Joining Date are required.', 'Validation Error'); return;
     }
     var dto = {
         Id: parseInt($('#empId').val()) || 0, EmployeeCode: $('#empCode').val().trim(),
@@ -103,24 +107,33 @@ function saveEmp() {
         BranchId: parseInt($('#empBranch').val()), IsActive: $('#empActive').is(':checked')
     };
     $.ajax({ url: '/api/employees', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
-        success: function () { bootstrap.Modal.getInstance('#empModal').hide(); loadEmps(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Save failed.')); }
+        success: function () { 
+            bootstrap.Modal.getInstance('#empModal').hide(); 
+            notifySuccess('Employee saved successfully.');
+            loadEmps(); 
+        },
+        error: function (xhr) { notifyError(xhr.responseText || 'Save failed.'); }
     });
 }
 
 function toggleEmp(id) {
-    var uid = window.getCurrentUserId();
-    $.ajax({ url: '/api/employees/' + id + '/toggle?modifiedBy=' + uid, type: 'POST',
-        success: function () { loadEmps(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Toggle failed.')); }
+    $.ajax({ url: '/api/employees/' + id + '/toggle', type: 'POST',
+        success: function () { 
+            notifySuccess('Employee status updated.');
+            loadEmps(); 
+        },
+        error: function (xhr) { notifyError(xhr.responseText || 'Toggle failed.'); }
     });
 }
 
 function deleteEmp(id) {
-    if (!confirm('Delete this employee? This cannot be undone.')) return;
-    var uid = window.getCurrentUserId();
-    $.ajax({ url: '/api/employees/' + id + '?deletedBy=' + uid, type: 'DELETE',
-        success: function () { loadEmps(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Delete failed.')); }
+    notifyConfirm({ title: 'Delete Employee', text: 'Are you sure you want to delete this employee? This cannot be undone.', confirmText: 'Delete', icon: 'warning' }, function () {
+        $.ajax({ url: '/api/employees/' + id, type: 'DELETE',
+            success: function () { 
+                notifySuccess('Employee deleted successfully.');
+                loadEmps(); 
+            },
+            error: function (xhr) { notifyError(xhr.responseText || 'Delete failed.'); }
+        });
     });
 }

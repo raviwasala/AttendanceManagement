@@ -14,21 +14,27 @@ function loadDepts() {
 }
 
 function renderTable(data) {
-    if (!data.length) {
+    if (!data || !data.length) {
         $('#deptBody').html('<tr><td colspan="6" class="text-center text-muted py-3">No departments found.</td></tr>');
         return;
     }
     var html = '';
     data.forEach(function (d, i) {
+        var id = d.Id !== undefined ? d.Id : d.id;
+        var name = d.Name || d.name || '';
+        var desc = d.Description || d.description || '';
+        var count = d.EmployeeCount !== undefined ? d.EmployeeCount : (d.employeeCount || 0);
+        var isActive = d.IsActive !== undefined ? d.IsActive : d.isActive;
+
         html += '<tr>'
             + '<td class="text-muted">' + (i + 1) + '</td>'
-            + '<td class="fw-semibold">' + d.Name + '</td>'
-            + '<td class="text-muted small">' + (d.Description || '—') + '</td>'
-            + '<td><span class="badge bg-secondary">' + d.EmployeeCount + '</span></td>'
-            + '<td>' + (d.IsActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-danger">Inactive</span>') + '</td>'
+            + '<td class="fw-semibold">' + name + '</td>'
+            + '<td class="text-muted small">' + (desc || '—') + '</td>'
+            + '<td><span class="badge bg-secondary">' + count + '</span></td>'
+            + '<td>' + (isActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-danger">Inactive</span>') + '</td>'
             + '<td>'
-            + '<button class="btn btn-sm btn-outline-primary me-1" onclick="editDept(' + d.Id + ')" title="Edit"><i class="fa fa-pencil"></i></button>'
-            + '<button class="btn btn-sm btn-outline-danger" onclick="deleteDept(' + d.Id + ')" title="Delete"><i class="fa fa-trash"></i></button>'
+            + '<button class="btn btn-sm btn-outline-primary me-1" onclick="editDept(' + id + ')" title="Edit"><i class="fa fa-pencil"></i></button>'
+            + '<button class="btn btn-sm btn-outline-danger" onclick="deleteDept(' + id + ')" title="Delete"><i class="fa fa-trash"></i></button>'
             + '</td></tr>';
     });
     $('#deptBody').html(html);
@@ -38,8 +44,11 @@ function filterTable() {
     var q = $('#searchBox').val().toLowerCase();
     var s = $('#statusFilter').val();
     var filtered = allDepts.filter(function (d) {
-        var matchQ = !q || d.Name.toLowerCase().includes(q) || (d.Description || '').toLowerCase().includes(q);
-        var matchS = s === '' || String(d.IsActive) === s;
+        var name = (d.Name || d.name || '').toLowerCase();
+        var desc = (d.Description || d.description || '').toLowerCase();
+        var isActive = String(d.IsActive !== undefined ? d.IsActive : d.isActive);
+        var matchQ = !q || name.includes(q) || desc.includes(q);
+        var matchS = s === '' || isActive === s;
         return matchQ && matchS;
     });
     renderTable(filtered);
@@ -56,13 +65,17 @@ function openModal(id, name, desc, active) {
 
 function editDept(id) {
     $.getJSON('/api/departments/' + id, function (d) {
-        openModal(d.Id, d.Name, d.Description, d.IsActive);
+        var idVal = d.Id !== undefined ? d.Id : d.id;
+        var name = d.Name || d.name || '';
+        var desc = d.Description || d.description || '';
+        var isActive = d.IsActive !== undefined ? d.IsActive : d.isActive;
+        openModal(idVal, name, desc, isActive);
     });
 }
 
 function saveDept() {
     var name = $('#deptName').val().trim();
-    if (!name) { alert('Name is required.'); return; }
+    if (!name) { notifyError('Department name is required.', 'Validation Error'); return; }
     var dto = {
         Id: parseInt($('#deptId').val()) || 0,
         Name: name,
@@ -72,17 +85,24 @@ function saveDept() {
     $.ajax({
         url: '/api/departments', type: 'POST',
         contentType: 'application/json', data: JSON.stringify(dto),
-        success: function () { bootstrap.Modal.getInstance('#deptModal').hide(); loadDepts(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Save failed.')); }
+        success: function () { 
+            bootstrap.Modal.getInstance('#deptModal').hide(); 
+            notifySuccess('Department saved successfully.');
+            loadDepts(); 
+        },
+        error: function (xhr) { notifyError(xhr.responseText || 'Save failed.'); }
     });
 }
 
 function deleteDept(id) {
-    if (!confirm('Delete this department?')) return;
-    var uid = window.getCurrentUserId ? window.getCurrentUserId() : 1;
-    $.ajax({
-        url: '/api/departments/' + id + '?deletedBy=' + uid, type: 'DELETE',
-        success: function () { loadDepts(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Delete failed.')); }
+    notifyConfirm({ title: 'Delete Department', text: 'Are you sure you want to delete this department?', confirmText: 'Delete', icon: 'warning' }, function () {
+        $.ajax({
+            url: '/api/departments/' + id, type: 'DELETE',
+            success: function () { 
+                notifySuccess('Department deleted successfully.');
+                loadDepts(); 
+            },
+            error: function (xhr) { notifyError(xhr.responseText || 'Delete failed.'); }
+        });
     });
 }

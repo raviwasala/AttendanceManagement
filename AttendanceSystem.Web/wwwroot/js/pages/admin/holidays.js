@@ -54,19 +54,26 @@ function editItem(id) {
 
 function saveItem() {
     var name = $('#itemName').val().trim(), date = $('#itemDate').val();
-    if (!name || !date) { alert('Name and Date are required.'); return; }
+    if (!name || !date) { notifyError('Name and Date are required.', 'Validation Error'); return; }
     var dto = { Id: parseInt($('#itemId').val())||0, Name: name, HolidayDate: date, HolidayType: parseInt($('#itemType').val()), Description: $('#itemDesc').val().trim()||null, IsRecurring: $('#itemRecurring').is(':checked') };
     $.ajax({ url: '/api/holidays', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
-        success: function () { bootstrap.Modal.getInstance('#editModal').hide(); loadHolidays(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Save failed.')); }
+        success: function () { 
+            bootstrap.Modal.getInstance('#editModal').hide(); 
+            notifySuccess('Holiday saved successfully.');
+            loadHolidays(); 
+        },
+        error: function (xhr) { notifyError(xhr.responseText || 'Save failed.'); }
     });
 }
 
 function deleteItem(id) {
-    if (!confirm('Delete this holiday?')) return;
-    var uid = window.getCurrentUserId ? window.getCurrentUserId() : 1;
-    $.ajax({ url: '/api/holidays/' + id + '?deletedBy=' + uid, type: 'DELETE',
-        success: function () { loadHolidays(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Delete failed.')); }
+    notifyConfirm({ title: 'Delete Holiday', text: 'Are you sure you want to delete this holiday?', confirmText: 'Delete', icon: 'warning' }, function () {
+        $.ajax({ url: '/api/holidays/' + id, type: 'DELETE',
+            success: function () { 
+                notifySuccess('Holiday deleted successfully.');
+                loadHolidays(); 
+            },
+            error: function (xhr) { notifyError(xhr.responseText || 'Delete failed.'); }
+        });
     });
 }

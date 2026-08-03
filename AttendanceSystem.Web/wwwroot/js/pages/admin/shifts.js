@@ -48,7 +48,7 @@ function editShift(id) {
 
 function saveShift() {
     var name = $('#shiftName').val().trim();
-    if (!name || !$('#shiftStart').val() || !$('#shiftEnd').val()) { alert('Name, Start Time and End Time are required.'); return; }
+    if (!name || !$('#shiftStart').val() || !$('#shiftEnd').val()) { notifyError('Name, Start Time and End Time are required.', 'Validation Error'); return; }
     var dto = {
         Id: parseInt($('#shiftId').val()) || 0, Name: name,
         StartTime: $('#shiftStart').val() + ':00', EndTime: $('#shiftEnd').val() + ':00',
@@ -56,17 +56,24 @@ function saveShift() {
         WeeklyOffDays: $('#shiftWeeklyOff').val(), IsActive: $('#shiftActive').is(':checked')
     };
     $.ajax({ url: '/api/shifts', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
-        success: function () { bootstrap.Modal.getInstance('#shiftModal').hide(); loadShifts(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Save failed.')); }
+        success: function () { 
+            bootstrap.Modal.getInstance('#shiftModal').hide(); 
+            notifySuccess('Shift saved successfully.');
+            loadShifts(); 
+        },
+        error: function (xhr) { notifyError(xhr.responseText || 'Save failed.'); }
     });
 }
 
 function deleteShift(id) {
-    if (!confirm('Delete this shift?')) return;
-    var uid = window.getCurrentUserId();
-    $.ajax({ url: '/api/shifts/' + id + '?deletedBy=' + uid, type: 'DELETE',
-        success: function () { loadShifts(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Delete failed.')); }
+    notifyConfirm({ title: 'Delete Shift', text: 'Are you sure you want to delete this shift schedule?', confirmText: 'Delete', icon: 'warning' }, function () {
+        $.ajax({ url: '/api/shifts/' + id, type: 'DELETE',
+            success: function () { 
+                notifySuccess('Shift deleted successfully.');
+                loadShifts(); 
+            },
+            error: function (xhr) { notifyError(xhr.responseText || 'Delete failed.'); }
+        });
     });
 }
 
@@ -118,10 +125,14 @@ function openAssignModal() {
 
 function saveAssign() {
     var emp = parseInt($('#assignEmp').val()); var shf = parseInt($('#assignShift').val()); var frm = $('#assignFrom').val();
-    if (!emp || !shf || !frm) { alert('Employee, Shift and Effective From are required.'); return; }
+    if (!emp || !shf || !frm) { notifyError('Employee, Shift and Effective From are required.', 'Validation Error'); return; }
     var dto = { EmployeeId: emp, ShiftId: shf, EffectiveFrom: frm, EffectiveTo: $('#assignTo').val() || null };
     $.ajax({ url: '/api/shifts/assign', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
-        success: function () { bootstrap.Modal.getInstance('#assignModal').hide(); loadAssign(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Assign failed.')); }
+        success: function () { 
+            bootstrap.Modal.getInstance('#assignModal').hide(); 
+            notifySuccess('Shift assigned successfully.');
+            loadAssign(); 
+        },
+        error: function (xhr) { notifyError(xhr.responseText || 'Assign failed.'); }
     });
 }

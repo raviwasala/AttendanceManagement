@@ -75,31 +75,67 @@ function openApplyModal() { $('#applyModal').find('select,input,textarea').val('
 function applyLeave() {
     var emp = parseInt($('#leaveEmp').val()), lt = parseInt($('#leaveType').val());
     var frm = $('#leaveFrom').val(), to = $('#leaveTo').val(), reason = $('#leaveReason').val().trim();
-    if (!emp || !lt || !frm || !to || !reason) { alert('All fields are required.'); return; }
+    if (!emp || !lt || !frm || !to || !reason) { notifyError('All fields are required.', 'Validation Error'); return; }
     $.ajax({ url: '/api/leave/requests', type: 'POST', contentType: 'application/json',
         data: JSON.stringify({ EmployeeId: emp, LeaveTypeId: lt, FromDate: frm, ToDate: to, Reason: reason }),
-        success: function () { bootstrap.Modal.getInstance('#applyModal').hide(); loadRequests(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Apply failed.')); }
+        success: function () { 
+            bootstrap.Modal.getInstance('#applyModal').hide(); 
+            notifySuccess('Leave request submitted successfully.');
+            loadRequests(); 
+        },
+        error: function (xhr) { notifyError(xhr.responseText || 'Apply failed.'); }
     });
 }
 
 function approveReject(id, isApproved) {
-    var reason = isApproved ? '' : prompt('Rejection reason:');
-    if (!isApproved && reason === null) return;
-    var uid = window.getCurrentUserId();
-    $.ajax({ url: '/api/leave/requests/approve?actionBy=' + uid, type: 'POST', contentType: 'application/json',
+    if (isApproved) {
+        notifyConfirm({ title: 'Approve Leave', text: 'Approve this leave request?', confirmText: 'Approve', icon: 'question' }, function () {
+            doApproveReject(id, true, '');
+        });
+    } else {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Reject Leave Request',
+                input: 'textarea',
+                inputPlaceholder: 'Enter rejection reason...',
+                showCancelButton: true,
+                confirmButtonText: 'Reject Request',
+                confirmButtonColor: '#d33',
+                inputValidator: function (value) {
+                    if (!value) return 'You need to write a rejection reason!';
+                }
+            }).then(function (result) {
+                if (result.isConfirmed) {
+                    doApproveReject(id, false, result.value);
+                }
+            });
+        } else {
+            var reason = prompt('Rejection reason:');
+            if (reason !== null) doApproveReject(id, false, reason);
+        }
+    }
+}
+
+function doApproveReject(id, isApproved, reason) {
+    $.ajax({ url: '/api/leave/requests/approve', type: 'POST', contentType: 'application/json',
         data: JSON.stringify({ LeaveRequestId: id, IsApproved: isApproved, RejectionReason: reason }),
-        success: function () { loadRequests(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Action failed.')); }
+        success: function () { 
+            notifySuccess(isApproved ? 'Leave request approved.' : 'Leave request rejected.');
+            loadRequests(); 
+        },
+        error: function (xhr) { notifyError(xhr.responseText || 'Action failed.'); }
     });
 }
 
 function cancel(id) {
-    if (!confirm('Cancel this leave request?')) return;
-    var uid = window.getCurrentUserId();
-    $.ajax({ url: '/api/leave/requests/' + id + '/cancel?cancelledBy=' + uid, type: 'POST',
-        success: function () { loadRequests(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Cancel failed.')); }
+    notifyConfirm({ title: 'Cancel Leave Request', text: 'Are you sure you want to cancel this leave request?', confirmText: 'Cancel Request', icon: 'warning' }, function () {
+        $.ajax({ url: '/api/leave/requests/' + id + '/cancel', type: 'POST',
+            success: function () { 
+                notifySuccess('Leave request cancelled.');
+                loadRequests(); 
+            },
+            error: function (xhr) { notifyError(xhr.responseText || 'Cancel failed.'); }
+        });
     });
 }
 
@@ -114,18 +150,26 @@ function editType(id) {
 
 function saveType() {
     var name = $('#typeName').val().trim(), days = parseInt($('#typeDays').val());
-    if (!name || !days) { alert('Name and Total Days are required.'); return; }
+    if (!name || !days) { notifyError('Name and Total Days are required.', 'Validation Error'); return; }
     var dto = { Id: parseInt($('#typeId').val())||0, Name: name, TotalDays: days, IsPaid: $('#typePaid').is(':checked'), IsActive: $('#typeActive').is(':checked') };
     $.ajax({ url: '/api/leave/types', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
-        success: function () { bootstrap.Modal.getInstance('#typeModal').hide(); loadTypes(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Save failed.')); }
+        success: function () { 
+            bootstrap.Modal.getInstance('#typeModal').hide(); 
+            notifySuccess('Leave type saved successfully.');
+            loadTypes(); 
+        },
+        error: function (xhr) { notifyError(xhr.responseText || 'Save failed.'); }
     });
 }
 
 function deleteType(id) {
-    if (!confirm('Delete this leave type?')) return;
-    $.ajax({ url: '/api/leave/types/' + id, type: 'DELETE',
-        success: function () { loadTypes(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Delete failed.')); }
+    notifyConfirm({ title: 'Delete Leave Type', text: 'Are you sure you want to delete this leave type?', confirmText: 'Delete', icon: 'warning' }, function () {
+        $.ajax({ url: '/api/leave/types/' + id, type: 'DELETE',
+            success: function () { 
+                notifySuccess('Leave type deleted.');
+                loadTypes(); 
+            },
+            error: function (xhr) { notifyError(xhr.responseText || 'Delete failed.'); }
+        });
     });
 }

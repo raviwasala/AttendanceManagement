@@ -1,11 +1,13 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Web.Filters;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/users")]
 [ApiController]
+[SessionAuthorize]
 public class UsersApiController : ControllerBase
 {
     private readonly IUserService _users;
@@ -49,17 +51,18 @@ public class UsersApiController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id, [FromQuery] int deletedBy)
+    public async Task<IActionResult> Delete(int id)
     {
-        var r = await _users.DeleteAsync(id, deletedBy);
+        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var r = await _users.DeleteAsync(id, currentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 
     [HttpPost("{id}/reset-password")]
-    public async Task<IActionResult> ResetPassword(int id,
-        [FromBody] ResetPasswordRequest req, [FromQuery] int resetBy)
+    public async Task<IActionResult> ResetPassword(int id, [FromBody] ResetPasswordRequest req)
     {
-        var r = await _users.ResetPasswordAsync(id, req.NewPassword, resetBy);
+        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var r = await _users.ResetPasswordAsync(id, req.NewPassword, currentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 

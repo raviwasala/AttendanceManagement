@@ -28,7 +28,7 @@ public class DepartmentService : IDepartmentService
                 Id = d.Id, Name = d.Name, Description = d.Description,
                 IsActive = d.IsActive,
                 EmployeeCount = empCount.TryGetValue(d.Id, out var c) ? c : 0
-            });
+            }).ToList();
             return Result<IEnumerable<DepartmentDto>>.Success(dtos);
         }
         catch (Exception ex) { AppLogger.Error("DepartmentService.GetAllAsync", ex); return Result<IEnumerable<DepartmentDto>>.Failure(ex.Message); }

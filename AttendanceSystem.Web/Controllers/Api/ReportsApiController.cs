@@ -1,10 +1,12 @@
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Web.Filters;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/reports")]
 [ApiController]
+[SessionAuthorize]
 public class ReportsApiController : ControllerBase
 {
     private readonly IReportService _svc;

@@ -62,6 +62,7 @@ if (Directory.Exists(assetsPath))
 
 app.UseRouting();
 app.UseSession();
+app.UseMiddleware<AttendanceSystem.Web.Middleware.UserSessionMiddleware>();
 app.UseAuthorization();
 
 app.MapStaticAssets();

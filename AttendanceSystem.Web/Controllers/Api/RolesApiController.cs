@@ -1,11 +1,13 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Web.Filters;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/roles")]
 [ApiController]
+[SessionAuthorize]
 public class RolesApiController : ControllerBase
 {
     private readonly IRoleService _roles;

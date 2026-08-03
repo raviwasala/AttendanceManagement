@@ -1,11 +1,13 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Web.Filters;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/attendance")]
 [ApiController]
+[SessionAuthorize]
 public class AttendanceApiController : ControllerBase
 {
     private readonly IAttendanceService _svc;
@@ -57,19 +59,20 @@ public class AttendanceApiController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Edit(int id, [FromBody] EditAttendanceDto dto,
-        [FromQuery] int modifiedBy)
+    public async Task<IActionResult> Edit(int id, [FromBody] EditAttendanceDto dto)
     {
         dto.Id = id;
         if (!ModelState.IsValid) return BadRequest(ModelState);
-        var r = await _svc.EditAsync(dto, modifiedBy);
+        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var r = await _svc.EditAsync(dto, currentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id, [FromQuery] int deletedBy)
+    public async Task<IActionResult> Delete(int id)
     {
-        var r = await _svc.DeleteAsync(id, deletedBy);
+        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var r = await _svc.DeleteAsync(id, currentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 }

@@ -1,11 +1,13 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Web.Filters;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/settings")]
 [ApiController]
+[SessionAuthorize]
 public class SettingsApiController : ControllerBase
 {
     private readonly ISettingsService _svc;
@@ -19,11 +21,11 @@ public class SettingsApiController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Save([FromBody] CompanySettingsDto dto,
-        [FromQuery] int modifiedBy)
+    public async Task<IActionResult> Save([FromBody] CompanySettingsDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
-        var r = await _svc.SaveAsync(dto, modifiedBy);
+        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var r = await _svc.SaveAsync(dto, currentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 

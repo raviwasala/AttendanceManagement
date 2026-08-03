@@ -232,4 +232,100 @@ a:hover { color: var(--ams-primary-d); }
 .profile-notification li {
   border-bottom: none !important;
   border-top: none !important;
+}
+
+/* ── UI Framework Glassmorphism & Card Enhancements ── */
+.card-stat-widget {
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.05) !important;
+  transition: transform 0.25s ease, box-shadow 0.25s ease !important;
+  overflow: hidden;
+}
+.card-stat-widget:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 8px 25px 0 rgba(0, 0, 0, 0.1) !important;
+}
+
+.gradient-primary {
+  background: linear-gradient(135deg, #01a9ac 0%, #018587 100%) !important;
+}
+.gradient-success {
+  background: linear-gradient(135deg, #0ac282 0%, #089d69 100%) !important;
+}
+.gradient-danger {
+  background: linear-gradient(135deg, #fe5d70 0%, #e03e52 100%) !important;
+}
+.gradient-warning {
+  background: linear-gradient(135deg, #fe9365 0%, #f47640 100%) !important;
+}
+
+/* Soft Badges */
+.badge-soft-success {
+  background-color: rgba(10, 194, 130, 0.12) !important;
+  color: #0ac282 !important;
+  border: 1px solid rgba(10, 194, 130, 0.2) !important;
+}
+.badge-soft-danger {
+  background-color: rgba(254, 93, 112, 0.12) !important;
+  color: #fe5d70 !important;
+  border: 1px solid rgba(254, 93, 112, 0.2) !important;
+}
+.badge-soft-warning {
+  background-color: rgba(254, 147, 101, 0.12) !important;
+  color: #fe9365 !important;
+  border: 1px solid rgba(254, 147, 101, 0.2) !important;
+}
+.badge-soft-info {
+  background-color: rgba(45, 206, 227, 0.12) !important;
+  color: #2DCEE3 !important;
+  border: 1px solid rgba(45, 206, 227, 0.2) !important;
+}
+.badge-soft-primary {
+  background-color: rgba(1, 169, 172, 0.12) !important;
+  color: #01a9ac !important;
+  border: 1px solid rgba(1, 169, 172, 0.2) !important;
+}
+
+/* Table Enhancements */
+.card-table-container {
+  border: none !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 15px 0 rgba(0, 0, 0, 0.04) !important;
+}
+.card-table-container .card-header {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  padding: 1rem 1.25rem !important;
+}
+.table-custom {
+  vertical-align: middle !important;
+}
+.table-custom thead th {
+  background-color: #f8fafc !important;
+  color: #64748b !important;
+  font-size: 0.75rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font-weight: 700 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+/* Modal UI Framework Enhancements */
+.modal-content {
+  border: none !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
+}
+.modal-header {
+  border-bottom: 1px solid #f1f5f9 !important;
+  padding: 1.25rem 1.5rem !important;
+  border-top-left-radius: 16px !important;
+  border-top-right-radius: 16px !important;
+}
+.modal-footer {
+  border-top: 1px solid #f1f5f9 !important;
+  padding: 1rem 1.5rem !important;
+  border-bottom-left-radius: 16px !important;
+  border-bottom-right-radius: 16px !important;
 }

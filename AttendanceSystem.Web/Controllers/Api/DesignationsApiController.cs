@@ -1,11 +1,13 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Web.Filters;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/designations")]
 [ApiController]
+[SessionAuthorize]
 public class DesignationsApiController : ControllerBase
 {
     private readonly IDesignationService _svc;
@@ -34,9 +36,10 @@ public class DesignationsApiController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id, [FromQuery] int deletedBy)
+    public async Task<IActionResult> Delete(int id)
     {
-        var r = await _svc.DeleteAsync(id, deletedBy);
+        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var r = await _svc.DeleteAsync(id, currentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 }

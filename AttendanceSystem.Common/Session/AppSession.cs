@@ -13,7 +13,7 @@ public static class AppSession
     public static HashSet<string> Permissions { get; private set; } = new();
 
     public static void SetSession(int userId, string username, string fullName,
-        string roleName, int roleId, int? employeeId, IEnumerable<string> permissions)
+        string roleName, int roleId, int? employeeId, IEnumerable<string>? permissions = null)
     {
         UserId = userId;
         Username = username;
@@ -22,7 +22,9 @@ public static class AppSession
         RoleId = roleId;
         EmployeeId = employeeId;
         LoginTime = DateTime.Now;
-        Permissions = new HashSet<string>(permissions, StringComparer.OrdinalIgnoreCase);
+        Permissions = permissions != null
+            ? new HashSet<string>(permissions, StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 
     public static void Clear()

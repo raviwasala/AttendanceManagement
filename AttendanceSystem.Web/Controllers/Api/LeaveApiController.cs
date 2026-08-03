@@ -1,11 +1,13 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Web.Filters;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/leave")]
 [ApiController]
+[SessionAuthorize]
 public class LeaveApiController : ControllerBase
 {
     private readonly ILeaveService _svc;
@@ -67,18 +69,19 @@ public class LeaveApiController : ControllerBase
     }
 
     [HttpPost("requests/approve")]
-    public async Task<IActionResult> Approve([FromBody] ApproveRejectLeaveDto dto,
-        [FromQuery] int actionBy)
+    public async Task<IActionResult> Approve([FromBody] ApproveRejectLeaveDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
-        var r = await _svc.ApproveRejectAsync(dto, actionBy);
+        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var r = await _svc.ApproveRejectAsync(dto, currentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 
     [HttpPost("requests/{id}/cancel")]
-    public async Task<IActionResult> Cancel(int id, [FromQuery] int cancelledBy)
+    public async Task<IActionResult> Cancel(int id)
     {
-        var r = await _svc.CancelAsync(id, cancelledBy);
+        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var r = await _svc.CancelAsync(id, currentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 

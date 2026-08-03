@@ -1,11 +1,13 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Web.Filters;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/import")]
 [ApiController]
+[SessionAuthorize]
 public class ImportApiController : ControllerBase
 {
     private readonly IBiometricImportService _svc;

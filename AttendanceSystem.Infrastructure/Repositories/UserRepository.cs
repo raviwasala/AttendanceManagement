@@ -16,7 +16,25 @@ public class UserRepository : Repository<User>, IUserRepository
                     .FirstOrDefaultAsync(u => u.Username == username);
 
     public async Task<User?> GetByEmailAsync(string email) =>
-        await _dbSet.FirstOrDefaultAsync(u => u.Email == email);
+        await _dbSet.Include(u => u.Role).Include(u => u.Employee).FirstOrDefaultAsync(u => u.Email == email);
+
+    public override async Task<IEnumerable<User>> GetAllAsync(int? page = null, int? pageSize = null)
+    {
+        var query = _dbSet.AsNoTracking()
+                          .Include(u => u.Role)
+                          .Include(u => u.Employee)
+                          .AsQueryable();
+        if (page.HasValue && pageSize.HasValue)
+            query = query.OrderBy(e => e.Id).Skip((page.Value - 1) * pageSize.Value).Take(pageSize.Value);
+        return await query.ToListAsync();
+    }
+
+    public override async Task<User?> GetByIdAsync(int id)
+    {
+        return await _dbSet.Include(u => u.Role)
+                           .Include(u => u.Employee)
+                           .FirstOrDefaultAsync(u => u.Id == id);
+    }
 
     public async Task<bool> IsUsernameTakenAsync(string username, int? excludeId = null) =>
         await _dbSet.AnyAsync(u => u.Username == username && (!excludeId.HasValue || u.Id != excludeId.Value));

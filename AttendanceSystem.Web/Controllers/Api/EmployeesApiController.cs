@@ -1,11 +1,13 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Web.Filters;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AttendanceSystem.Web.Controllers.Api;
 
 [Route("api/employees")]
 [ApiController]
+[SessionAuthorize]
 public class EmployeesApiController : ControllerBase
 {
     private readonly IEmployeeService _svc;
@@ -41,16 +43,18 @@ public class EmployeesApiController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id, [FromQuery] int deletedBy)
+    public async Task<IActionResult> Delete(int id)
     {
-        var r = await _svc.DeleteAsync(id, deletedBy);
+        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var r = await _svc.DeleteAsync(id, currentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 
     [HttpPost("{id}/toggle")]
-    public async Task<IActionResult> Toggle(int id, [FromQuery] int modifiedBy)
+    public async Task<IActionResult> Toggle(int id)
     {
-        var r = await _svc.ToggleActiveAsync(id, modifiedBy);
+        var currentUserId = HttpContext.Session.GetInt32("UserId") ?? 1;
+        var r = await _svc.ToggleActiveAsync(id, currentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 }

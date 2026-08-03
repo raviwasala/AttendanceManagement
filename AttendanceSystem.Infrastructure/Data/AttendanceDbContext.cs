@@ -40,18 +40,29 @@ public class AttendanceDbContext : DbContext
         return base.SaveChanges();
     }
 
+    private static int GetCurrentUserId() =>
+        AttendanceSystem.Common.Session.AppSession.UserId > 0 
+            ? AttendanceSystem.Common.Session.AppSession.UserId 
+            : 1;
+
     private void ApplyAuditAndSoftDelete()
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
+        var currentUserId = GetCurrentUserId();
+
         foreach (var entry in ChangeTracker.Entries<BaseEntity>())
         {
             if (entry.State == EntityState.Added)
             {
-                entry.Entity.CreatedAt = now;
+                if (entry.Entity.CreatedAt == default)
+                    entry.Entity.CreatedAt = now;
+                if (!entry.Entity.CreatedBy.HasValue || entry.Entity.CreatedBy == 0)
+                    entry.Entity.CreatedBy = currentUserId;
             }
             else if (entry.State == EntityState.Modified)
             {
                 entry.Entity.ModifiedAt = now;
+                entry.Entity.ModifiedBy = currentUserId;
             }
             else if (entry.State == EntityState.Deleted)
             {
@@ -59,6 +70,7 @@ public class AttendanceDbContext : DbContext
                 entry.State = EntityState.Modified;
                 entry.Entity.IsDeleted = true;
                 entry.Entity.ModifiedAt = now;
+                entry.Entity.ModifiedBy = currentUserId;
             }
         }
     }

@@ -21,7 +21,7 @@ public class UserService : IUserService
         try
         {
             var all = await _uow.Users.GetAllAsync();
-            return Result<IEnumerable<UserDto>>.Success(all.Select(Map));
+            return Result<IEnumerable<UserDto>>.Success(all.Select(Map).ToList());
         }
         catch (Exception ex) { return Result<IEnumerable<UserDto>>.Failure(ex.Message); }
     }
@@ -132,7 +132,9 @@ public class UserService : IUserService
     {
         Id = u.Id, Username = u.Username, Email = u.Email, FullName = u.FullName,
         RoleId = u.RoleId, RoleName = u.Role?.Name ?? string.Empty,
-        EmployeeId = u.EmployeeId, IsActive = u.IsActive, IsLocked = u.IsLocked,
+        EmployeeId = u.EmployeeId,
+        EmployeeName = u.Employee != null ? $"{u.Employee.FirstName} {u.Employee.LastName}".Trim() : null,
+        IsActive = u.IsActive, IsLocked = u.IsLocked,
         LastLoginAt = u.LastLoginAt, CreatedAt = u.CreatedAt
     };
 }

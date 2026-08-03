@@ -44,19 +44,26 @@ function editItem(id) {
 
 function saveItem() {
     var name = $('#itemName').val().trim();
-    if (!name) { alert('Name is required.'); return; }
+    if (!name) { notifyError('Branch name is required.', 'Validation Error'); return; }
     var dto = { Id: parseInt($('#itemId').val()) || 0, Name: name, Address: $('#itemAddr').val().trim(), Phone: $('#itemPhone').val().trim(), IsActive: $('#itemActive').is(':checked') };
     $.ajax({ url: '/api/branches', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
-        success: function () { bootstrap.Modal.getInstance('#editModal').hide(); loadItems(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Save failed.')); }
+        success: function () { 
+            bootstrap.Modal.getInstance('#editModal').hide(); 
+            notifySuccess('Branch saved successfully.');
+            loadItems(); 
+        },
+        error: function (xhr) { notifyError(xhr.responseText || 'Save failed.'); }
     });
 }
 
 function deleteItem(id) {
-    if (!confirm('Delete this branch?')) return;
-    var uid = window.getCurrentUserId ? window.getCurrentUserId() : 1;
-    $.ajax({ url: '/api/branches/' + id + '?deletedBy=' + uid, type: 'DELETE',
-        success: function () { loadItems(); },
-        error: function (xhr) { alert('Error: ' + (xhr.responseText || 'Delete failed.')); }
+    notifyConfirm({ title: 'Delete Branch', text: 'Are you sure you want to delete this branch?', confirmText: 'Delete', icon: 'warning' }, function () {
+        $.ajax({ url: '/api/branches/' + id, type: 'DELETE',
+            success: function () { 
+                notifySuccess('Branch deleted successfully.');
+                loadItems(); 
+            },
+            error: function (xhr) { notifyError(xhr.responseText || 'Delete failed.'); }
+        });
     });
 }
