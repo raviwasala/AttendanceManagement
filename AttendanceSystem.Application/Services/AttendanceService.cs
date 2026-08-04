@@ -113,8 +113,16 @@ public class AttendanceService : IAttendanceService
             if (log == null) return Result.Failure("Attendance record not found.");
             log.CheckIn = dto.CheckIn; log.CheckOut = dto.CheckOut; log.Status = dto.Status;
             if (dto.Remarks != null) log.Remarks = dto.Remarks;
-            if (log.CheckIn.HasValue && log.CheckOut.HasValue)
-                log.WorkingHours = DateHelper.CalculateWorkingHours(log.CheckIn, log.CheckOut);
+            log.WorkingHours = log.CheckIn.HasValue && log.CheckOut.HasValue
+                ? DateHelper.CalculateWorkingHours(log.CheckIn, log.CheckOut)
+                : null;
+
+            // Lateness and early leave are derived from the shift, so a corrected time must
+            // re-derive them. Previously only WorkingHours was recomputed, which left an
+            // employee still flagged "late by 15 minutes" after their check-in was corrected
+            // to a time inside the grace period.
+            await ApplyShiftDerivedFieldsAsync(log);
+
             log.ModifiedBy = modifiedBy; log.ModifiedAt = DateTime.Now;
             await _uow.Attendance.UpdateAsync(log);
             await _uow.SaveChangesAsync();
@@ -294,6 +302,45 @@ public class AttendanceService : IAttendanceService
             });
         }
         catch (Exception ex) { AppLogger.Error("AttendanceService.GetDashboardStatsAsync", ex); return Result<DashboardStatsDto>.Failure(ex.Message); }
+    }
+
+    /// <summary>
+    /// Recomputes the fields that depend on the employee's shift for the record's date:
+    /// late minutes and early-leave minutes.
+    ///
+    /// Status is deliberately left alone here — EditAsync takes it from the caller, who may
+    /// be marking someone On Leave or Holiday regardless of the times.
+    /// </summary>
+    private async Task ApplyShiftDerivedFieldsAsync(AttendanceLog log)
+    {
+        var date = log.AttendanceDate.Date;
+
+        var assignments = await _uow.EmployeeShifts.FindAsync(es =>
+            es.EmployeeId == log.EmployeeId && !es.IsDeleted &&
+            es.EffectiveFrom <= date && (es.EffectiveTo == null || es.EffectiveTo >= date));
+
+        var current = assignments.OrderByDescending(a => a.EffectiveFrom).FirstOrDefault();
+        var shift = current != null ? await _uow.Shifts.GetByIdAsync(current.ShiftId) : null;
+
+        log.IsLate = false;
+        log.LateMinutes = null;
+        log.IsEarlyLeave = false;
+        log.EarlyLeaveMinutes = null;
+
+        if (shift == null) return;   // no shift assigned: nothing to be late against
+
+        if (log.CheckIn.HasValue)
+        {
+            var late = DateHelper.CalculateLateMinutes(
+                log.CheckIn.Value.TimeOfDay, shift.StartTime, shift.GraceMinutes);
+            if (late > 0) { log.IsLate = true; log.LateMinutes = late; }
+        }
+
+        if (log.CheckOut.HasValue)
+        {
+            var early = (int)(shift.EndTime - log.CheckOut.Value.TimeOfDay).TotalMinutes;
+            if (early > 0) { log.IsEarlyLeave = true; log.EarlyLeaveMinutes = early; }
+        }
     }
 
     private async Task<AttendanceLogDto> BuildLogDtoAsync(AttendanceLog log)

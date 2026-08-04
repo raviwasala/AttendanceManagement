@@ -1,0 +1,115 @@
+@{
+    ViewData["Title"] = "Attendance Review";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h5 class="mb-1">Attendance Review</h5>
+        <p class="text-muted small mb-0">Rostered shift against what the device recorded — correct in/out times here</p>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label small mb-1">From</label>
+                <input type="date" id="arFrom" class="form-control form-control-sm">
+            </div>
+            <div class="col-auto">
+                <label class="form-label small mb-1">To</label>
+                <input type="date" id="arTo" class="form-control form-control-sm">
+            </div>
+            <div class="col-auto">
+                <label class="form-label small mb-1">Employee</label>
+                <select id="arEmployee" class="form-select form-select-sm" style="min-width:200px;">
+                    <option value="">All Employees</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small mb-1">Department</label>
+                <select id="arDept" class="form-select form-select-sm" style="min-width:150px;">
+                    <option value="">All Departments</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small mb-1">Show</label>
+                <select id="arFilter" class="form-select form-select-sm" style="min-width:150px;">
+                    <option value="">All rows</option>
+                    <option value="exceptions">Needs attention</option>
+                    <option value="recorded">Has a record</option>
+                    <option value="late">Late only</option>
+                    <option value="absent">Absent only</option>
+                    <option value="nocheckout">Missing check-out</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-primary btn-sm px-3" onclick="loadReview()">
+                    <i class="feather icon-refresh-cw me-1"></i>Load
+                </button>
+            </div>
+        </div>
+
+        @* Presets cover the cases people actually ask for, without date arithmetic. *@
+        <div class="d-flex gap-1 mt-2 flex-wrap">
+            <button class="btn btn-link btn-sm p-0 me-2" onclick="preset('today')">Today</button>
+            <button class="btn btn-link btn-sm p-0 me-2" onclick="preset('yesterday')">Yesterday</button>
+            <button class="btn btn-link btn-sm p-0 me-2" onclick="preset('thisweek')">This week</button>
+            <button class="btn btn-link btn-sm p-0 me-2" onclick="preset('thismonth')">This month</button>
+            <button class="btn btn-link btn-sm p-0 me-2" onclick="preset('lastmonth')">Last month</button>
+            <span class="text-muted small ms-2" id="arRangeLabel"></span>
+        </div>
+    </div>
+</div>
+
+<div class="row g-2 mb-3" id="arSummary"></div>
+
+<div class="card card-table-container">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3 ar-date-col">Date</th>
+                        <th class="ar-emp-col">Employee</th>
+                        <th>Rostered Shift</th>
+                        <th class="text-center">Expected</th>
+                        <th class="text-center">In</th>
+                        <th class="text-center">Out</th>
+                        <th class="text-center">Late</th>
+                        <th class="text-center">Early</th>
+                        <th class="text-center">Hours</th>
+                        <th>Status</th>
+                        <th class="text-end pe-3">Save</th>
+                    </tr>
+                </thead>
+                <tbody id="arBody">
+                    <tr><td colspan="11" class="text-center py-4 text-muted">Choose a range and press Load.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="small text-muted mt-2">
+    Edit a time and press <strong>Save</strong> on that row. Late, early leave, working hours and
+    status are recalculated from the employee's shift for that date. Clearing both times removes
+    the record.
+</div>
+
+@section Styles {
+    <style>
+        .ar-time { width: 92px; text-align: center; font-variant-numeric: tabular-nums; }
+        .ar-dirty { background: #fff9db !important; }
+        .ar-row-noshift { background: #fff5f5; }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        window.reviewPerms = {
+            edit: @Json.Serialize(ViewContext.HasPermission(AppConstants.Modules.Attendance, AppConstants.Actions.Edit))
+        };
+    </script>
+    <script src="~/js/pages/admin/attendance-review.js" asp-append-version="true"></script>
+}

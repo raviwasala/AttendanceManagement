@@ -146,6 +146,66 @@ public interface IAuditService
 }
 
 /// <summary>
+/// Daily attendance review: rostered shift next to what the device recorded, with the
+/// in/out times correctable. Corrections re-derive late, early-leave, hours and status
+/// from the shift in force on that date.
+/// </summary>
+public interface IAttendanceReviewService
+{
+    /// <summary>Convenience wrapper for a single date, all employees.</summary>
+    Task<Result<AttendanceReviewDto>> GetDailyReviewAsync(DateTime date, int? departmentId = null);
+
+    /// <summary>
+    /// Review across a date range. Serves both "everyone today" and "one employee this
+    /// month" — pass <paramref name="employeeId"/> to focus on one person.
+    /// </summary>
+    Task<Result<AttendanceReviewDto>> GetReviewAsync(
+        DateTime fromDate, DateTime toDate, int? employeeId = null, int? departmentId = null);
+
+    /// <summary>
+    /// Creates, updates or clears one employee's entry for one date, then recalculates.
+    /// Returns the refreshed row so the grid can update without a full reload.
+    /// </summary>
+    Task<Result<AttendanceReviewRowDto>> SaveEntryAsync(SaveAttendanceEntryDto dto);
+}
+
+/// <summary>
+/// Monthly shift roster — which shift each employee works on each day, and per-day changes.
+///
+/// Built on the existing EmployeeShift assignments rather than a new table: a single-day
+/// assignment (EffectiveFrom == EffectiveTo) outranks a longer-running one on that date,
+/// which is exactly how AttendanceService already resolves shifts.
+/// </summary>
+public interface IShiftRosterService
+{
+    Task<Result<ShiftRosterDto>> GetMonthlyRosterAsync(int year, int month, int? departmentId = null);
+
+    /// <summary>Sets one day's shift, or clears the override when ShiftId is null.</summary>
+    Task<Result> SetDayAsync(SetRosterDayDto dto);
+
+    /// <summary>Applies one shift across a date range, committed as a single unit.</summary>
+    Task<Result> SetRangeAsync(SetRosterRangeDto dto);
+}
+
+/// <summary>
+/// Fingerprint device registry: CRUD, branch assignment, connectivity and status.
+///
+/// Deliberately excludes synchronisation — that belongs to IDeviceSyncService (phase 4), so
+/// this stays a management surface with no dependency on the wire protocol beyond a ping.
+/// </summary>
+public interface IDeviceService
+{
+    Task<Result<IEnumerable<DeviceDto>>> GetAllAsync();
+    Task<Result<DeviceDto>> GetByIdAsync(int id);
+    Task<Result<IEnumerable<DeviceDto>>> GetByBranchAsync(int branchId);
+    Task<Result<DeviceDto>> SaveAsync(SaveDeviceDto dto);
+    Task<Result> DeleteAsync(int id);
+
+    /// <summary>Contacts the device now and records the outcome against its status.</summary>
+    Task<Result<DeviceTestResultDto>> TestConnectionAsync(int id, CancellationToken ct = default);
+}
+
+/// <summary>
 /// Read-only dashboard analytics. Separate from <see cref="IAttendanceService"/> because these
 /// are aggregate read models over several entities, with no write side.
 /// </summary>

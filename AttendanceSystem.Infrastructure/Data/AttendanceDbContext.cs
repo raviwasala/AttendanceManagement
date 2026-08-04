@@ -39,6 +39,10 @@ public class AttendanceDbContext : DbContext
     public DbSet<Holiday> Holidays { get; set; } = null!;
     public DbSet<AuditLog> AuditLogs { get; set; } = null!;
     public DbSet<CompanySettings> CompanySettings { get; set; } = null!;
+    public DbSet<Device> Devices { get; set; } = null!;
+    public DbSet<DevicePunch> DevicePunches { get; set; } = null!;
+    public DbSet<DeviceUserMapping> DeviceUserMappings { get; set; } = null!;
+    public DbSet<DeviceSyncLog> DeviceSyncLogs { get; set; } = null!;
 
     // ── Auto-timestamp & Soft-Delete interception ─────────────────────────────
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -272,6 +276,69 @@ public class AttendanceDbContext : DbContext
             e.HasQueryFilter(x => !x.IsDeleted);
         });
 
+        // ── Device ────────────────────────────────────────────────────────────
+        modelBuilder.Entity<Device>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            e.Property(x => x.IpAddress).IsRequired().HasMaxLength(45);   // 45 = max IPv6 literal
+            e.Property(x => x.SerialNumber).HasMaxLength(100);
+            e.Property(x => x.Model).HasMaxLength(100);
+            e.Property(x => x.LastError).HasMaxLength(1000);
+            e.Property(x => x.Status).HasConversion<int>();
+            // One terminal per endpoint — catches the same device being added twice.
+            e.HasIndex(x => new { x.IpAddress, x.Port }).IsUnique();
+            e.HasOne(x => x.Branch).WithMany().HasForeignKey(x => x.BranchId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        // ── DevicePunch ───────────────────────────────────────────────────────
+        modelBuilder.Entity<DevicePunch>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.DeviceUserId).IsRequired().HasMaxLength(50);
+
+            // The duplicate guard. Re-downloading an overlapping window is safe because of
+            // this index, which is what allows the watermark to be deliberately conservative.
+            e.HasIndex(x => new { x.DeviceId, x.DeviceUserId, x.PunchTime }).IsUnique();
+
+            // Drives the "process what hasn't been processed" query.
+            e.HasIndex(x => new { x.IsProcessed, x.PunchTime });
+
+            e.HasOne(x => x.Device).WithMany().HasForeignKey(x => x.DeviceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId)
+                .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            // No soft-delete filter: this is raw evidence and must never be hidden.
+        });
+
+        // ── DeviceUserMapping ─────────────────────────────────────────────────
+        modelBuilder.Entity<DeviceUserMapping>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.DeviceUserId).IsRequired().HasMaxLength(50);
+            e.Property(x => x.DeviceUserName).HasMaxLength(200);
+            e.HasIndex(x => new { x.DeviceId, x.DeviceUserId }).IsUnique();
+            e.HasOne(x => x.Device).WithMany(d => d.UserMappings).HasForeignKey(x => x.DeviceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        // ── DeviceSyncLog ─────────────────────────────────────────────────────
+        modelBuilder.Entity<DeviceSyncLog>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ErrorMessage).HasMaxLength(2000);
+            e.Property(x => x.Trigger).HasConversion<int>();
+            e.Property(x => x.Outcome).HasConversion<int>();
+            e.HasIndex(x => new { x.DeviceId, x.StartedAt });
+            e.HasOne(x => x.Device).WithMany().HasForeignKey(x => x.DeviceId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         SeedData(modelBuilder);
     }
 
@@ -381,6 +448,9 @@ public class AttendanceDbContext : DbContext
         (AppConstants.Modules.Settings,     [AppConstants.Actions.View, AppConstants.Actions.Edit]),
         (AppConstants.Modules.Import,       [AppConstants.Actions.View, AppConstants.Actions.Create]),
         (AppConstants.Modules.AuditLogs,    [AppConstants.Actions.View]),
+        // Appended, never inserted mid-list: ids are assigned by position and existing
+        // RolePermission rows point at them.
+        (AppConstants.Modules.Devices,      [AppConstants.Actions.View, AppConstants.Actions.Create, AppConstants.Actions.Edit, AppConstants.Actions.Delete, AppConstants.Actions.Sync]),
     ];
 
     private static void SeedPermissions(ModelBuilder modelBuilder)
@@ -415,7 +485,13 @@ public class AttendanceDbContext : DbContext
         var grants = permissions.Select(p => new RolePermission { RoleId = 1, PermissionId = p.Id }).ToList();
 
         // HR Manager: full operational access, but no control over users, roles or settings.
-        var hrExcludedModules = new[] { AppConstants.Modules.Users, AppConstants.Modules.Roles, AppConstants.Modules.AuditLogs };
+        // Devices is excluded too — hardware configuration is an administrator task. Grant
+        // Devices.Sync explicitly through the Roles screen if HR should pull attendance.
+        var hrExcludedModules = new[]
+        {
+            AppConstants.Modules.Users, AppConstants.Modules.Roles,
+            AppConstants.Modules.AuditLogs, AppConstants.Modules.Devices
+        };
         grants.AddRange(permissions
             .Where(p => !hrExcludedModules.Contains(p.Module, StringComparer.OrdinalIgnoreCase))
             .Where(p => !(p.Module == AppConstants.Modules.Settings && p.Action == AppConstants.Actions.Edit))

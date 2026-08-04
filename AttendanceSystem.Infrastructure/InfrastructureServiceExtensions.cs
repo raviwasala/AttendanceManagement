@@ -37,6 +37,10 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IBiometricImportService, BiometricImportService>();
         services.AddScoped<IEmailService, EmailService>();
 
+        // Device protocol client. Swapping in a full ZKTeco implementation (phase 2) is a
+        // one-line change here — nothing outside Infrastructure names the concrete type.
+        services.AddScoped<IFingerprintDeviceClient, Devices.TcpFingerprintDeviceClient>();
+
         return services;
     }
 }

@@ -1,0 +1,136 @@
+@{
+    ViewData["Title"] = "Fingerprint Devices";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h5 class="mb-1">Fingerprint Devices</h5>
+        <p class="text-muted small mb-0">ZKTeco terminals connected over TCP/IP, by branch</p>
+    </div>
+    @if (ViewContext.HasPermission(AppConstants.Modules.Devices, AppConstants.Actions.Create))
+    {
+        <button class="btn btn-primary btn-sm px-3" onclick="openDevice()">
+            <i class="feather icon-plus me-1"></i>Add Device
+        </button>
+    }
+</div>
+
+@* Phase 1 covers the registry and connectivity. Saying so here is better than users
+   wondering why there is no Sync button yet. *@
+<div class="alert alert-info py-2 small" role="status">
+    <i class="feather icon-info me-1"></i>
+    Devices can be registered, assigned to a branch and tested for connectivity.
+    Attendance synchronisation arrives in the next phase — until then use
+    <a asp-controller="Admin" asp-action="Import">Biometric Import</a> for file-based imports.
+</div>
+
+<div class="card card-table-container">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Device</th>
+                        <th>Branch</th>
+                        <th>Address</th>
+                        <th>Status</th>
+                        <th>Last Seen</th>
+                        <th>Auto Sync</th>
+                        <th class="text-end pe-3">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="deviceBody">
+                    <tr><td colspan="7" class="text-center py-4 text-muted">Loading devices…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Device modal -->
+<div class="modal fade" id="deviceModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow-lg">
+            <div class="modal-header bg-light border-bottom-0 py-3">
+                <h6 class="modal-title fw-bold" id="deviceModalTitle">Add Device</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="devId">
+                <div id="devError" class="alert alert-danger py-2 small d-none"></div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small">Device Name <span class="text-danger">*</span></label>
+                    <input type="text" id="devName" class="form-control" maxlength="200"
+                           placeholder="e.g. Head Office - Main Entrance">
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-8">
+                        @* "e.g." prefix so the placeholder reads as a hint. A bare
+                           "192.168.1.201" looks like an entered value and users tried to save
+                           an empty field believing it was filled. *@
+                        <label class="form-label fw-semibold small">IP Address / Hostname <span class="text-danger">*</span></label>
+                        <input type="text" id="devIp" class="form-control" maxlength="45" placeholder="e.g. 192.168.1.201">
+                    </div>
+                    <div class="col-4">
+                        <label class="form-label fw-semibold small">Port <span class="text-danger">*</span></label>
+                        <input type="number" id="devPort" class="form-control" value="4370" min="1" max="65535">
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-0">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">Branch <span class="text-danger">*</span></label>
+                        <select id="devBranch" class="form-select"></select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">Comm Key</label>
+                        <input type="number" id="devCommKey" class="form-control" placeholder="Leave blank if unset">
+                        <div class="form-text small" id="devCommKeyHint">Device communication password.</div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-4 mt-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="devActive" checked>
+                        <label class="form-check-label small" for="devActive">Active</label>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="devAutoSync" checked>
+                        <label class="form-check-label small" for="devAutoSync">Auto sync</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top-0 py-3">
+                <button type="button" class="btn btn-light btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm px-4" onclick="saveDevice()">Save Device</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Connection test result -->
+<div class="modal fade" id="testModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 rounded-4 shadow-lg">
+            <div class="modal-header bg-light border-bottom-0 py-3">
+                <h6 class="modal-title fw-bold">Connection Test</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 text-center" id="testBody"></div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Server-rendered so the buttons match the permissions actually held.
+        window.devicePerms = {
+            create: @Json.Serialize(ViewContext.HasPermission(AppConstants.Modules.Devices, AppConstants.Actions.Create)),
+            edit:   @Json.Serialize(ViewContext.HasPermission(AppConstants.Modules.Devices, AppConstants.Actions.Edit)),
+            delete: @Json.Serialize(ViewContext.HasPermission(AppConstants.Modules.Devices, AppConstants.Actions.Delete))
+        };
+    </script>
+    <script src="~/js/pages/admin/devices.js" asp-append-version="true"></script>
+}

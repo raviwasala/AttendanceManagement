@@ -1,0 +1,139 @@
+@{
+    ViewData["Title"] = "Shift Roster";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h5 class="mb-1">Shift Roster</h5>
+        <p class="text-muted small mb-0">Load a month, then change the shift on individual days</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <select id="rMonth" class="form-select form-select-sm" style="width:auto;"></select>
+        <select id="rYear" class="form-select form-select-sm" style="width:auto;"></select>
+        <select id="rDept" class="form-select form-select-sm" style="width:auto;">
+            <option value="">All Departments</option>
+        </select>
+        <button class="btn btn-primary btn-sm px-3" onclick="loadRoster()">
+            <i class="feather icon-refresh-cw me-1"></i>Load
+        </button>
+    </div>
+</div>
+
+<div id="rosterWarning" class="alert alert-warning py-2 small d-none" role="status"></div>
+
+<div class="card card-table-container">
+    <div class="card-body p-0">
+        <div class="table-responsive" id="rosterScroll">
+            <table class="table table-sm table-bordered mb-0 roster-table">
+                <thead class="table-light">
+                    <tr id="rosterHead"></tr>
+                </thead>
+                <tbody id="rosterBody">
+                    <tr><td class="text-center py-4 text-muted">Choose a month and press Load.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex gap-3 mt-2 small text-muted flex-wrap" id="rosterLegend"></div>
+
+<!-- Day editor -->
+<div class="modal fade" id="dayModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 rounded-4 shadow-lg">
+            <div class="modal-header bg-light border-bottom-0 py-3">
+                <h6 class="modal-title fw-bold" id="dayModalTitle">Change Shift</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="dayEmployeeId">
+                <input type="hidden" id="dayDate">
+                <div class="small text-muted mb-3" id="dayContext"></div>
+                <label class="form-label fw-semibold small">Shift for this day</label>
+                <select id="dayShift" class="form-select"></select>
+                <div class="form-text small">
+                    Choosing <em>Use normal shift</em> removes the change for this day only.
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top-0 py-3">
+                <button type="button" class="btn btn-light btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm px-4" onclick="saveDay()">Apply</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Range editor -->
+<div class="modal fade" id="rangeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow-lg">
+            <div class="modal-header bg-light border-bottom-0 py-3">
+                <h6 class="modal-title fw-bold" id="rangeModalTitle">Apply Shift to a Range</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="rangeEmployeeId">
+                <div class="small text-muted mb-3" id="rangeContext"></div>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">From</label>
+                        <input type="date" id="rangeFrom" class="form-control">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold small">To</label>
+                        <input type="date" id="rangeTo" class="form-control">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold small">Shift</label>
+                        <select id="rangeShift" class="form-select"></select>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="rangeSkipOff" checked>
+                            <label class="form-check-label small" for="rangeSkipOff">
+                                Skip the shift's weekly off days
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top-0 py-3">
+                <button type="button" class="btn btn-light btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm px-4" onclick="saveRange()">Apply</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        /* The grid is wide by nature - 31 day columns. Keep cells compact and let the
+           container scroll rather than squeezing the columns unreadably. */
+        .roster-table { border-collapse: separate; border-spacing: 0; }
+        .roster-table th, .roster-table td { padding: .3rem .25rem; text-align: center; vertical-align: middle; }
+        .roster-table .emp-col {
+            position: sticky; left: 0; z-index: 2; background: #fff;
+            min-width: 190px; text-align: left; padding-left: .75rem;
+            box-shadow: 1px 0 0 rgba(0,0,0,.08);
+        }
+        .roster-table thead .emp-col { z-index: 3; background: #f8f9fa; }
+        .roster-day { min-width: 40px; font-size: .72rem; cursor: pointer; user-select: none; }
+        .roster-day:hover { outline: 2px solid var(--ams-primary); outline-offset: -2px; }
+        .roster-day.is-override { font-weight: 700; }
+        .roster-day.is-weeklyoff { background: #f1f3f5; color: #adb5bd; }
+        .roster-day.is-holiday   { background: #fff4e6; }
+        .roster-day.is-none      { background: #fff5f5; color: #e03131; }
+        .roster-head-day { font-size: .68rem; line-height: 1.1; }
+        .roster-head-day small { display: block; color: #adb5bd; font-weight: 400; }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        window.rosterPerms = {
+            edit: @Json.Serialize(ViewContext.HasPermission(AppConstants.Modules.Shifts, AppConstants.Actions.Edit))
+        };
+    </script>
+    <script src="~/js/pages/admin/shift-roster.js" asp-append-version="true"></script>
+}

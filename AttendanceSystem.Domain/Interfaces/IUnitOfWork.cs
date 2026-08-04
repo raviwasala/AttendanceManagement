@@ -24,6 +24,10 @@ public interface IUnitOfWork : IDisposable, IAsyncDisposable
     IRepository<AttendanceSummary> AttendanceSummaries { get; }
     IRepository<CompanySettings> CompanySettings { get; }
 
+    // Fingerprint device integration
+    IRepository<Device> Devices { get; }
+    IRepository<DeviceUserMapping> DeviceUserMappings { get; }
+
     /// <summary>Returns all RolePermission records for a given role (join table query).</summary>
     Task<IEnumerable<RolePermission>> GetRolePermissionsAsync(int roleId);
 

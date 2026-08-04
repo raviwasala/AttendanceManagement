@@ -55,6 +55,24 @@ public class EmployeeService : IEmployeeService
     {
         try
         {
+            // Two employees sharing a device enrolment id would have each other's punches
+            // attributed to whichever record the importer matched first — a payroll error
+            // that is very hard to spot afterwards. Reject it at the point of entry.
+            if (dto.BiometricEnrollId.HasValue)
+            {
+                if (dto.BiometricEnrollId.Value <= 0)
+                    return Result<EmployeeDto>.Failure("Biometric enroll ID must be a positive number.");
+
+                var clash = (await _uow.Employees.FindAsync(e =>
+                    e.BiometricEnrollId == dto.BiometricEnrollId && e.Id != dto.Id && !e.IsDeleted))
+                    .FirstOrDefault();
+
+                if (clash != null)
+                    return Result<EmployeeDto>.Failure(
+                        $"Biometric enroll ID {dto.BiometricEnrollId} is already assigned to " +
+                        $"{clash.FirstName} {clash.LastName} ({clash.EmployeeCode}).");
+            }
+
             if (dto.Id == 0)
             {
                 // Create
@@ -75,6 +93,7 @@ public class EmployeeService : IEmployeeService
                     DesignationId = dto.DesignationId,
                     BranchId = dto.BranchId,
                     IsActive = dto.IsActive,
+                    BiometricEnrollId = dto.BiometricEnrollId,
                     CreatedBy = _currentUser.UserId,
                     CreatedAt = DateTime.Now
                 };
@@ -102,6 +121,7 @@ public class EmployeeService : IEmployeeService
                 emp.DesignationId = dto.DesignationId;
                 emp.BranchId = dto.BranchId;
                 emp.IsActive = dto.IsActive;
+                emp.BiometricEnrollId = dto.BiometricEnrollId;
                 emp.ModifiedBy = _currentUser.UserId;
                 emp.ModifiedAt = DateTime.Now;
 
@@ -179,7 +199,8 @@ public class EmployeeService : IEmployeeService
         Address = e.Address, Photo = e.Photo, DepartmentId = e.DepartmentId,
         DepartmentName = e.Department?.Name ?? string.Empty, DesignationId = e.DesignationId,
         DesignationName = e.Designation?.Name ?? string.Empty, BranchId = e.BranchId,
-        BranchName = e.Branch?.Name ?? string.Empty, IsActive = e.IsActive, CreatedAt = e.CreatedAt
+        BranchName = e.Branch?.Name ?? string.Empty, IsActive = e.IsActive, CreatedAt = e.CreatedAt,
+        BiometricEnrollId = e.BiometricEnrollId
     };
 
     private static EmployeeListItemDto MapToListDto(Employee e) => new()
@@ -189,6 +210,7 @@ public class EmployeeService : IEmployeeService
         Department = e.Department?.Name ?? string.Empty,
         Designation = e.Designation?.Name ?? string.Empty,
         Branch = e.Branch?.Name ?? string.Empty,
-        Phone = e.Phone, Email = e.Email, IsActive = e.IsActive
+        Phone = e.Phone, Email = e.Email, IsActive = e.IsActive,
+        BiometricEnrollId = e.BiometricEnrollId
     };
 }

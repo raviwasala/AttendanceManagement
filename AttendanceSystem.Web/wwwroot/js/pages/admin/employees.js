@@ -34,7 +34,11 @@ function renderTable(data) {
             + '<td class="text-muted">' + esc(e.Department) + '</td>'
             + '<td class="text-muted">' + esc(e.Designation) + '</td>'
             + '<td class="text-muted">' + esc(e.Branch) + '</td>'
-            + '<td>' + (esc(e.Phone) || '—') + '</td>'
+            // A missing enrol id is the single most common cause of "the import did nothing",
+            // so make its absence loud rather than showing an empty cell.
+            + '<td>' + (e.BiometricEnrollId
+                ? '<span class="badge bg-light text-dark">' + esc(e.BiometricEnrollId) + '</span>'
+                : '<span class="badge bg-warning text-dark" title="Biometric imports cannot match this employee">not set</span>') + '</td>'
             + '<td>' + (e.IsActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>') + '</td>'
             + '<td>'
             + '<button class="btn btn-sm btn-outline-primary me-1" onclick="editEmp(' + e.Id + ')" title="Edit"><i class="fa fa-pencil"></i></button>'
@@ -71,7 +75,7 @@ function openModal() {
     $('#empId').val(0); $('#empCode').val(''); $('#empFirst').val(''); $('#empLast').val('');
     $('#empEmail').val(''); $('#empPhone').val(''); $('#empGender').val('');
     $('#empJoin').val(new Date().toISOString().split('T')[0]); $('#empDob').val('');
-    $('#empAddr').val(''); $('#empActive').prop('checked', true);
+    $('#empAddr').val(''); $('#empEnrollId').val(''); $('#empActive').prop('checked', true);
     $('#empModalTitle').text('Add Employee');
     new bootstrap.Modal('#empModal').show();
 }
@@ -85,7 +89,8 @@ function editEmp(id) {
         $('#empGender').val(e.Gender);
         $('#empJoin').val(e.JoiningDate ? e.JoiningDate.split('T')[0] : '');
         $('#empDob').val(e.DateOfBirth ? e.DateOfBirth.split('T')[0] : '');
-        $('#empAddr').val(e.Address); $('#empActive').prop('checked', e.IsActive);
+        $('#empAddr').val(e.Address); $('#empEnrollId').val(e.BiometricEnrollId || '');
+        $('#empActive').prop('checked', e.IsActive);
         $('#empDept').val(e.DepartmentId); $('#empDesig').val(e.DesignationId); $('#empBranch').val(e.BranchId);
         $('#empModalTitle').text('Edit Employee');
         new bootstrap.Modal('#empModal').show();
@@ -103,6 +108,8 @@ function saveEmp() {
         Gender: $('#empGender').val() || null,
         JoiningDate: $('#empJoin').val(), DateOfBirth: $('#empDob').val() || null,
         Address: $('#empAddr').val().trim() || null,
+        // Blank means "not enrolled", which is a legitimate state — send null, not 0.
+        BiometricEnrollId: $('#empEnrollId').val() === '' ? null : parseInt($('#empEnrollId').val()),
         DepartmentId: parseInt($('#empDept').val()), DesignationId: parseInt($('#empDesig').val()),
         BranchId: parseInt($('#empBranch').val()), IsActive: $('#empActive').is(':checked')
     };

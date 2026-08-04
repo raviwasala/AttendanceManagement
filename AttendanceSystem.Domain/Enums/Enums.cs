@@ -31,3 +31,28 @@ public enum Gender
     Female = 2,
     Other = 3
 }
+
+/// <summary>Reachability of a fingerprint device, derived from the last contact attempt.</summary>
+public enum DeviceStatus
+{
+    /// <summary>Never contacted.</summary>
+    Unknown = 0,
+    Online = 1,
+    Offline = 2,
+    /// <summary>Repeated failures — needs attention rather than a retry.</summary>
+    Error = 3
+}
+
+public enum SyncTrigger
+{
+    Manual = 1,
+    Scheduled = 2
+}
+
+public enum SyncOutcome
+{
+    Success = 1,
+    /// <summary>Punches downloaded, but some could not be mapped or processed.</summary>
+    PartialSuccess = 2,
+    Failed = 3
+}

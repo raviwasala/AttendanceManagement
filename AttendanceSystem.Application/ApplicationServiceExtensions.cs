@@ -23,6 +23,9 @@ public static class ApplicationServiceExtensions
         services.AddScoped<ISettingsService, SettingsService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IAnalyticsService, AnalyticsService>();
+        services.AddScoped<IDeviceService, DeviceService>();
+        services.AddScoped<IShiftRosterService, ShiftRosterService>();
+        services.AddScoped<IAttendanceReviewService, AttendanceReviewService>();
         return services;
     }
 }

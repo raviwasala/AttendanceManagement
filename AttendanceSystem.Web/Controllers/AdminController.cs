@@ -39,6 +39,10 @@ public class AdminController : BaseController
     [SessionAuthorize(Modules.Shifts, Actions.View)]
     public IActionResult Shifts() => View();
 
+    [HttpGet("ShiftRoster")]
+    [SessionAuthorize(Modules.Shifts, Actions.View)]
+    public IActionResult ShiftRoster() => View();
+
     [HttpGet("Employees")]
     [SessionAuthorize(Modules.Employees, Actions.View)]
     public IActionResult Employees() => View();
@@ -46,6 +50,10 @@ public class AdminController : BaseController
     [HttpGet("Attendance")]
     [SessionAuthorize(Modules.Attendance, Actions.View)]
     public IActionResult Attendance() => View();
+
+    [HttpGet("AttendanceReview")]
+    [SessionAuthorize(Modules.Attendance, Actions.View)]
+    public IActionResult AttendanceReview() => View();
 
     [HttpGet("Leave")]
     [SessionAuthorize(Modules.Leave, Actions.View)]
@@ -70,6 +78,10 @@ public class AdminController : BaseController
     [HttpGet("Import")]
     [SessionAuthorize(Modules.Import, Actions.View)]
     public IActionResult Import() => View();
+
+    [HttpGet("Devices")]
+    [SessionAuthorize(Modules.Devices, Actions.View)]
+    public IActionResult Devices() => View();
 
     [HttpGet("Settings")]
     [SessionAuthorize(Modules.Settings, Actions.View)]

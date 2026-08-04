@@ -23,6 +23,7 @@ public static class AppConstants
         public const string Roles = "Roles";
         public const string Settings = "Settings";
         public const string Import = "Import";
+        public const string Devices = "Devices";
         public const string AuditLogs = "AuditLogs";
     }
 
@@ -34,6 +35,10 @@ public static class AppConstants
         public const string Delete = "Delete";
         public const string Export = "Export";
         public const string Approve = "Approve";
+
+        /// <summary>Triggering a device synchronisation — separate from Edit so an operator
+        /// can be allowed to pull attendance without being able to reconfigure hardware.</summary>
+        public const string Sync = "Sync";
     }
 
     public static class DateFormats

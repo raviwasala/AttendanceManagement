@@ -24,6 +24,13 @@ public class EmployeeDto
     public string BranchName { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>
+    /// The id this employee is enrolled under on the fingerprint devices. Biometric imports
+    /// match punches on this value, so an employee without one is silently absent from every
+    /// import — which is why it belongs on the form and not only in the database.
+    /// </summary>
+    public int? BiometricEnrollId { get; set; }
 }
 
 public class SaveEmployeeDto
@@ -43,6 +50,9 @@ public class SaveEmployeeDto
     [Required] public int DesignationId { get; set; }
     [Required] public int BranchId { get; set; }
     public bool IsActive { get; set; } = true;
+
+    /// <summary>Device enrolment id. Null means the employee is not enrolled on any device.</summary>
+    public int? BiometricEnrollId { get; set; }
 }
 
 public class EmployeeListItemDto
@@ -56,4 +66,7 @@ public class EmployeeListItemDto
     public string? Phone { get; set; }
     public string? Email { get; set; }
     public bool IsActive { get; set; }
+
+    /// <summary>Surfaced in the list so a missing enrolment is visible without opening each record.</summary>
+    public int? BiometricEnrollId { get; set; }
 }
