@@ -177,6 +177,59 @@ public class AuthController : BaseController
         return RedirectToAction("Login");
     }
 
+    // ── Screen lock ───────────────────────────────────────────────────────────
+    //
+    // The lock lives in the session, so it survives a refresh, a typed URL and a direct API
+    // call. SessionAuthorizeAttribute refuses everything while it is set, and exempts only
+    // these actions — otherwise there would be no way back in.
+
+    /// <summary>The lock screen. Also locks, so arriving here by any route is safe.</summary>
+    [HttpGet]
+    public IActionResult Lock()
+    {
+        if (!CurrentUserId.HasValue) return RedirectToAction("Login");
+
+        HttpContext.Session.SetInt32(WebSessionKeys.Locked, 1);
+
+        ViewBag.FullName = HttpContext.Session.GetString(WebSessionKeys.FullName);
+        ViewBag.Username = HttpContext.Session.GetString(WebSessionKeys.Username);
+        return View();
+    }
+
+    /// <summary>Locks on demand — the idle timer and the menu item both post here.</summary>
+    [HttpPost("Auth/LockNow")]
+    public IActionResult LockNow()
+    {
+        if (!CurrentUserId.HasValue) return Unauthorized();
+
+        HttpContext.Session.SetInt32(WebSessionKeys.Locked, 1);
+        return Ok();
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Unlock(string password, string? returnUrl)
+    {
+        if (!CurrentUserId.HasValue) return RedirectToAction("Login");
+
+        var r = await _auth.VerifyPasswordAsync(CurrentUserId.Value, password ?? string.Empty);
+        if (!r.IsSuccess)
+        {
+            ViewBag.Error = r.ErrorMessage;
+            ViewBag.FullName = HttpContext.Session.GetString(WebSessionKeys.FullName);
+            ViewBag.Username = HttpContext.Session.GetString(WebSessionKeys.Username);
+            ViewBag.ReturnUrl = returnUrl;
+            return View("Lock");
+        }
+
+        HttpContext.Session.Remove(WebSessionKeys.Locked);
+
+        // Only a local path is followed. returnUrl arrives from the browser, and an absolute
+        // one would turn the lock screen into an open redirect.
+        return !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
+            ? Redirect(returnUrl)
+            : RedirectToAction("Index", "Admin");
+    }
+
     [HttpGet]
     public async Task<IActionResult> Profile()
     {

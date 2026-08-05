@@ -13,4 +13,13 @@ public static class WebSessionKeys
 
     /// <summary>Newline-separated list of granted <c>"{Module}.{Action}"</c> keys.</summary>
     public const string Permissions = "Permissions";
+
+    /// <summary>
+    /// Set to 1 while the screen is locked.
+    ///
+    /// Held in the session rather than the browser because a lock that lives only in the page
+    /// is decoration: refreshing, typing a URL or calling the API directly would all still
+    /// work. Every request is refused while this is set, which is what makes it a lock.
+    /// </summary>
+    public const string Locked = "Locked";
 }

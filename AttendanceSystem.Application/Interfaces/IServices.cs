@@ -16,6 +16,17 @@ public interface IAuthService
 
     /// <summary>Invalidates the user's stored remember-me token (used on explicit sign-out).</summary>
     Task<Result> RevokeRememberTokenAsync(int userId);
+
+    /// <summary>
+    /// Checks a password for an already-signed-in user, to release a locked screen.
+    ///
+    /// Separate from <see cref="LoginAsync"/> on purpose: signing in again would rotate the
+    /// remember-me token, restamp LastLoginAt and re-read the permission set, none of which
+    /// should happen because somebody stepped away from their desk. It also must not count
+    /// toward the failed-attempt lockout in a way that locks the account out of a screen the
+    /// user is already inside — a wrong password here is a typo, not an intrusion attempt.
+    /// </summary>
+    Task<Result> VerifyPasswordAsync(int userId, string password);
 }
 
 /// <summary>User management service contract.</summary>

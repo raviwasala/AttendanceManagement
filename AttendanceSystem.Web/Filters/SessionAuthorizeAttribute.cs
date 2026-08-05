@@ -43,6 +43,25 @@ public class SessionAuthorizeAttribute : Attribute, IAuthorizationFilter
             return;
         }
 
+        // A locked screen refuses everything, before any permission is considered. This check
+        // living here is the whole point: a lock enforced only in the browser would be undone
+        // by a refresh, a typed URL or a direct API call.
+        //
+        // The unlock endpoints are exempt, or there would be no way back in.
+        if (httpContext.Session?.GetInt32(WebSessionKeys.Locked) == 1 && !IsUnlockPath(httpContext))
+        {
+            context.Result = IsApiRequest(httpContext)
+                ? new ObjectResult(new
+                {
+                    isSuccess = false,
+                    isLocked = true,
+                    errorMessage = "Screen locked. Enter your password to continue."
+                })
+                { StatusCode = StatusCodes.Status423Locked }
+                : new RedirectToActionResult("Lock", "Auth", null);
+            return;
+        }
+
         if (string.IsNullOrEmpty(_module) || string.IsNullOrEmpty(_action)) return;
 
         if (!user.HasPermission(_module, _action))
@@ -58,6 +77,19 @@ public class SessionAuthorizeAttribute : Attribute, IAuthorizationFilter
                 // access would bounce between the two forever.
                 : new RedirectToActionResult("AccessDenied", "Auth", null);
         }
+    }
+
+    /// <summary>
+    /// The endpoints that must stay reachable while locked: the lock screen itself, unlocking,
+    /// and signing out — somebody who cannot remember their password needs a way out that is
+    /// not closing the browser.
+    /// </summary>
+    private static bool IsUnlockPath(HttpContext context)
+    {
+        var path = context.Request.Path.Value ?? string.Empty;
+        return path.StartsWith("/Auth/Lock", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/Auth/Unlock", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/Auth/Logout", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsApiRequest(HttpContext context) =>

@@ -705,6 +705,38 @@ a:hover { color: var(--ams-primary-d); }
   .ams-pager-info { width: 100%; text-align: center; }
 }
 
+/* ── Idle lock warning ────────────────────────────────────────────────────────
+   Bottom-right, above content but below modals: it is a heads-up, not a dialog,
+   and it must not block the very click that would dismiss it. */
+.ams-idle-warn {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1050;
+  max-width: 380px;
+}
+
+.ams-idle-card {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  background: #fff;
+  border: 1px solid #ffd9a0;
+  border-left: 4px solid #f0ad4e;
+  border-radius: .4rem;
+  box-shadow: 0 .5rem 1.25rem rgba(20, 32, 48, .18);
+  padding: .75rem .9rem;
+}
+
+.ams-idle-card > .feather {
+  font-size: 1.4rem;
+  color: #f0ad4e;
+}
+
+.ams-idle-text { flex: 1; line-height: 1.3; }
+.ams-idle-text .small { color: #6c757d; font-size: .78rem; }
+.ams-idle-count { font-weight: 600; color: #d9534f; }
+
 /* Employee code as a drill-down to the profile.
    No underline at all — it adds visual noise down a column of 200 rows. The colour
    shift on hover, plus the pointer cursor, is enough of a cue. */

@@ -1,0 +1,98 @@
+@{
+    ViewData["Title"] = "Locked";
+    Layout = null;
+    var fullName = ViewBag.FullName as string;
+    var username = ViewBag.Username as string;
+    var error = ViewBag.Error as string;
+    var returnUrl = ViewBag.ReturnUrl as string;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimal-ui">
+    <title>Locked – Attendance Management System</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="~/assets/icon/feather/css/feather.css">
+    <link rel="stylesheet" href="~/assets/css/style.css">
+    <link rel="stylesheet" href="~/css/site.css">
+    <style>
+        body { margin: 0; }
+        .auth-box .form-control { border-radius: 3px; }
+        .auth-box .btn-signin {
+            display: block; width: 100%; padding: .75rem 1rem;
+            background-color: #01a9ac; border: none; border-radius: 3px;
+            color: #fff; font-size: 1rem; font-weight: 600; letter-spacing: .4px;
+            cursor: pointer; transition: background .2s;
+        }
+        .auth-box .btn-signin:hover  { background-color: #018f92; }
+        .auth-box .btn-signin:active { background-color: #017b7e; }
+        .lock-avatar {
+            width: 74px; height: 74px; border-radius: 50%;
+            background: #eef1f4; color: #01a9ac;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 1.9rem; font-weight: 600;
+        }
+        .lock-link { color: #01a9ac; font-size: .86rem; font-weight: 600; text-decoration: none; }
+        .lock-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<section class="login-block">
+    <div class="container">
+        <div class="row">
+            <div class="col-sm-12">
+                <div class="auth-box card">
+                    <div class="card-body text-center">
+
+                        @* The user is already known, so the screen says who is locked out and
+                           asks only for the password. An email box here would be asking a
+                           question the system can already answer, and would let somebody
+                           unlock into a different account than the one still loaded. *@
+                        <div class="lock-avatar mb-3">
+                            @(string.IsNullOrWhiteSpace(fullName) ? "?" : fullName.Trim()[..1].ToUpperInvariant())
+                        </div>
+
+                        <h5 class="mb-1">@(string.IsNullOrWhiteSpace(fullName) ? "Screen locked" : fullName)</h5>
+                        <p class="text-muted small mb-4">
+                            @(string.IsNullOrWhiteSpace(username) ? "" : "@" + username)
+                            <br>Locked after a period of inactivity. Enter your password to continue.
+                        </p>
+
+                        @if (!string.IsNullOrEmpty(error))
+                        {
+                            <div class="alert alert-danger py-2 small text-start" role="alert">@error</div>
+                        }
+
+                        <form asp-controller="Auth" asp-action="Unlock" method="post" class="text-start">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="returnUrl" value="@returnUrl">
+
+                            <div class="mb-3">
+                                <input type="password" name="password" class="form-control"
+                                       placeholder="Password" autocomplete="current-password"
+                                       autofocus required>
+                            </div>
+
+                            <button type="submit" class="btn-signin mb-3">
+                                <i class="feather icon-unlock me-1"></i>Unlock
+                            </button>
+                        </form>
+
+                        @* A way out for somebody who cannot remember their password, or who is
+                           not the person who left the screen locked. *@
+                        <a class="lock-link" href="/Auth/LogoutGet">Sign in as a different user</a>
+
+                        <div class="text-muted mt-4" style="font-size:.78rem;">
+                            Your work is still open and will be waiting once you unlock.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+</body>
+</html>

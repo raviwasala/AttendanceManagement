@@ -19,6 +19,14 @@ $(function () {
         }
         $('#pageSize').val(ps);
         $('#confirmDelete').prop('checked', d.ConfirmBeforeDelete !== false);
+
+        // A stored value outside the preset list (set by an earlier build, or by hand)
+        // must still be selectable, or saving would silently change it.
+        var lock = d.ScreenLockMinutes == null ? 15 : d.ScreenLockMinutes;
+        if (!$('#screenLock option[value="' + lock + '"]').length) {
+            $('#screenLock').append('<option value="' + esc(lock) + '">' + esc(lock) + ' minutes</option>');
+        }
+        $('#screenLock').val(lock);
     }).fail(function () {
         $('#settingsAlert').html('<div class="alert alert-danger">Failed to load settings.</div>');
     });
@@ -64,7 +72,8 @@ function saveSettings() {
         MaxLateMinutes: parseInt($('#maxLate').val()) || 0,
         WeekendDays: $('#weekendDays').val(),
         DefaultPageSize: parseInt($('#pageSize').val(), 10) || 0,
-        ConfirmBeforeDelete: $('#confirmDelete').is(':checked')
+        ConfirmBeforeDelete: $('#confirmDelete').is(':checked'),
+        ScreenLockMinutes: parseInt($('#screenLock').val(), 10) || 0
     };
     // No modifiedBy on the wire: the server attributes the change to the session user.
     $.ajax({ url: '/api/settings', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),

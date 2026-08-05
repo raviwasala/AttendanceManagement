@@ -6,6 +6,7 @@
     var amsSettingsResult = await AmsSettings.GetAsync();
     var amsPageSize = amsSettingsResult.IsSuccess ? amsSettingsResult.Data!.DefaultPageSize : 25;
     var amsConfirmDelete = !amsSettingsResult.IsSuccess || amsSettingsResult.Data!.ConfirmBeforeDelete;
+    var amsLockMinutes = amsSettingsResult.IsSuccess ? amsSettingsResult.Data!.ScreenLockMinutes : 15;
 
     var controller = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
     var action     = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
@@ -210,6 +211,13 @@
                                                 </a>
                                             </li>
                                         }
+                                        @* Locking on demand, for stepping away deliberately
+                                           rather than waiting for the idle timer. *@
+                                        <li>
+                                            <a href="#" onclick="amsLockScreen();return false;">
+                                                <i class="feather icon-lock"></i> Lock screen
+                                            </a>
+                                        </li>
                                         <li>
                                             <a href="#" id="logoutTrigger" class="logout-link">
                                                 <i class="feather icon-log-out"></i> Logout
@@ -603,7 +611,8 @@
     <script>
         window.amsConfig = {
             pageSize: @amsPageSize,
-            confirmDelete: @(amsConfirmDelete ? "true" : "false")
+            confirmDelete: @(amsConfirmDelete ? "true" : "false"),
+            screenLockMinutes: @amsLockMinutes
         };
     </script>
     <script src="~/js/site.js" asp-append-version="true"></script>
@@ -613,6 +622,9 @@
        script needs to know it exists. *@
     <script src="~/lib/select2/js/select2.full.min.js"></script>
     <script src="~/js/ams-select2.js" asp-append-version="true"></script>
+    @* Idle screen lock. Only decides *when* to lock — the lock itself lives in the
+       session and is enforced by SessionAuthorizeAttribute on every request. *@
+    <script src="~/js/ams-idle-lock.js" asp-append-version="true"></script>
 
     @RenderSection("Scripts", required: false)
 </body>

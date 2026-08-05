@@ -55,6 +55,9 @@ public class CompanySettingsDto
     public int MaxLateMinutes { get; set; }
     public int DefaultPageSize { get; set; } = 25;
     public bool ConfirmBeforeDelete { get; set; } = true;
+
+    /// <summary>Minutes of inactivity before the screen locks. 0 disables it.</summary>
+    public int ScreenLockMinutes { get; set; } = 15;
 }
 
 public class AuditLogDto

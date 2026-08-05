@@ -171,6 +171,12 @@ public class SettingsService : ISettingsService
             // to refuse the whole settings save. 0 is kept as-is and means "show everything".
             entity.DefaultPageSize = dto.DefaultPageSize == 0 ? 0 : Math.Clamp(dto.DefaultPageSize, 5, 500);
             entity.ConfirmBeforeDelete = dto.ConfirmBeforeDelete;
+
+            // 0 disables locking. 1 minute is allowed because it is the only practical way to
+            // test the behaviour without waiting a quarter of an hour; 15 is the sensible
+            // working value, and anything under about 5 will be fought by the people it is
+            // meant to protect.
+            entity.ScreenLockMinutes = dto.ScreenLockMinutes <= 0 ? 0 : Math.Clamp(dto.ScreenLockMinutes, 1, 240);
             entity.ModifiedBy = modifiedBy; entity.ModifiedAt = DateTime.Now;
             await _uow.CompanySettings.UpdateAsync(entity);
             await _uow.SaveChangesAsync();
@@ -190,7 +196,8 @@ public class SettingsService : ISettingsService
         Email = s.Email, Website = s.Website, LogoPath = s.LogoPath,
         WorkStartTime = s.WorkStartTime, WorkEndTime = s.WorkEndTime,
         WeekendDays = s.WeekendDays, MaxLateMinutes = s.MaxLateMinutes,
-        DefaultPageSize = s.DefaultPageSize, ConfirmBeforeDelete = s.ConfirmBeforeDelete
+        DefaultPageSize = s.DefaultPageSize, ConfirmBeforeDelete = s.ConfirmBeforeDelete,
+        ScreenLockMinutes = s.ScreenLockMinutes
     };
 }
 

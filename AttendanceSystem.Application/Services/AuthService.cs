@@ -291,6 +291,31 @@ public class AuthService : IAuthService
             .ToList()
         ?? new List<string>();
 
+    public async Task<Result> VerifyPasswordAsync(int userId, string password)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(password)) return Result.Failure("Enter your password.");
+
+            var user = await _uow.Users.GetByIdAsync(userId);
+            if (user == null) return Result.Failure("Your session is no longer valid. Please sign in again.");
+
+            // An account deactivated or locked while the screen was locked must not be let
+            // back in — the lock screen is the right place to notice that.
+            if (!user.IsActive || user.IsLocked)
+                return Result.Failure("This account is no longer active. Please sign in again.");
+
+            return PasswordHelper.VerifyPassword(password, user.PasswordHash)
+                ? Result.Success()
+                : Result.Failure("That password is not correct.");
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("AuthService.VerifyPasswordAsync", ex);
+            return Result.Failure("Could not verify your password.");
+        }
+    }
+
     private static UserDto MapToDto(User u) => new()
     {
         Id = u.Id, Username = u.Username, Email = u.Email,

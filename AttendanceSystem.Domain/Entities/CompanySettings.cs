@@ -22,4 +22,18 @@ public class CompanySettings : BaseEntity
     /// operators can switch the prompts off; the default is on.
     /// </summary>
     public bool ConfirmBeforeDelete { get; set; } = true;
+
+    /// <summary>
+    /// Minutes of inactivity before the screen locks. 0 disables it.
+    ///
+    /// Fifteen by default. This system holds salaries, NIC numbers and full staff records on
+    /// machines that are often shared, so it should not sit open indefinitely — but a lock
+    /// that fires every five minutes gets defeated by the people it is meant to protect,
+    /// which is worse than not having one.
+    ///
+    /// This is not the session timeout. Locking preserves the page and any half-filled form;
+    /// the session expiring throws them away. Locking early and expiring late gives security
+    /// quickly and data loss slowly.
+    /// </summary>
+    public int ScreenLockMinutes { get; set; } = 15;
 }
