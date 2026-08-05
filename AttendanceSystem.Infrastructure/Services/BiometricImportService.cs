@@ -119,7 +119,18 @@ public class BiometricImportService : IBiometricImportService
     private async Task<BiometricImportResultDto> ProcessPunchesAsync(List<BiometricPunchDto> punches)
     {
         var result = new BiometricImportResultDto { TotalRead = punches.Count };
-        if (punches.Count == 0) return result;
+
+        // Saying so plainly matters: an import that finds nothing used to be indistinguishable
+        // from one that worked, which is how a file with no punches for the chosen range came
+        // to look like a successful run.
+        if (punches.Count == 0)
+        {
+            result.Warnings.Add(
+                "No punch records were found in this file for the selected date range. " +
+                "Nothing was imported. Check the date range, and that the file contains the " +
+                "device's attendance log rather than only its enrolled-user list.");
+            return result;
+        }
 
         // ── Lookups, loaded once ────────────────────────────────────────────
         var employees = await _context.Employees
@@ -454,83 +465,17 @@ public class BiometricImportService : IBiometricImportService
             }
         }
 
-        // 2. If no punch log records found, read from the "Enroll" user enrollment table (as shown in user's Access database)
-        if (punches.Count == 0)
-        {
-            string? enrollTable = tableNames.FirstOrDefault(name =>
-                name.Equals("Enroll", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("Employee", StringComparison.OrdinalIgnoreCase) ||
-                name.Equals("UserManage", StringComparison.OrdinalIgnoreCase));
-
-            if (enrollTable != null)
-            {
-                var cols = conn.GetSchema("Columns", new[] { null, null, enrollTable, null });
-                var colNames = cols.AsEnumerable().Select(r => r["COLUMN_NAME"]?.ToString() ?? string.Empty).ToList();
-
-                string? enrollIdCol = colNames.FirstOrDefault(c =>
-                    c.Equals("EnrollId", StringComparison.OrdinalIgnoreCase) ||
-                    c.Equals("Enroll_ID", StringComparison.OrdinalIgnoreCase) ||
-                    c.Equals("USERID", StringComparison.OrdinalIgnoreCase) ||
-                    c.Equals("User_ID", StringComparison.OrdinalIgnoreCase) ||
-                    c.Equals("EmpNo", StringComparison.OrdinalIgnoreCase) ||
-                    c.Equals("EmpID", StringComparison.OrdinalIgnoreCase) ||
-                    c.Equals("ID", StringComparison.OrdinalIgnoreCase) ||
-                    c.Equals("CardNo", StringComparison.OrdinalIgnoreCase));
-
-                string? empNameCol = colNames.FirstOrDefault(c =>
-                    c.Equals("EmpName", StringComparison.OrdinalIgnoreCase) ||
-                    c.Equals("Emp_Name", StringComparison.OrdinalIgnoreCase) ||
-                    c.Equals("EmployeeName", StringComparison.OrdinalIgnoreCase) ||
-                    c.Equals("Name", StringComparison.OrdinalIgnoreCase) ||
-                    c.Equals("FullName", StringComparison.OrdinalIgnoreCase) ||
-                    c.Equals("UserName", StringComparison.OrdinalIgnoreCase));
-
-                string? deviceIdCol = colNames.FirstOrDefault(c =>
-                    c.Equals("DeviceId", StringComparison.OrdinalIgnoreCase) ||
-                    c.Equals("Device_Id", StringComparison.OrdinalIgnoreCase));
-
-                if (enrollIdCol != null)
-                {
-                    string selectCols = $"[{enrollIdCol}]";
-                    if (empNameCol != null) selectCols += $", [{empNameCol}]";
-                    if (deviceIdCol != null) selectCols += $", [{deviceIdCol}]";
-
-                    string sql = $"SELECT {selectCols} FROM [{enrollTable}]";
-
-                    using var cmd = new OleDbCommand(sql, conn);
-                    using var reader = await cmd.ExecuteReaderAsync();
-
-                    var now = DateTime.Now;
-
-                    while (await reader.ReadAsync())
-                    {
-                        var rawIdStr = reader[enrollIdCol]?.ToString()?.Trim();
-                        if (string.IsNullOrEmpty(rawIdStr)) continue;
-
-                        // Parse IDs (handles "4 4" -> 4, "425 425" -> 425 as formatted in ZK/Realand Enroll tables)
-                        var parts = rawIdStr.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length > 0 && int.TryParse(parts[0], out int enrollId))
-                        {
-                            var empName = empNameCol != null ? reader[empNameCol]?.ToString() : null;
-                            punches.Add(new BiometricPunchDto
-                            {
-                                EnrollId  = enrollId,
-                                PunchTime = now,
-                                EmpName   = string.IsNullOrWhiteSpace(empName) ? null : empName,
-                                DeviceId  = deviceIdCol != null ? reader[deviceIdCol]?.ToString() : "DEV-ENROLL"
-                            });
-                        }
-                    }
-
-                    // Deduplicate by EnrollId
-                    punches = punches
-                        .GroupBy(p => p.EnrollId)
-                        .Select(g => g.First())
-                        .OrderBy(p => p.EnrollId)
-                        .ToList();
-                }
-            }
-        }
+        // The enrolment table is deliberately NOT used as a punch source.
+        //
+        // There used to be a fallback here: if no punch records were found, read the device's
+        // Enroll table - its roster of enrolled users - and fabricate one punch per user at
+        // DateTime.Now. An .mdb with no attendance for the chosen range therefore produced a
+        // full day's attendance for everyone, timestamped at the moment of import and marked
+        // late by however long after shift start the import happened to run. That is invented
+        // payroll data, which is far worse than importing nothing.
+        //
+        // Reading the roster is a legitimate thing to want, and ReadEnrollTableAsync below
+        // does exactly that - for display, never as attendance.
 
         // 3. Fallback binary scanner if empty
         if (punches.Count == 0)
