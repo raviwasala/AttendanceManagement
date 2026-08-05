@@ -1,4 +1,5 @@
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Common.Models;
 using AttendanceSystem.Web.Filters;
 using Microsoft.AspNetCore.Mvc;
 using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
@@ -18,17 +19,23 @@ public class AuditLogsApiController : ApiControllerBase
 
     public AuditLogsApiController(IAuditService audit) => _audit = audit;
 
+    /// <summary>
+    /// One page of the trail, filtered and searched in the database.
+    ///
+    /// This endpoint used to return up to 1,000 rows for the browser to filter. The audit table
+    /// is the only one in the system that grows without bound, so it is the last place that
+    /// should be fetched whole — a year of activity would be megabytes on every page load.
+    /// </summary>
     [HttpGet]
     [SessionAuthorize(Modules.AuditLogs, Actions.View)]
-    public async Task<IActionResult> Get([FromQuery] string? module, [FromQuery] int count = 200)
+    public async Task<IActionResult> Get(
+        [FromQuery] string? module,
+        [FromQuery] string? search,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = PageRequest.DefaultPageSize)
     {
-        // The row limit applies either way — it was previously ignored once a module was
-        // chosen, so picking a module quietly returned the entire history for it.
-        var take = Math.Clamp(count, 1, 1000);
-
-        var r = string.IsNullOrWhiteSpace(module)
-            ? await _audit.GetRecentAsync(take)
-            : await _audit.GetByModuleAsync(module, take);
+        var r = await _audit.GetPagedAsync(module, search,
+            new PageRequest { Page = page, PageSize = pageSize });
 
         return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
     }

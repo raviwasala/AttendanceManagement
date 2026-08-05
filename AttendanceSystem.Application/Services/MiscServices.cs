@@ -203,6 +203,29 @@ public class AuditService : IAuditService
         catch (Exception ex) { return Result<IEnumerable<AuditLogDto>>.Failure(ex.Message); }
     }
 
+    public async Task<Result<PagedResult<AuditLogDto>>> GetPagedAsync(
+        string? module, string? search, PageRequest page)
+    {
+        try
+        {
+            var (items, total) = await _uow.AuditLogs.GetPagedAsync(
+                module, search, page.Skip, page.PageSize);
+
+            return Result<PagedResult<AuditLogDto>>.Success(new PagedResult<AuditLogDto>
+            {
+                Items = items.Select(Map).ToList(),
+                Page = page.Page,
+                PageSize = page.PageSize,
+                TotalCount = total
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("AuditService.GetPagedAsync", ex);
+            return Result<PagedResult<AuditLogDto>>.Failure("Failed to load the audit log.");
+        }
+    }
+
     private static AuditLogDto Map(Domain.Entities.AuditLog a) => new()
     {
         Id = a.Id, Username = a.User?.Username, Action = a.Action,

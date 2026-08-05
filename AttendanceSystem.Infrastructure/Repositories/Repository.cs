@@ -33,6 +33,33 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
     public virtual async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate) =>
         await _dbSet.AsNoTracking().Where(predicate).ToListAsync();
 
+    public virtual async Task<(IEnumerable<T> Items, int TotalCount)> FindPagedAsync<TKey>(
+        Expression<Func<T, bool>> predicate,
+        Expression<Func<T, TKey>> orderBy,
+        bool descending,
+        int skip,
+        int take)
+    {
+        var query = _dbSet.AsNoTracking().Where(predicate);
+
+        // Counted before Skip/Take, and on the same filtered query, so the pager's total always
+        // matches what paging through would actually yield.
+        var total = await query.CountAsync();
+
+        // Id breaks ties. Without it, two rows sharing a sort value can swap between requests
+        // and one of them is silently never shown.
+        IQueryable<T> ordered = descending
+            ? query.OrderByDescending(orderBy).ThenByDescending(e => e.Id)
+            : query.OrderBy(orderBy).ThenBy(e => e.Id);
+
+        if (skip > 0) ordered = ordered.Skip(skip);
+        if (take > 0) ordered = ordered.Take(take);
+
+        var items = await ordered.ToListAsync();
+
+        return (items, total);
+    }
+
     public virtual async Task<T> AddAsync(T entity)
     {
         var entry = await _dbSet.AddAsync(entity);

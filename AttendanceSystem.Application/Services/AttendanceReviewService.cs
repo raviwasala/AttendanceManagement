@@ -48,8 +48,22 @@ public class AttendanceReviewService : IAttendanceReviewService
     public Task<Result<AttendanceReviewDto>> GetDailyReviewAsync(DateTime date, int? departmentId = null) =>
         GetReviewAsync(date, date, null, departmentId);
 
+    /// <summary>
+    /// The review grid, optionally one page of it.
+    ///
+    /// Paging here is different in kind from the other list screens. A row is not a database
+    /// row — it is one employee on one day, generated whether or not any attendance exists, so
+    /// there is nothing to SKIP/TAKE in SQL. The grid is still assembled in memory (bounded by
+    /// MaxRangeDays and MaxRows), the header statistics are computed over all of it, and only
+    /// the requested page is returned.
+    ///
+    /// That is deliberately a partial fix: it removes the cost that actually hurt — thousands of
+    /// rows of markup, each carrying two editable time inputs — without pretending the server
+    /// stopped building the grid.
+    /// </summary>
     public async Task<Result<AttendanceReviewDto>> GetReviewAsync(
-        DateTime fromDate, DateTime toDate, int? employeeId = null, int? departmentId = null)
+        DateTime fromDate, DateTime toDate, int? employeeId = null, int? departmentId = null,
+        PageRequest? page = null)
     {
         try
         {
@@ -135,6 +149,8 @@ public class AttendanceReviewService : IAttendanceReviewService
             if (employeeId.HasValue)
                 dto.Rows = dto.Rows.OrderBy(r => r.Date).ToList();
 
+            // Statistics are computed over the whole grid, before it is cut down to a page —
+            // header tiles that described only the visible page would be worse than none.
             dto.Present = dto.Rows.Count(r => r.Status == AttendanceStatus.Present);
             dto.Late = dto.Rows.Count(r => r.Status == AttendanceStatus.Late);
             dto.Absent = dto.Rows.Count(r => r.Status == AttendanceStatus.Absent);
@@ -143,6 +159,20 @@ public class AttendanceReviewService : IAttendanceReviewService
             dto.TotalLateMinutes = dto.Rows.Sum(r => r.LateMinutes ?? 0);
             dto.TotalWorkingHours = Math.Round(dto.Rows.Sum(r => r.WorkingHours ?? 0), 1);
             dto.TotalOvertimeMinutes = dto.Rows.Sum(r => r.OvertimeMinutes ?? 0);
+            dto.OverLateAllowance = dto.Rows.Count(r => r.IsOverLateAllowance);
+
+            dto.TotalRows = dto.Rows.Count;
+            if (page is { PageSize: > 0 })
+            {
+                dto.Page = page.Page;
+                dto.PageSize = page.PageSize;
+                dto.Rows = dto.Rows.Skip(page.Skip).Take(page.PageSize).ToList();
+            }
+            else
+            {
+                dto.Page = 1;
+                dto.PageSize = 0;
+            }
 
             return Result<AttendanceReviewDto>.Success(dto);
         }

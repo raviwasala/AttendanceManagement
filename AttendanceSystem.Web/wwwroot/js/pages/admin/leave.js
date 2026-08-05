@@ -1,6 +1,10 @@
 /* ── Admin Leave Management JavaScript ── */
 
-var allReqs = [], allTypes = [];
+var reqData = null, reqPage = 1, allTypes = [];
+var reqSearchTimer = null;
+
+/* Status names on the dropdown, enum values on the wire. */
+var LEAVE_STATUS = { Pending: 1, Approved: 2, Rejected: 3, Cancelled: 4 };
 
 /*
  * Applies a ?status= value from the URL to the request-status dropdown.
@@ -19,7 +23,19 @@ function applyStatusFromQuery() {
     if (match.length) $('#reqStatusFilter').val(match.val());
 }
 
-$(function () { applyStatusFromQuery(); loadRequests(); loadTypes(); loadApplyDropdowns(); });
+$(function () {
+    applyStatusFromQuery();
+
+    // Search is a database round trip now, so it is debounced rather than per-keystroke.
+    $('#reqSearch').on('input', function () {
+        clearTimeout(reqSearchTimer);
+        reqSearchTimer = setTimeout(function () { loadRequests(1); }, 300);
+    });
+
+    loadRequests();
+    loadTypes();
+    loadApplyDropdowns();
+});
 
 function loadApplyDropdowns() {
     $.getJSON('/api/employees', function (d) {
@@ -29,20 +45,35 @@ function loadApplyDropdowns() {
     });
 }
 
-function loadRequests() {
-    $.getJSON('/api/leave/requests', function (d) { allReqs = d; filterRequests(); })
-     .fail(function () { $('#reqBody').html('<tr><td colspan="9" class="text-danger text-center py-3">Failed to load.</td></tr>'); });
+/* Server-paged: status and search are applied in SQL. */
+function loadRequests(page) {
+    reqPage = amsPageNo(page, reqPage);
+
+    var status = $('#reqStatusFilter').val();
+    var q = ($('#reqSearch').val() || '').trim();
+
+    var url = '/api/leave/requests/paged?page=' + reqPage + '&pageSize=' + (amsPageSize() || 25)
+            + (status && LEAVE_STATUS[status] ? '&status=' + LEAVE_STATUS[status] : '')
+            + (q ? '&search=' + encodeURIComponent(q) : '');
+
+    $('#reqBody').html('<tr><td colspan="9" class="text-center py-4 text-muted">Loading…</td></tr>');
+
+    $.getJSON(url, function (d) { reqData = d; renderRequests(); })
+     .fail(function (xhr) {
+         $('#reqBody').html('<tr><td colspan="9" class="text-danger text-center py-3">'
+             + esc(xhr.responseText || 'Failed to load leave requests.') + '</td></tr>');
+     });
 }
 
+/* The name every filter control already calls; a filter change goes back to page 1. */
 function filterRequests() {
-    var s = $('#reqStatusFilter').val(); var q = $('#reqSearch').val().toLowerCase();
-    renderRequests(allReqs.filter(function (r) {
-        return (s==='' || r.StatusDisplay===s) && (!q || r.EmployeeName.toLowerCase().includes(q));
-    }));
+    loadRequests(1);
 }
 
-function renderRequests(data) {
-    amsPage('#reqBody', data, function (r) {
+function renderRequests() {
+    var data = reqData || { Items: [], TotalCount: 0, Page: 1, PageSize: 25 };
+
+    amsPage('#reqBody', data.Items, function (r) {
         var badge = r.StatusDisplay==='Approved'?'success':r.StatusDisplay==='Rejected'?'danger':r.StatusDisplay==='Pending'?'warning':'secondary';
         return '<tr>'
             + '<td>' + esc(r.EmployeeName) + '<br><small class="text-muted">' + esc(r.EmployeeCode) + '</small></td>'
@@ -58,7 +89,17 @@ function renderRequests(data) {
                + '<button class="btn btn-sm btn-danger me-1" onclick="approveReject(' + r.Id + ',false)" title="Reject"><i class="fa fa-times"></i></button>' : '')
             + (r.StatusDisplay==='Pending'||r.StatusDisplay==='Approved' ? '<button class="btn btn-sm btn-outline-secondary" onclick="cancel(' + r.Id + ')" title="Cancel"><i class="fa fa-ban"></i></button>' : '')
             + '</td></tr>';
-    }, { colspan: 9, empty: 'No leave requests found.', label: 'request' });
+    }, {
+        colspan: 9,
+        empty: 'No leave requests match these filters.',
+        label: 'request',
+        server: {
+            total: data.TotalCount,
+            page: data.Page,
+            pageSize: data.PageSize,
+            onPage: loadRequests
+        }
+    });
 }
 
 function loadTypes() {

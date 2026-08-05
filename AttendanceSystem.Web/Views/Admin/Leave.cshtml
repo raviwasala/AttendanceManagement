@@ -24,7 +24,9 @@
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <input type="text" id="reqSearch" class="form-control form-select-sm" placeholder="Search employee..." oninput="filterRequests()">
+                        @* Debounced in the page script — search runs in SQL now. *@
+                        <input type="search" id="reqSearch" class="form-control form-select-sm"
+                               placeholder="Search employee / type / reason..." autocomplete="off">
                     </div>
                     <div class="col-md-auto ms-auto">
                         <button class="btn btn-primary btn-sm" onclick="openApplyModal()">+ Apply Leave</button>

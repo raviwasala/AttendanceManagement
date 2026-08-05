@@ -30,7 +30,7 @@ public interface IUnitOfWork : IDisposable, IAsyncDisposable
 
     // Overtime
     IRepository<OvertimeRule> OvertimeRules { get; }
-    IRepository<OvertimeRecord> OvertimeRecords { get; }
+    IOvertimeRecordRepository OvertimeRecords { get; }
 
     /// <summary>Returns all RolePermission records for a given role (join table query).</summary>
     Task<IEnumerable<RolePermission>> GetRolePermissionsAsync(int roleId);

@@ -148,6 +148,11 @@ window.notifyConfirm = function (options, onConfirm) {
         var colspan = opts.colspan || $body.closest('table').find('thead th').length || 1;
         var $pager = pagerFor($body);
 
+        // Server mode: `rows` is already one page, and the figures come from the response.
+        // Everything below — markup, windowing, styling — is shared with client mode so the
+        // two kinds of list are indistinguishable to look at.
+        var srv = opts.server;
+
         rows = rows || [];
         if (!rows.length) {
             $body.html('<tr><td colspan="' + colspan + '" class="text-center text-muted py-4">'
@@ -156,15 +161,25 @@ window.notifyConfirm = function (options, onConfirm) {
             return;
         }
 
-        var size = configuredSize() || rows.length;
-        var pages = Math.max(1, Math.ceil(rows.length / size));
-        if (st.page > pages) st.page = pages;
+        var total, size, pages, start;
+        if (srv) {
+            total = srv.total;
+            size  = srv.pageSize > 0 ? srv.pageSize : total;
+            st.page = srv.page || 1;
+            pages = Math.max(1, size > 0 ? Math.ceil(total / size) : 1);
+            start = (st.page - 1) * size;
+        } else {
+            total = rows.length;
+            size  = configuredSize() || rows.length;
+            pages = Math.max(1, Math.ceil(total / size));
+            if (st.page > pages) st.page = pages;
+            start = (st.page - 1) * size;
+            rows = rows.slice(start, start + size);
+        }
 
-        var start = (st.page - 1) * size;
         // Second argument is the row's position in the whole filtered set, not in the page,
         // so a "#" column keeps counting across pages instead of restarting at 1.
-        var slice = rows.slice(start, start + size);
-        $body.html(slice.map(function (r, i) { return rowHtml(r, start + i); }).join(''));
+        $body.html(rows.map(function (r, i) { return rowHtml(r, start + i); }).join(''));
 
         // "branches", not "branchs" — irregular plurals are passed in explicitly.
         var one = opts.label || 'record';
@@ -172,13 +187,13 @@ window.notifyConfirm = function (options, onConfirm) {
 
         if (pages <= 1) {
             // Still say how many there are — "6 employees" is useful even with one page.
-            $pager.html('<div class="ams-pager-info">' + rows.length + ' '
-                      + (rows.length === 1 ? one : many) + '</div>');
+            $pager.html('<div class="ams-pager-info">' + total + ' '
+                      + (total === 1 ? one : many) + '</div>');
             return;
         }
 
         var html = '<div class="ams-pager-info">Showing ' + (start + 1) + '–'
-                 + Math.min(start + size, rows.length) + ' of ' + rows.length + ' '
+                 + Math.min(start + rows.length, total) + ' of ' + total + ' '
                  + many + '</div><div class="ams-pager-btns">'
                  + button(st.page - 1, '‹', st.page === 1, false);
 
@@ -192,9 +207,28 @@ window.notifyConfirm = function (options, onConfirm) {
         $pager.html(html);
 
         $pager.off('click.amspage').on('click.amspage', '.ams-pager-btn[data-page]', function () {
-            st.page = parseInt($(this).data('page'), 10);
-            st.redraw();
+            var page = parseInt($(this).data('page'), 10);
+            // Server mode fetches that page; client mode already holds every row.
+            if (srv) { srv.onPage(page); } else { st.page = page; st.redraw(); }
         });
+    };
+
+    /* Page size to request from the server — the same setting client paging uses. */
+    window.amsPageSize = function () {
+        return configuredSize() || 0;
+    };
+
+    /*
+     * Coerces whatever a loader was handed into a page number.
+     *
+     * Loaders are called three ways: by the pager with a number, by a filter with nothing, and
+     * by jQuery's .always(loadX) — which passes the response object as the first argument.
+     * That last one put "page=[object Object]" on the query string and the request 400'd, so
+     * every loader launders its argument through here.
+     */
+    window.amsPageNo = function (value, fallback) {
+        var n = parseInt(value, 10);
+        return n > 0 ? n : (fallback || 1);
     };
 })();
 

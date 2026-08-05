@@ -1,6 +1,6 @@
 /* ── Admin Overtime Approval ── */
 
-var apData = null;
+var apData = null, apPage = 1;
 
 $(function () {
     $.when(
@@ -17,11 +17,14 @@ $(function () {
         })
     ).always(loadApproval);
 
-    $('#apDept, #apEmployee').on('change', loadApproval);
+    $('#apDept, #apEmployee').on('change', function () { loadApproval(1); });
 });
 
-function loadApproval() {
-    var q = '?from=' + $('#apFrom').val() + '&to=' + $('#apTo').val() + '&status=1';
+function loadApproval(page) {
+    apPage = amsPageNo(page, apPage);
+
+    var q = '?from=' + $('#apFrom').val() + '&to=' + $('#apTo').val() + '&status=1'
+          + '&page=' + apPage + '&pageSize=' + (amsPageSize() || 25);
     if ($('#apDept').val())     q += '&departmentId=' + encodeURIComponent($('#apDept').val());
     if ($('#apEmployee').val()) q += '&employeeId=' + encodeURIComponent($('#apEmployee').val());
 
@@ -46,18 +49,16 @@ function renderApproval() {
     var canApprove = window.otPerms.approve;
     var cols = canApprove ? 9 : 8;
 
-    // Weighted hours from *claimed* minutes, not approved: nothing here is approved yet, so
-    // the server's TotalWeightedHours is always 0 on this screen. What an approver wants to
-    // know is what is at stake if they approve the lot.
-    var atStake = apData.Rows.reduce(function (sum, r) {
-        return sum + (r.ClaimedMinutes / 60) * r.RateMultiplier;
-    }, 0);
-
+    // Range totals, not page totals — the server aggregates the whole filtered range.
+    // "Weighted if approved" comes from claimed minutes rather than approved: nothing on this
+    // screen is approved yet, so the approved-based figure would always read 0. Each row is
+    // weighted by its own rate server-side, since holiday and ordinary overtime differ.
     $('#apStats').html(
-        tile('Awaiting decision', apData.Rows.length, 'warning')
+        tile('Awaiting decision', apData.TotalCount, 'warning')
       + tile('Total claimed', apData.TotalClaimedDisplay, 'primary')
-      + tile('Employees', new Set(apData.Rows.map(function (r) { return r.EmployeeId; })).size, 'info')
-      + tile('Weighted if approved', atStake.toFixed(2) + ' h', 'success'));
+      + tile('On this page', apData.Rows.length, 'info')
+      + tile('Weighted if approved',
+             (apData.RangeClaimedWeightedHours || 0).toFixed(2) + ' h', 'success'));
 
     amsPage('#apBody', apData.Rows, function (r) {
         var dayBadge = r.DayTypeDisplay === 'Holiday'
@@ -103,7 +104,13 @@ function renderApproval() {
         colspan: cols,
         empty: 'Nothing is waiting for approval in this range.'
              + (window.otPerms.generate ? ' Use <strong>Generate From Attendance</strong> if claims have not been created yet.' : ''),
-        label: 'claim'
+        label: 'claim',
+        server: {
+            total: apData.TotalCount,
+            page: apData.Page,
+            pageSize: apData.PageSize,
+            onPage: loadApproval
+        }
     });
 
     bindPicks();

@@ -73,7 +73,16 @@ public interface IBranchService
 /// <summary>Employee service contract.</summary>
 public interface IEmployeeService
 {
+    /// <summary>
+    /// Every active employee. Kept for the dropdowns that legitimately need the whole list;
+    /// the list screen uses <see cref="GetPagedAsync"/>.
+    /// </summary>
     Task<Result<IEnumerable<EmployeeListItemDto>>> GetAllAsync();
+
+    Task<Result<PagedResult<EmployeeListItemDto>>> GetPagedAsync(
+        string? search, int? departmentId, int? designationId, int? branchId,
+        bool? isActive, PageRequest page);
+
     Task<Result<EmployeeDto>> GetByIdAsync(int id);
     Task<Result<EmployeeDto>> SaveAsync(SaveEmployeeDto dto);
     Task<Result> DeleteAsync(int id, int deletedBy);
@@ -112,6 +121,11 @@ public interface ILeaveService
     Task<Result<LeaveTypeDto>> SaveLeaveTypeAsync(SaveLeaveTypeDto dto);
     Task<Result> DeleteLeaveTypeAsync(int id);
     Task<Result<IEnumerable<LeaveRequestDto>>> GetAllRequestsAsync();
+
+    Task<Result<PagedResult<LeaveRequestDto>>> GetRequestsPagedAsync(
+        string? search, LeaveStatus? status, int? departmentId, int? employeeId,
+        DateTime? from, DateTime? to, PageRequest page);
+
     Task<Result<IEnumerable<LeaveRequestDto>>> GetByEmployeeAsync(int employeeId);
     Task<Result<IEnumerable<LeaveRequestDto>>> GetPendingAsync();
     Task<Result<LeaveRequestDto>> ApplyLeaveAsync(ApplyLeaveDto dto);
@@ -144,6 +158,10 @@ public interface IAuditService
         string? oldValues = null, string? newValues = null);
     Task<Result<IEnumerable<AuditLogDto>>> GetRecentAsync(int count = 100);
     Task<Result<IEnumerable<AuditLogDto>>> GetByModuleAsync(string module, int count = 100);
+
+    /// <summary>One page of the trail. The search is applied in SQL, not in the browser.</summary>
+    Task<Result<PagedResult<AuditLogDto>>> GetPagedAsync(
+        string? module, string? search, PageRequest page);
 }
 
 /// <summary>
@@ -184,7 +202,8 @@ public interface IAttendanceReviewService
     /// month" — pass <paramref name="employeeId"/> to focus on one person.
     /// </summary>
     Task<Result<AttendanceReviewDto>> GetReviewAsync(
-        DateTime fromDate, DateTime toDate, int? employeeId = null, int? departmentId = null);
+        DateTime fromDate, DateTime toDate, int? employeeId = null, int? departmentId = null,
+        PageRequest? page = null);
 
     /// <summary>
     /// Creates, updates or clears one employee's entry for one date, then recalculates.
@@ -237,8 +256,13 @@ public interface IOvertimeService
     /// </summary>
     Task<Result<GenerateOvertimeResultDto>> GenerateAsync(GenerateOvertimeDto dto);
 
+    /// <summary>
+    /// Claims in a range. Pass a page to fetch one; omit it to get the whole range, which is
+    /// what the summary needs in order to aggregate per employee.
+    /// </summary>
     Task<Result<OvertimeRegisterDto>> GetRegisterAsync(DateTime from, DateTime to,
-        int? employeeId = null, int? departmentId = null, OvertimeStatus? status = null);
+        int? employeeId = null, int? departmentId = null, OvertimeStatus? status = null,
+        PageRequest? page = null);
 
     /// <summary>Approves or rejects one or many claims in a single transaction.</summary>
     Task<Result<int>> DecideAsync(OvertimeDecisionDto dto);

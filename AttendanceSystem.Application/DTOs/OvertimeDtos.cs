@@ -131,15 +131,41 @@ public class OvertimeRegisterDto
 {
     public DateTime From { get; set; }
     public DateTime To { get; set; }
+
+    /// <summary>The rows on this page.</summary>
     public List<OvertimeRecordDto> Rows { get; set; } = [];
 
-    public int PendingCount   => Rows.Count(r => r.Status == OvertimeStatus.Pending);
-    public int ApprovedCount  => Rows.Count(r => r.Status == OvertimeStatus.Approved);
-    public int RejectedCount  => Rows.Count(r => r.Status == OvertimeStatus.Rejected);
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; }
 
-    public int TotalClaimedMinutes  => Rows.Sum(r => r.ClaimedMinutes);
-    public int TotalApprovedMinutes => Rows.Sum(r => r.ApprovedMinutes ?? 0);
-    public decimal TotalWeightedHours => Math.Round(Rows.Sum(r => r.WeightedHours), 2);
+    /// <summary>
+    /// Claims matching the filter across the whole range, not just this page. The totals below
+    /// are for the page; this is what the pager counts against.
+    /// </summary>
+    public int TotalCount { get; set; }
+
+    // ── Range totals, aggregated in SQL ─────────────────────────────────────────
+    //
+    // Set by the service from a GROUP BY over the whole filtered range. They used to be
+    // computed from Rows, which was fine while Rows held everything — with paging that would
+    // silently turn the header tiles into "totals for whatever is on this page".
+    public int RangePendingCount { get; set; }
+    public int RangeApprovedCount { get; set; }
+    public int RangeRejectedCount { get; set; }
+    public int RangeClaimedMinutes { get; set; }
+    public int RangeApprovedMinutes { get; set; }
+    public decimal RangeWeightedHours { get; set; }
+
+    /// <summary>What the whole range would be worth if every claim were approved as claimed.</summary>
+    public decimal RangeClaimedWeightedHours { get; set; }
+
+    public int PendingCount   => RangePendingCount;
+    public int ApprovedCount  => RangeApprovedCount;
+    public int RejectedCount  => RangeRejectedCount;
+
+    public int TotalClaimedMinutes  => RangeClaimedMinutes;
+    public int TotalApprovedMinutes => RangeApprovedMinutes;
+    public decimal TotalWeightedHours => RangeWeightedHours;
 
     public string TotalClaimedDisplay  => OvertimeRecordDto.Fmt(TotalClaimedMinutes);
     public string TotalApprovedDisplay => OvertimeRecordDto.Fmt(TotalApprovedMinutes);

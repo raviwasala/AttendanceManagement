@@ -17,6 +17,46 @@ public class EmployeeRepository : Repository<Employee>, IEmployeeRepository
                     .Include(e => e.Branch)
                     .FirstOrDefaultAsync(e => e.Id == id);
 
+    public async Task<(IEnumerable<Employee> Items, int TotalCount)> GetPagedAsync(
+        string? search, int? departmentId, int? designationId, int? branchId,
+        bool? isActive, int skip, int take)
+    {
+        var query = _dbSet.AsNoTracking()
+            .Include(e => e.Department)
+            .Include(e => e.Designation)
+            .Include(e => e.Branch)
+            .AsQueryable();
+
+        if (isActive.HasValue) query = query.Where(e => e.IsActive == isActive.Value);
+        if (departmentId.HasValue) query = query.Where(e => e.DepartmentId == departmentId.Value);
+        if (designationId.HasValue) query = query.Where(e => e.DesignationId == designationId.Value);
+        if (branchId.HasValue) query = query.Where(e => e.BranchId == branchId.Value);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            // First+last is matched as well as each part, so "Kasun Perera" finds the person
+            // even though no single column holds that string.
+            query = query.Where(e =>
+                EF.Functions.Like(e.EmployeeCode, $"%{term}%") ||
+                EF.Functions.Like(e.FirstName, $"%{term}%") ||
+                EF.Functions.Like(e.LastName, $"%{term}%") ||
+                EF.Functions.Like(e.FirstName + " " + e.LastName, $"%{term}%") ||
+                (e.Email != null && EF.Functions.Like(e.Email, $"%{term}%")) ||
+                (e.Phone != null && EF.Functions.Like(e.Phone, $"%{term}%")));
+        }
+
+        var total = await query.CountAsync();
+
+        var items = await query
+            .OrderBy(e => e.FirstName).ThenBy(e => e.LastName).ThenBy(e => e.Id)
+            .Skip(skip)
+            .Take(take > 0 ? take : int.MaxValue)
+            .ToListAsync();
+
+        return (items, total);
+    }
+
     public async Task<IEnumerable<Employee>> GetActiveEmployeesAsync() =>
         await _dbSet.AsNoTracking()
                     .Include(e => e.Department)

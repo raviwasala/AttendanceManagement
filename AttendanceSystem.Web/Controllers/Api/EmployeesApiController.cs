@@ -1,5 +1,6 @@
 ﻿using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Common.Models;
 using AttendanceSystem.Web.Filters;
 using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
 using Actions = AttendanceSystem.Common.Constants.AppConstants.Actions;
@@ -14,11 +15,31 @@ public class EmployeesApiController : ApiControllerBase
     private readonly IEmployeeService _svc;
     public EmployeesApiController(IEmployeeService svc) => _svc = svc;
 
+    /// <summary>
+    /// Every active employee, unpaged. Still here because a dozen screens fill an employee
+    /// dropdown from it and a dropdown genuinely wants the whole list.
+    /// </summary>
     [HttpGet]
     [SessionAuthorize(Modules.Employees, Actions.View)]
     public async Task<IActionResult> GetAll()
     {
         var r = await _svc.GetAllAsync();
+        return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
+    }
+
+    /// <summary>One page of employees, filtered and searched in the database.</summary>
+    [HttpGet("paged")]
+    [SessionAuthorize(Modules.Employees, Actions.View)]
+    public async Task<IActionResult> GetPaged(
+        [FromQuery] string? search,
+        [FromQuery] int? departmentId, [FromQuery] int? designationId, [FromQuery] int? branchId,
+        [FromQuery] bool? isActive,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = PageRequest.DefaultPageSize)
+    {
+        var r = await _svc.GetPagedAsync(search, departmentId, designationId, branchId, isActive,
+            new PageRequest { Page = page, PageSize = pageSize });
+
         return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
     }
 

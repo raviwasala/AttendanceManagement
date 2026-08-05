@@ -86,6 +86,30 @@ public class LeaveService : ILeaveService
         catch (Exception ex) { return Result<IEnumerable<LeaveRequestDto>>.Failure(ex.Message); }
     }
 
+    public async Task<Result<PagedResult<LeaveRequestDto>>> GetRequestsPagedAsync(
+        string? search, LeaveStatus? status, int? departmentId, int? employeeId,
+        DateTime? from, DateTime? to, PageRequest page)
+    {
+        try
+        {
+            var (items, total) = await _uow.Leaves.GetPagedAsync(
+                search, status, departmentId, employeeId, from, to, page.Skip, page.PageSize);
+
+            return Result<PagedResult<LeaveRequestDto>>.Success(new PagedResult<LeaveRequestDto>
+            {
+                Items = items.Select(MapRequest).ToList(),
+                Page = page.Page,
+                PageSize = page.PageSize,
+                TotalCount = total
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("LeaveService.GetRequestsPagedAsync", ex);
+            return Result<PagedResult<LeaveRequestDto>>.Failure("Failed to load leave requests.");
+        }
+    }
+
     public async Task<Result<IEnumerable<LeaveRequestDto>>> GetByEmployeeAsync(int employeeId)
     {
         try

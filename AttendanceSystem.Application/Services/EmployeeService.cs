@@ -36,6 +36,30 @@ public class EmployeeService : IEmployeeService
         }
     }
 
+    public async Task<Result<PagedResult<EmployeeListItemDto>>> GetPagedAsync(
+        string? search, int? departmentId, int? designationId, int? branchId,
+        bool? isActive, PageRequest page)
+    {
+        try
+        {
+            var (items, total) = await _uow.Employees.GetPagedAsync(
+                search, departmentId, designationId, branchId, isActive, page.Skip, page.PageSize);
+
+            return Result<PagedResult<EmployeeListItemDto>>.Success(new PagedResult<EmployeeListItemDto>
+            {
+                Items = items.Select(MapToListDto).ToList(),
+                Page = page.Page,
+                PageSize = page.PageSize,
+                TotalCount = total
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("EmployeeService.GetPagedAsync", ex);
+            return Result<PagedResult<EmployeeListItemDto>>.Failure("Failed to load employees.");
+        }
+    }
+
     public async Task<Result<EmployeeDto>> GetByIdAsync(int id)
     {
         try

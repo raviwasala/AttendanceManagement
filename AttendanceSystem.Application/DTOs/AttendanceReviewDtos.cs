@@ -113,6 +113,17 @@ public class AttendanceReviewDto
     public double TotalWorkingHours { get; set; }
     public int TotalOvertimeMinutes { get; set; }
 
+    /// <summary>Late arrivals past the shift's monthly allowance, across the whole range.</summary>
+    public int OverLateAllowance { get; set; }
+
+    // ── Paging ──────────────────────────────────────────────────────────────────
+    //
+    // Rows holds one page; TotalRows counts the whole grid. Every statistic above is over the
+    // whole grid, not the page, so the header keeps meaning what it says.
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; }
+    public int TotalRows { get; set; }
+
     /// <summary>Set when the result was capped, so the UI can say so rather than mislead.</summary>
     public bool Truncated { get; set; }
 

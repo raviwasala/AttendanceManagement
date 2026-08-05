@@ -19,7 +19,10 @@
             <div class="col-md-4">
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-white border-end-0 text-muted"><i class="feather icon-search"></i></span>
-                    <input type="text" id="searchBox" class="form-control form-control-sm border-start-0" placeholder="Search name/code/email..." oninput="filterTable()">
+                    @* No oninput here: search now hits the database, so the page script
+                       debounces it rather than firing a request per keystroke. *@
+                    <input type="search" id="searchBox" class="form-control form-control-sm border-start-0"
+                           placeholder="Search name/code/email/phone..." autocomplete="off">
                 </div>
             </div>
             <div class="col-md-3">

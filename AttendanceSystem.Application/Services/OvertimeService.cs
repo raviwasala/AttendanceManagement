@@ -286,7 +286,8 @@ public class OvertimeService : IOvertimeService
     // ── Register ─────────────────────────────────────────────────────────────────
 
     public async Task<Result<OvertimeRegisterDto>> GetRegisterAsync(DateTime from, DateTime to,
-        int? employeeId = null, int? departmentId = null, OvertimeStatus? status = null)
+        int? employeeId = null, int? departmentId = null, OvertimeStatus? status = null,
+        PageRequest? page = null)
     {
         try
         {
@@ -294,19 +295,31 @@ public class OvertimeService : IOvertimeService
             var end = to.Date;
             if (end < start) (start, end) = (end, start);
 
-            var records = (await _uow.OvertimeRecords.FindAsync(r => !r.IsDeleted &&
-                    r.OvertimeDate >= start && r.OvertimeDate <= end &&
-                    (employeeId == null || r.EmployeeId == employeeId) &&
-                    (status == null || r.Status == status)))
-                .ToList();
+            // Page 1 of everything when the caller does not ask for a page — which is what the
+            // summary does, since it has to aggregate the whole range itself.
+            page ??= new PageRequest { Page = 1, PageSize = 0 };
+
+            // Department lives on the employee, not the claim, so it is resolved to ids first
+            // and pushed into the query rather than filtered out after the fact.
+            IReadOnlyCollection<int>? departmentEmployeeIds = null;
+            if (departmentId.HasValue)
+            {
+                departmentEmployeeIds = (await _uow.Employees.FindAsync(
+                        e => !e.IsDeleted && e.DepartmentId == departmentId.Value))
+                    .Select(e => e.Id)
+                    .ToList();
+            }
+
+            var (records, totals) = await _uow.OvertimeRecords.GetRegisterPageAsync(
+                start, end, employeeId, departmentEmployeeIds, status, page.Skip, page.PageSize);
+
+            records = records.ToList();
 
             var employees = (await _uow.Employees.GetAllAsync()).ToDictionary(e => e.Id);
             var departments = (await _uow.Departments.GetAllAsync()).ToDictionary(d => d.Id, d => d.Name);
             var shifts = (await _uow.Shifts.GetAllAsync()).ToDictionary(s => s.Id, s => s.Name);
             var users = (await _uow.Users.GetAllAsync()).ToDictionary(u => u.Id, u => u.Username);
 
-            // Department is a property of the employee, so it is filtered here rather than in
-            // the record query — the record itself does not carry one.
             var logIds = records.Where(r => r.AttendanceLogId.HasValue)
                                 .Select(r => r.AttendanceLogId!.Value).ToHashSet();
             var logs = logIds.Count == 0
@@ -316,8 +329,8 @@ public class OvertimeService : IOvertimeService
             var rows = new List<OvertimeRecordDto>();
             foreach (var r in records)
             {
+                // Department is already applied in SQL via departmentEmployeeIds.
                 if (!employees.TryGetValue(r.EmployeeId, out var emp)) continue;
-                if (departmentId != null && emp.DepartmentId != departmentId) continue;
 
                 logs.TryGetValue(r.AttendanceLogId ?? 0, out var log);
 
@@ -347,14 +360,23 @@ public class OvertimeService : IOvertimeService
                 });
             }
 
+            // Row order is already set by the database — re-sorting here would shuffle the page
+            // against the ORDER BY that produced it and make paging skip records.
             var dto = new OvertimeRegisterDto
             {
                 From = start,
                 To = end,
-                Rows = rows
-                    .OrderBy(r => r.OvertimeDate)
-                    .ThenBy(r => r.EmployeeName)
-                    .ToList()
+                Rows = rows,
+                Page = page.Page,
+                PageSize = page.PageSize,
+                TotalCount = totals.TotalCount,
+                RangePendingCount = totals.PendingCount,
+                RangeApprovedCount = totals.ApprovedCount,
+                RangeRejectedCount = totals.RejectedCount,
+                RangeClaimedMinutes = totals.ClaimedMinutes,
+                RangeApprovedMinutes = totals.ApprovedMinutes,
+                RangeWeightedHours = Math.Round(totals.WeightedHours, 2),
+                RangeClaimedWeightedHours = Math.Round(totals.ClaimedWeightedHours, 2)
             };
 
             return Result<OvertimeRegisterDto>.Success(dto);

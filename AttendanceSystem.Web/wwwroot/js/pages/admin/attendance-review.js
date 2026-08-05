@@ -59,7 +59,13 @@ function preset(which) {
     if (review !== null) loadReview();
 }
 
-function loadReview() {
+var arPage = 1;
+
+function loadReview(page) {
+    // Called from the pager with a page number, and from the filters with nothing — a filter
+    // change goes back to page 1.
+    arPage = amsPageNo(page);
+
     var from = $('#arFrom').val(), to = $('#arTo').val();
     if (!from || !to) { notifyError('Choose both a start and an end date.'); return; }
     if (to < from) { notifyError('End date must be on or after the start date.'); return; }
@@ -69,6 +75,7 @@ function loadReview() {
     $('#arBody').html('<tr><td colspan="11" class="text-center py-4 text-muted">Loading…</td></tr>');
 
     var url = '/api/attendance-review?from=' + from + '&to=' + to
+            + '&page=' + arPage + '&pageSize=' + (amsPageSize() || 25)
             + (emp ? '&employeeId=' + emp : '')
             + (dept ? '&departmentId=' + dept : '');
 
@@ -216,7 +223,17 @@ function renderRows() {
                 ? '<button class="btn btn-sm btn-outline-primary ar-save" disabled>Save</button>'
                 : '') + '</td>'
             + '</tr>';
-    }, { colspan: 11, empty: 'Nothing matches this filter.', label: 'row' });
+    }, {
+        colspan: 11,
+        empty: 'Nothing matches this filter.',
+        label: 'row',
+        server: {
+            total: review.TotalRows,
+            page: review.Page,
+            pageSize: review.PageSize,
+            onPage: loadReview
+        }
+    });
 
     $('#arBody').off('input.ar').on('input.ar', '.ar-time', function () {
         var tr = $(this).closest('tr');

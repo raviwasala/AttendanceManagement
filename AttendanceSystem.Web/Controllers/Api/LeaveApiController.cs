@@ -1,5 +1,7 @@
 ﻿using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Common.Models;
+using AttendanceSystem.Domain.Enums;
 using AttendanceSystem.Web.Filters;
 using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
 using Actions = AttendanceSystem.Common.Constants.AppConstants.Actions;
@@ -48,6 +50,23 @@ public class LeaveApiController : ApiControllerBase
     public async Task<IActionResult> GetAll()
     {
         var r = await _svc.GetAllRequestsAsync();
+        return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
+    }
+
+    /// <summary>One page of leave requests, filtered and searched in the database.</summary>
+    [HttpGet("requests/paged")]
+    [SessionAuthorize(Modules.Leave, Actions.View)]
+    public async Task<IActionResult> GetPaged(
+        [FromQuery] string? search,
+        [FromQuery] LeaveStatus? status,
+        [FromQuery] int? departmentId, [FromQuery] int? employeeId,
+        [FromQuery] DateTime? from, [FromQuery] DateTime? to,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = PageRequest.DefaultPageSize)
+    {
+        var r = await _svc.GetRequestsPagedAsync(search, status, departmentId, employeeId, from, to,
+            new PageRequest { Page = page, PageSize = pageSize });
+
         return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
     }
 

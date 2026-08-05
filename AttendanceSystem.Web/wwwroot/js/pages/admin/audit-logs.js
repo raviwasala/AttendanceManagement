@@ -1,25 +1,41 @@
 /* ── Admin Audit Log ── */
 
-var auditRows = [];
+/*
+ * Server-paged. The audit table is the only one that grows without bound, so the module
+ * filter and the search both run in SQL and only one page ever reaches the browser.
+ */
+var auditPage = 1;
+var auditSearchTimer = null;
 
 $(function () {
-    $('#alModule').on('change', loadAudit);
-    $('#alCount').on('change', loadAudit);
+    $('#alModule').on('change', function () { auditPage = 1; loadAudit(); });
+
+    // Debounced: every keystroke is now a round trip, unlike the old in-memory filter.
+    $('#alSearch').on('input', function () {
+        clearTimeout(auditSearchTimer);
+        auditSearchTimer = setTimeout(function () { auditPage = 1; loadAudit(); }, 300);
+    });
+
     loadAudit();
 });
 
-function loadAudit() {
-    var module = $('#alModule').val(), count = $('#alCount').val();
+function loadAudit(page) {
+    auditPage = amsPageNo(page, auditPage);
+
+    var module = $('#alModule').val();
+    var search = ($('#alSearch').val() || '').trim();
+    var size = amsPageSize() || 25;
+
+    var url = '/api/audit-logs?page=' + auditPage + '&pageSize=' + size
+            + (module ? '&module=' + encodeURIComponent(module) : '')
+            + (search ? '&search=' + encodeURIComponent(search) : '');
+
     $('#auditBody').html('<tr><td colspan="6" class="text-center py-4 text-muted">Loading…</td></tr>');
 
-    $.getJSON('/api/audit-logs?count=' + count + (module ? '&module=' + encodeURIComponent(module) : ''),
-        function (d) {
-            auditRows = d || [];
-            renderAudit();
-        })
+    $.getJSON(url, renderAudit)
      .fail(function (xhr) {
-         $('#auditBody').html('<tr><td colspan="6" class="text-danger text-center py-3">' +
-             esc(xhr.responseText || 'Failed to load audit log.') + '</td></tr>');
+         $('#auditBody').html('<tr><td colspan="6" class="text-danger text-center py-3">'
+             + esc(xhr.responseText || 'Failed to load audit log.') + '</td></tr>');
      });
 }
 
@@ -28,7 +44,8 @@ function actionBadge(a) {
         Create: 'success', Update: 'primary', Edit: 'primary', Delete: 'danger',
         Login: 'info', Logout: 'secondary', LoginViaRememberToken: 'info',
         ChangePassword: 'warning', ResetPasswordWithToken: 'warning',
-        RequestPasswordReset: 'warning', TestConnection: 'secondary'
+        RequestPasswordReset: 'warning', TestConnection: 'secondary',
+        Approve: 'success', Reject: 'danger', Generate: 'info'
     };
     return '<span class="badge bg-' + (map[a] || 'light text-dark') + '">' + esc(a) + '</span>';
 }
@@ -47,28 +64,24 @@ function changeCell(r) {
          + esc(body) + '</pre></details>';
 }
 
-function renderAudit() {
-    var q = ($('#alSearch').val() || '').toLowerCase();
-    var rows = auditRows.filter(function (r) {
-        if (!q) return true;
-        return (r.Username || '').toLowerCase().indexOf(q) >= 0
-            || (r.Action || '').toLowerCase().indexOf(q) >= 0
-            || (r.EntityName || '').toLowerCase().indexOf(q) >= 0;
-    });
+function renderAudit(data) {
+    data = data || { Items: [], TotalCount: 0, Page: 1, PageSize: 25 };
+    auditPage = data.Page;
 
     // "No entries match" reads as a broken filter when the truth is that nothing has been
     // logged for the selected module at all — say which of the two it is.
-    var empty = auditRows.length
+    var searching = !!($('#alSearch').val() || '').trim();
+    var empty = searching
         ? 'No entries match your search.'
         : ($('#alModule').val()
             ? 'Nothing has been logged for this module yet.'
             : 'No activity has been logged yet.');
 
-    $('#auditCount').text(rows.length
-        ? 'Showing ' + rows.length + ' of ' + auditRows.length + ' entries.'
+    $('#auditCount').text(data.TotalCount
+        ? data.TotalCount + ' matching ' + (data.TotalCount === 1 ? 'entry' : 'entries')
         : '');
 
-    amsPage('#auditBody', rows, function (r) {
+    amsPage('#auditBody', data.Items, function (r) {
         return '<tr>'
             + '<td class="ps-3 small text-muted" style="white-space:nowrap;">' + esc(r.CreatedAtDisplay) + '</td>'
             + '<td class="small">' + (r.Username
@@ -80,5 +93,16 @@ function renderAudit() {
                 ? esc(r.EntityName) + (r.EntityId ? ' #' + r.EntityId : '') : '—') + '</td>'
             + '<td class="pe-3">' + changeCell(r) + '</td>'
             + '</tr>';
-    }, { colspan: 6, empty: empty, label: 'entry', labelPlural: 'entries' });
+    }, {
+        colspan: 6,
+        empty: empty,
+        label: 'entry',
+        labelPlural: 'entries',
+        server: {
+            total: data.TotalCount,
+            page: data.Page,
+            pageSize: data.PageSize,
+            onPage: loadAudit
+        }
+    });
 }

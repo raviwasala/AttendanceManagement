@@ -1,6 +1,6 @@
 /* ── Admin Overtime Register ── */
 
-var regData = null;
+var regData = null, regPage = 1;
 
 $(function () {
     $.when(
@@ -17,18 +17,27 @@ $(function () {
         })
     ).always(loadRegister);
 
-    $('#regDept, #regEmployee, #regStatus').on('change', loadRegister);
+    // A filter change goes back to page 1 — page 7 of the old filter is meaningless.
+    $('#regDept, #regEmployee, #regStatus').on('change', function () { loadRegister(1); });
 });
 
-function loadRegister() {
-    var q = '?from=' + $('#regFrom').val() + '&to=' + $('#regTo').val();
+/* Builds the filter query; pageSize 0 asks the server for the whole range (used by export). */
+function regQuery(page, pageSize) {
+    var q = '?from=' + $('#regFrom').val() + '&to=' + $('#regTo').val()
+          + '&page=' + page + '&pageSize=' + pageSize;
     if ($('#regDept').val())     q += '&departmentId=' + encodeURIComponent($('#regDept').val());
     if ($('#regEmployee').val()) q += '&employeeId=' + encodeURIComponent($('#regEmployee').val());
     if ($('#regStatus').val())   q += '&status=' + encodeURIComponent($('#regStatus').val());
+    return q;
+}
+
+function loadRegister(page) {
+    regPage = amsPageNo(page, regPage);
 
     $('#regBody').html('<tr><td colspan="12" class="text-center py-4 text-muted">Loading…</td></tr>');
 
-    $.getJSON('/api/overtime/register' + q, function (d) { regData = d; renderRegister(); })
+    $.getJSON('/api/overtime/register' + regQuery(regPage, amsPageSize() || 25),
+        function (d) { regData = d; renderRegister(); })
      .fail(function (xhr) {
          $('#regBody').html('<tr><td colspan="12" class="text-danger text-center py-3">'
              + esc(xhr.responseText || 'Failed to load the overtime register.') + '</td></tr>');
@@ -50,8 +59,9 @@ function statusBadge(s) {
 function renderRegister() {
     if (!regData) return;
 
+    // Tiles describe the whole filtered range, aggregated server-side — not this page.
     $('#regStats').html(
-        regTile('Claims', regData.Rows.length, 'primary')
+        regTile('Claims', regData.TotalCount, 'primary')
       + regTile('Pending', regData.PendingCount, 'warning')
       + regTile('Approved', regData.TotalApprovedDisplay, 'success')
       + regTile('Weighted hours', regData.TotalWeightedHours.toFixed(2) + ' h', 'info'));
@@ -89,20 +99,45 @@ function renderRegister() {
                     : '')
               + '</td>'
             + '</tr>';
-    }, { colspan: 12, empty: 'No overtime recorded in this range.', label: 'claim' });
+    }, {
+        colspan: 12,
+        empty: 'No overtime recorded in this range.',
+        label: 'claim',
+        server: {
+            total: regData.TotalCount,
+            page: regData.Page,
+            pageSize: regData.PageSize,
+            onPage: loadRegister
+        }
+    });
 }
 
-/* Built in the browser from what is already on screen — the register is a filtered view,
-   and exporting anything other than exactly what the user is looking at invites mistakes. */
+/*
+ * Exports the whole filtered range, not the page on screen.
+ *
+ * Now that the table is server-paged, "export what you can see" would silently produce a
+ * 25-row file from a 4,000-row range — so the export re-requests the same filters with paging
+ * switched off (pageSize=0) and writes that.
+ */
 function exportRegister() {
-    if (!regData || !regData.Rows.length) { notifyError('Nothing to export.'); return; }
+    if (!regData || !regData.TotalCount) { notifyError('Nothing to export.'); return; }
+
+    $.getJSON('/api/overtime/register' + regQuery(1, 0), function (all) {
+        writeRegisterCsv(all.Rows || []);
+    }).fail(function (xhr) {
+        notifyError(xhr.responseText || 'Export failed.');
+    });
+}
+
+function writeRegisterCsv(rows) {
+    if (!rows.length) { notifyError('Nothing to export.'); return; }
 
     var header = ['Date', 'Day', 'Employee Code', 'Employee', 'Department', 'Shift',
                   'Check In', 'Check Out', 'Day Type', 'Raw Minutes', 'Claimed Minutes',
                   'Approved Minutes', 'Rate', 'Weighted Hours', 'Status', 'Rule',
                   'Decided By', 'Decided At', 'Reason'];
 
-    var rows = regData.Rows.map(function (r) {
+    var body = rows.map(function (r) {
         return [r.DateDisplay, r.DayName, r.EmployeeCode, r.EmployeeName, r.Department,
                 r.ShiftName || '', r.CheckInDisplay || '', r.CheckOutDisplay || '',
                 r.DayTypeDisplay, r.RawMinutes, r.ClaimedMinutes,
@@ -120,7 +155,7 @@ function exportRegister() {
         return '"' + s.replace(/"/g, '""') + '"';
     };
 
-    var csv = [header].concat(rows).map(function (r) { return r.map(cell).join(','); }).join('\r\n');
+    var csv = [header].concat(body).map(function (r) { return r.map(cell).join(','); }).join('\r\n');
     // BOM so Excel reads it as UTF-8 rather than the system codepage.
     var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
 

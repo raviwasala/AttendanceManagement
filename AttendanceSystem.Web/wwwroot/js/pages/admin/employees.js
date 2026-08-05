@@ -1,8 +1,15 @@
 /* ── Admin Employees Management JavaScript ── */
 
-var allEmps = [], depts = [], desigs = [], branches = [];
+var empData = null, empPage = 1, depts = [], desigs = [], branches = [];
+var empSearchTimer = null;
 
 $(function () {
+    // Search is a round trip now, so it is debounced rather than firing per keystroke.
+    $('#searchBox').on('input', function () {
+        clearTimeout(empSearchTimer);
+        empSearchTimer = setTimeout(function () { loadEmps(1); }, 300);
+    });
+
     $.when(
         $.getJSON('/api/departments', function (d) { depts = (d || []).filter(function(x){ return x.IsActive || x.isActive; }); }),
         $.getJSON('/api/designations', function (d) { desigs = (d || []).filter(function(x){ return x.IsActive || x.isActive; }); }),
@@ -19,15 +26,36 @@ $(function () {
     });
 });
 
-function loadEmps() {
-    // filterTable rather than renderTable: after a save, delete or activate the table must
-    // still honour the search and filters the user has set, not silently reset to everything.
-    $.getJSON('/api/employees', function (d) { allEmps = d || []; filterTable(); })
-     .fail(function () { $('#empBody').html('<tr><td colspan="8" class="text-danger text-center py-3">Failed to load.</td></tr>'); });
+/*
+ * Server-paged: search, department and status are applied in SQL and only one page of rows
+ * reaches the browser. Headcount can grow without the screen getting slower.
+ */
+function loadEmps(page) {
+    empPage = amsPageNo(page, empPage);
+
+    var q = ($('#searchBox').val() || '').trim();
+    var dept = $('#deptFilter').val();
+    var status = $('#statusFilter').val();
+
+    var url = '/api/employees/paged?page=' + empPage + '&pageSize=' + (amsPageSize() || 25)
+            + (q ? '&search=' + encodeURIComponent(q) : '')
+            + (dept ? '&departmentId=' + encodeURIComponent(dept) : '')
+            // '' means All; only send the flag when one of the two states is chosen.
+            + (status === '' ? '' : '&isActive=' + encodeURIComponent(status));
+
+    $('#empBody').html('<tr><td colspan="8" class="text-center py-4 text-muted">Loading…</td></tr>');
+
+    $.getJSON(url, function (d) { empData = d; renderTable(); })
+     .fail(function (xhr) {
+         $('#empBody').html('<tr><td colspan="8" class="text-danger text-center py-3">'
+             + esc(xhr.responseText || 'Failed to load employees.') + '</td></tr>');
+     });
 }
 
-function renderTable(data) {
-    amsPage('#empBody', data, function (e) {
+function renderTable() {
+    var data = empData || { Items: [], TotalCount: 0, Page: 1, PageSize: 25 };
+
+    amsPage('#empBody', data.Items, function (e) {
         return '<tr>'
             + '<td class="fw-semibold text-primary">' + esc(e.EmployeeCode) + '</td>'
             + '<td>' + esc(e.FullName) + '</td>'
@@ -45,18 +73,22 @@ function renderTable(data) {
             + '<button class="btn btn-sm btn-outline-' + (e.IsActive ? 'warning' : 'success') + ' me-1" title="' + (e.IsActive ? 'Deactivate' : 'Activate') + '" onclick="toggleEmp(' + e.Id + ')"><i class="fa fa-' + (e.IsActive ? 'toggle-on' : 'toggle-off') + '"></i></button>'
             + '<button class="btn btn-sm btn-outline-danger" onclick="deleteEmp(' + e.Id + ')" title="Delete"><i class="fa fa-trash"></i></button>'
             + '</td></tr>';
-    }, { colspan: 8, empty: 'No employees found.', label: 'employee' });
+    }, {
+        colspan: 8,
+        empty: 'No employees match these filters.',
+        label: 'employee',
+        server: {
+            total: data.TotalCount,
+            page: data.Page,
+            pageSize: data.PageSize,
+            onPage: loadEmps
+        }
+    });
 }
 
+/* Kept as the name every filter control already calls; a filter change goes back to page 1. */
 function filterTable() {
-    var q = $('#searchBox').val().toLowerCase();
-    var dept = $('#deptFilter').val();
-    var s = $('#statusFilter').val();
-    renderTable(allEmps.filter(function (e) {
-        return (!q || e.FullName.toLowerCase().includes(q) || e.EmployeeCode.toLowerCase().includes(q) || (e.Email||'').toLowerCase().includes(q))
-            && (!dept || String(e.DepartmentId) === dept || e.Department.includes($('#deptFilter option:selected').text()))
-            && (s === '' || String(e.IsActive) === s);
-    }));
+    loadEmps(1);
 }
 
 function fillDropdowns() {

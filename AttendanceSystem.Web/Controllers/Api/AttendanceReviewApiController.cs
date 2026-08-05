@@ -1,5 +1,6 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Common.Models;
 using AttendanceSystem.Web.Filters;
 using Microsoft.AspNetCore.Mvc;
 using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
@@ -29,13 +30,17 @@ public class AttendanceReviewApiController : ApiControllerBase
     public async Task<IActionResult> Get(
         [FromQuery] DateTime? from, [FromQuery] DateTime? to,
         [FromQuery] int? employeeId, [FromQuery] int? departmentId,
-        [FromQuery] DateTime? date)
+        [FromQuery] DateTime? date,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = PageRequest.DefaultPageSize)
     {
         // `date` is kept for callers that only want a single day; from/to take precedence.
         var start = from ?? date ?? DateTime.Today;
         var end = to ?? date ?? start;
 
-        var r = await _review.GetReviewAsync(start, end, employeeId, departmentId);
+        var r = await _review.GetReviewAsync(start, end, employeeId, departmentId,
+            new PageRequest { Page = page, PageSize = pageSize });
+
         return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
     }
 

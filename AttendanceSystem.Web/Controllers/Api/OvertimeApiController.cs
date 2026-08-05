@@ -1,5 +1,6 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Common.Models;
 using AttendanceSystem.Domain.Enums;
 using AttendanceSystem.Web.Filters;
 using Microsoft.AspNetCore.Mvc;
@@ -75,10 +76,13 @@ public class OvertimeApiController : ApiControllerBase
     public async Task<IActionResult> Register(
         [FromQuery] DateTime? from, [FromQuery] DateTime? to,
         [FromQuery] int? employeeId, [FromQuery] int? departmentId,
-        [FromQuery] OvertimeStatus? status)
+        [FromQuery] OvertimeStatus? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = PageRequest.DefaultPageSize)
     {
         var (start, end) = DefaultRange(from, to);
-        var r = await _svc.GetRegisterAsync(start, end, employeeId, departmentId, status);
+        var r = await _svc.GetRegisterAsync(start, end, employeeId, departmentId, status,
+            new PageRequest { Page = page, PageSize = pageSize });
         return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
     }
 
