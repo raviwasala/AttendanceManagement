@@ -50,18 +50,65 @@ function actionBadge(a) {
     return '<span class="badge bg-' + (map[a] || 'light text-dark') + '">' + esc(a) + '</span>';
 }
 
-/** Values are stored as JSON strings; show them readably but never as markup. */
+function parseJson(v) {
+    if (!v) return null;
+    try { return JSON.parse(v); } catch (e) { return null; }
+}
+
+function fmtValue(v) {
+    if (v === null || v === undefined || v === '') return '<em class="text-muted">empty</em>';
+    if (v === true) return 'yes';
+    if (v === false) return 'no';
+    if (Array.isArray(v)) return esc(v.join(', '));
+    if (typeof v === 'object') return esc(JSON.stringify(v));
+    return esc(v);
+}
+
+/*
+ * Renders the before/after pair as a field-level diff.
+ *
+ * The service stores only the fields that actually changed, with the same keys on both sides,
+ * so this can line them up as "Field: old → new" instead of asking the reader to spot the
+ * difference between two thirty-line JSON dumps. Creates have no old side and deletes have no
+ * new one; both fall back to a plain list.
+ */
 function changeCell(r) {
-    if (!r.OldValues && !r.NewValues) return '<span class="text-muted">—</span>';
-    var pretty = function (v) {
-        if (!v) return '';
-        try { return JSON.stringify(JSON.parse(v), null, 1); } catch (e) { return v; }
-    };
-    var body = (r.OldValues ? 'before: ' + pretty(r.OldValues) + '\n' : '')
-             + (r.NewValues ? 'after: ' + pretty(r.NewValues) : '');
-    return '<details><summary class="small text-primary" style="cursor:pointer;">view</summary>'
-         + '<pre class="small mb-0 mt-1" style="white-space:pre-wrap;max-width:420px;">'
-         + esc(body) + '</pre></details>';
+    var oldV = parseJson(r.OldValues);
+    var newV = parseJson(r.NewValues);
+
+    if (!oldV && !newV) {
+        // Older entries, and the few places that record free text rather than JSON.
+        var raw = r.NewValues || r.OldValues;
+        return raw
+            ? '<span class="small text-muted">' + esc(raw) + '</span>'
+            : '<span class="text-muted">—</span>';
+    }
+
+    var keys = Object.keys(Object.assign({}, oldV || {}, newV || {}));
+    if (!keys.length) return '<span class="text-muted">—</span>';
+
+    var rows = keys.map(function (k) {
+        var a = oldV ? oldV[k] : undefined;
+        var b = newV ? newV[k] : undefined;
+
+        // One-sided: a create or a delete. Show the value, not a "→ nothing" arrow that
+        // implies the field was cleared.
+        if (!oldV || !newV) {
+            return '<tr><td class="pe-2 text-muted">' + esc(k) + '</td>'
+                 + '<td colspan="2">' + fmtValue(oldV ? a : b) + '</td></tr>';
+        }
+        return '<tr><td class="pe-2 text-muted">' + esc(k) + '</td>'
+             + '<td class="pe-2"><s class="text-danger">' + fmtValue(a) + '</s></td>'
+             + '<td class="text-success fw-semibold">' + fmtValue(b) + '</td></tr>';
+    }).join('');
+
+    var label = !oldV ? keys.length + ' field' + (keys.length === 1 ? '' : 's') + ' set'
+              : !newV ? keys.length + ' field' + (keys.length === 1 ? '' : 's') + ' removed'
+              : keys.length + ' change' + (keys.length === 1 ? '' : 's');
+
+    return '<details><summary class="small text-primary" style="cursor:pointer;">' + label + '</summary>'
+         + '<table class="table table-sm table-borderless mb-0 mt-1" style="font-size:.72rem;">'
+         + rows + '</table></details>';
 }
 
 function renderAudit(data) {

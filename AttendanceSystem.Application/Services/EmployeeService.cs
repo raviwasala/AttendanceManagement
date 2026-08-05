@@ -123,7 +123,8 @@ public class EmployeeService : IEmployeeService
                 };
                 await _uow.Employees.AddAsync(emp);
                 await _uow.SaveChangesAsync();
-                await _audit.LogAsync("Employees", "Create", _currentUser.UserId, "Employee", emp.Id);
+                await _audit.LogAsync("Employees", "Create", _currentUser.UserId, "Employee", emp.Id,
+                    newValues: AuditSnapshot.Snapshot(emp));
                 return await GetByIdAsync(emp.Id);
             }
             else
@@ -131,6 +132,8 @@ public class EmployeeService : IEmployeeService
                 // Update
                 var emp = await _uow.Employees.GetByIdAsync(dto.Id);
                 if (emp == null) return Result<EmployeeDto>.Failure("Employee not found.");
+
+                var before = AuditSnapshot.Capture(emp);
 
                 emp.FirstName = dto.FirstName.Trim();
                 emp.LastName = dto.LastName.Trim();
@@ -151,7 +154,10 @@ public class EmployeeService : IEmployeeService
 
                 await _uow.Employees.UpdateAsync(emp);
                 await _uow.SaveChangesAsync();
-                await _audit.LogAsync("Employees", "Update", _currentUser.UserId, "Employee", emp.Id);
+
+                var (oldValues, newValues) = AuditSnapshot.DiffAgainst(before, emp);
+                await _audit.LogAsync("Employees", "Update", _currentUser.UserId, "Employee", emp.Id,
+                    oldValues, newValues);
                 return await GetByIdAsync(emp.Id);
             }
         }
@@ -168,11 +174,16 @@ public class EmployeeService : IEmployeeService
         {
             var emp = await _uow.Employees.GetByIdAsync(id);
             if (emp == null) return Result.Failure("Employee not found.");
+
+            // Soft delete hides the row from every screen, so the audit entry is the only place
+            // the record's contents remain visible.
+            var deleted = AuditSnapshot.Snapshot(emp);
+
             emp.IsDeleted = true;
             emp.ModifiedBy = deletedBy;
             emp.ModifiedAt = DateTime.Now;
             await _uow.SaveChangesAsync();
-            await _audit.LogAsync("Employees", "Delete", deletedBy, "Employee", id);
+            await _audit.LogAsync("Employees", "Delete", deletedBy, "Employee", id, deleted);
             return Result.Success();
         }
         catch (Exception ex)

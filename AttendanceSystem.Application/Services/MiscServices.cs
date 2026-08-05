@@ -1,5 +1,6 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Common.Constants;
 using AttendanceSystem.Common.Logging;
 using AttendanceSystem.Common.Models;
 using AttendanceSystem.Common.Session;
@@ -94,7 +95,13 @@ public class HolidayService : IHolidayService
 public class SettingsService : ISettingsService
 {
     private readonly IUnitOfWork _uow;
-    public SettingsService(IUnitOfWork uow) => _uow = uow;
+    private readonly IAuditService _audit;
+
+    public SettingsService(IUnitOfWork uow, IAuditService audit)
+    {
+        _uow = uow;
+        _audit = audit;
+    }
 
     public async Task<Result<CompanySettingsDto>> GetAsync()
     {
@@ -119,6 +126,11 @@ public class SettingsService : ISettingsService
                 entity = new CompanySettings();
                 await _uow.CompanySettings.AddAsync(entity);
             }
+
+            // Working hours and the late tolerance live here, so a settings change moves numbers
+            // on everyone's record. Nothing was audited at all before.
+            var before = AuditSnapshot.Capture(entity);
+
             entity.CompanyName = dto.CompanyName; entity.Address = dto.Address;
             entity.Phone = dto.Phone; entity.Email = dto.Email; entity.Website = dto.Website;
             entity.LogoPath = dto.LogoPath; entity.WorkStartTime = dto.WorkStartTime;
@@ -131,6 +143,11 @@ public class SettingsService : ISettingsService
             entity.ModifiedBy = modifiedBy; entity.ModifiedAt = DateTime.Now;
             await _uow.CompanySettings.UpdateAsync(entity);
             await _uow.SaveChangesAsync();
+
+            var (oldValues, newValues) = AuditSnapshot.DiffAgainst(before, entity);
+            await _audit.LogAsync(AppConstants.Modules.Settings, "Update", modifiedBy,
+                nameof(CompanySettings), entity.Id, oldValues, newValues);
+
             return Result.Success();
         }
         catch (Exception ex) { return Result.Failure(ex.Message); }

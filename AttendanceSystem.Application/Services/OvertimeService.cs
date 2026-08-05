@@ -98,6 +98,8 @@ public class OvertimeService : IOvertimeService
                 return Result<OvertimeRuleDto>.Failure($"A rule named '{name}' already exists.");
 
             OvertimeRule entity;
+            Dictionary<string, object?>? before = null;
+
             if (dto.Id == 0)
             {
                 entity = new OvertimeRule
@@ -114,6 +116,10 @@ public class OvertimeService : IOvertimeService
                 if (entity == null || entity.IsDeleted)
                     return Result<OvertimeRuleDto>.Failure("Overtime rule not found.");
 
+                // Changing a multiplier or a cap restates what future overtime is worth, so the
+                // old figures have to survive somewhere.
+                before = AuditSnapshot.Capture(entity);
+
                 ApplyTo(entity, dto, name);
                 entity.ModifiedBy = _currentUser.UserId;
                 entity.ModifiedAt = DateTime.Now;
@@ -121,8 +127,13 @@ public class OvertimeService : IOvertimeService
             }
 
             await _uow.SaveChangesAsync();
+
+            var (oldValues, newValues) = before == null
+                ? (null, AuditSnapshot.Snapshot(entity))
+                : AuditSnapshot.DiffAgainst(before, entity);
+
             await _audit.LogAsync(AppConstants.Modules.Overtime, dto.Id == 0 ? "CreateRule" : "UpdateRule",
-                _currentUser.UserId, nameof(OvertimeRule), entity.Id);
+                _currentUser.UserId, nameof(OvertimeRule), entity.Id, oldValues, newValues);
 
             return await GetRuleByIdAsync(entity.Id);
         }
@@ -140,6 +151,8 @@ public class OvertimeService : IOvertimeService
             var rule = await _uow.OvertimeRules.GetByIdAsync(id);
             if (rule == null || rule.IsDeleted) return Result.Failure("Overtime rule not found.");
 
+            var deleted = AuditSnapshot.Snapshot(rule);
+
             // Claims keep their copied RuleName and RateMultiplier, so deleting a rule cannot
             // restate overtime that was already approved under it.
             rule.IsDeleted = true;
@@ -149,7 +162,7 @@ public class OvertimeService : IOvertimeService
             await _uow.SaveChangesAsync();
 
             await _audit.LogAsync(AppConstants.Modules.Overtime, "DeleteRule",
-                _currentUser.UserId, nameof(OvertimeRule), id);
+                _currentUser.UserId, nameof(OvertimeRule), id, deleted);
             return Result.Success();
         }
         catch (Exception ex)
@@ -412,9 +425,12 @@ public class OvertimeService : IOvertimeService
 
             var now = DateTime.Now;
             var changed = 0;
+            var diffs = new List<(int Id, string? Old, string? New)>();
 
             foreach (var r in records)
             {
+                var before = AuditSnapshot.Capture(r);
+
                 if (dto.Approve)
                 {
                     var minutes = dto.ApprovedMinutes ?? r.ClaimedMinutes;
@@ -440,13 +456,21 @@ public class OvertimeService : IOvertimeService
                 r.ModifiedAt = now;
 
                 await _uow.OvertimeRecords.UpdateAsync(r);
+
+                var (oldValues, newValues) = AuditSnapshot.DiffAgainst(before, r);
+                diffs.Add((r.Id, oldValues, newValues));
                 changed++;
             }
 
             await _uow.SaveChangesAsync();
-            await _audit.LogAsync(AppConstants.Modules.Overtime, dto.Approve ? "Approve" : "Reject",
-                _currentUser.UserId, nameof(OvertimeRecord),
-                newValues: $"{changed} claim(s): {string.Join(",", ids)}");
+            // One entry per claim rather than one for the batch. A bulk approval of forty claims
+            // recorded as a single line cannot answer "who authorised this person's overtime",
+            // which is the only question anyone asks of this trail.
+            foreach (var (recordId, oldValues, newValues) in diffs)
+            {
+                await _audit.LogAsync(AppConstants.Modules.Overtime, dto.Approve ? "Approve" : "Reject",
+                    _currentUser.UserId, nameof(OvertimeRecord), recordId, oldValues, newValues);
+            }
 
             return Result<int>.Success(changed);
         }

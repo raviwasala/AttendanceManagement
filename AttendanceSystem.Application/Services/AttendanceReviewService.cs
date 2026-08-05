@@ -224,18 +224,26 @@ public class AttendanceReviewService : IAttendanceReviewService
             {
                 if (log != null)
                 {
+                    // The whole record goes in OldValues: after this there is nothing left to
+                    // compare against, and "what was deleted" is the entire point of the entry.
+                    var cleared = AuditSnapshot.Snapshot(log);
+
                     log.IsDeleted = true;
                     log.ModifiedBy = _currentUser.UserId;
                     log.ModifiedAt = DateTime.Now;
                     await _uow.Attendance.UpdateAsync(log);
                     await _uow.SaveChangesAsync();
                     await _audit.LogAsync(AppConstants.Modules.Attendance, "ClearEntry",
-                        _currentUser.UserId, nameof(AttendanceLog), log.Id);
+                        _currentUser.UserId, nameof(AttendanceLog), log.Id, cleared);
                 }
                 return await SingleRowAsync(dto.EmployeeId, day);
             }
 
             var isNew = log == null;
+            // Captured before the edits below so the diff shows the times as the device
+            // recorded them, against what a person changed them to.
+            var before = isNew ? null : AuditSnapshot.Capture(log);
+
             if (isNew)
             {
                 log = new AttendanceLog
@@ -266,8 +274,14 @@ public class AttendanceReviewService : IAttendanceReviewService
             }
 
             await _uow.SaveChangesAsync();
+
+            // A create has no "before", so the new record is recorded whole.
+            var (oldValues, newValues) = isNew
+                ? (null, AuditSnapshot.Snapshot(log))
+                : AuditSnapshot.DiffAgainst(before!, log);
+
             await _audit.LogAsync(AppConstants.Modules.Attendance, isNew ? "CreateEntry" : "EditEntry",
-                _currentUser.UserId, nameof(AttendanceLog), log.Id);
+                _currentUser.UserId, nameof(AttendanceLog), log.Id, oldValues, newValues);
 
             return await SingleRowAsync(dto.EmployeeId, day);
         }

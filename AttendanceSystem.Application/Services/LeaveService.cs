@@ -172,6 +172,8 @@ public class LeaveService : ILeaveService
             if (entity == null) return Result.Failure("Leave request not found.");
             if (entity.Status != LeaveStatus.Pending) return Result.Failure("Only pending requests can be approved or rejected.");
 
+            var before = AuditSnapshot.Capture(entity);
+
             entity.Status = dto.IsApproved ? LeaveStatus.Approved : LeaveStatus.Rejected;
             entity.ApprovedBy = actionBy; entity.ApprovedAt = DateTime.Now;
             if (!dto.IsApproved) entity.RejectionReason = dto.RejectionReason;
@@ -180,7 +182,9 @@ public class LeaveService : ILeaveService
             await _uow.SaveChangesAsync();
 
             var action = dto.IsApproved ? "Approve" : "Reject";
-            await _audit.LogAsync("Leave", action, actionBy, "LeaveRequest", entity.Id);
+            var (oldValues, newValues) = AuditSnapshot.DiffAgainst(before, entity);
+            await _audit.LogAsync("Leave", action, actionBy, "LeaveRequest", entity.Id,
+                oldValues, newValues);
             return Result.Success();
         }
         catch (Exception ex) { return Result.Failure(ex.Message); }

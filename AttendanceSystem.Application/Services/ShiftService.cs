@@ -95,13 +95,18 @@ public class ShiftService : IShiftService
                 };
                 await _uow.Shifts.AddAsync(entity);
                 await _uow.SaveChangesAsync();
-                await _audit.LogAsync("Shifts", "Create", _currentUser.UserId, "Shift", entity.Id);
+                await _audit.LogAsync("Shifts", "Create", _currentUser.UserId, "Shift", entity.Id,
+                    newValues: AuditSnapshot.Snapshot(entity));
                 return Result<ShiftDto>.Success(MapShift(entity));
             }
             else
             {
                 var entity = await _uow.Shifts.GetByIdAsync(dto.Id);
                 if (entity == null) return Result<ShiftDto>.Failure("Shift not found.");
+
+                // A shift edit silently restates lateness and overtime for everyone on it, so
+                // the before/after matters more here than on most records.
+                var before = AuditSnapshot.Capture(entity);
 
                 entity.ShiftCode = dto.ShiftCode?.Trim();
                 entity.Name = dto.Name.Trim(); entity.StartTime = dto.StartTime; entity.EndTime = dto.EndTime;
@@ -118,7 +123,10 @@ public class ShiftService : IShiftService
 
                 await _uow.Shifts.UpdateAsync(entity);
                 await _uow.SaveChangesAsync();
-                await _audit.LogAsync("Shifts", "Update", _currentUser.UserId, "Shift", entity.Id);
+
+                var (oldValues, newValues) = AuditSnapshot.DiffAgainst(before, entity);
+                await _audit.LogAsync("Shifts", "Update", _currentUser.UserId, "Shift", entity.Id,
+                    oldValues, newValues);
                 return Result<ShiftDto>.Success(MapShift(entity));
             }
         }
@@ -133,9 +141,16 @@ public class ShiftService : IShiftService
             if (assigned.Any()) return Result.Failure("Cannot delete — shift is assigned to employees.");
             var entity = await _uow.Shifts.GetByIdAsync(id);
             if (entity == null) return Result.Failure("Shift not found.");
+
+            var deleted = AuditSnapshot.Snapshot(entity);
+
             entity.IsDeleted = true; entity.ModifiedBy = deletedBy; entity.ModifiedAt = DateTime.Now;
             await _uow.Shifts.UpdateAsync(entity);
             await _uow.SaveChangesAsync();
+
+            // Deleting a shift was not audited at all — the one operation here that destroys a
+            // definition other records point at.
+            await _audit.LogAsync("Shifts", "Delete", deletedBy, "Shift", id, deleted);
             return Result.Success();
         }
         catch (Exception ex) { return Result.Failure(ex.Message); }

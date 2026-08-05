@@ -1,5 +1,7 @@
+using System.Text.Json;
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Common.Constants;
 using AttendanceSystem.Common.Helpers;
 using AttendanceSystem.Common.Logging;
 using AttendanceSystem.Common.Models;
@@ -60,7 +62,10 @@ public class UserService : IUserService
             };
             await _uow.Users.AddAsync(user);
             await _uow.SaveChangesAsync();
-            await _audit.LogAsync("Users", "Create", _currentUser.UserId, "User", user.Id);
+            // AuditSnapshot drops anything whose name looks like a secret, so PasswordHash and
+            // the remember-me/reset token hashes never reach the audit table.
+            await _audit.LogAsync("Users", "Create", _currentUser.UserId, "User", user.Id,
+                newValues: AuditSnapshot.Snapshot(user));
             return Result<UserDto>.Success(Map(user));
         }
         catch (Exception ex) { AppLogger.Error("UserService.CreateAsync", ex); return Result<UserDto>.Failure(ex.Message); }
@@ -72,12 +77,19 @@ public class UserService : IUserService
         {
             var user = await _uow.Users.GetByIdAsync(dto.Id);
             if (user == null) return Result.Failure("User not found.");
+
+            // RoleId changes are the interesting ones here — this is how somebody gains rights.
+            var before = AuditSnapshot.Capture(user);
+
             user.Email = dto.Email.Trim(); user.FullName = dto.FullName.Trim();
             user.RoleId = dto.RoleId; user.EmployeeId = dto.EmployeeId; user.IsActive = dto.IsActive;
             user.ModifiedBy = _currentUser.UserId; user.ModifiedAt = DateTime.Now;
             await _uow.Users.UpdateAsync(user);
             await _uow.SaveChangesAsync();
-            await _audit.LogAsync("Users", "Update", _currentUser.UserId, "User", dto.Id);
+
+            var (oldValues, newValues) = AuditSnapshot.DiffAgainst(before, user);
+            await _audit.LogAsync("Users", "Update", _currentUser.UserId, "User", dto.Id,
+                oldValues, newValues);
             return Result.Success();
         }
         catch (Exception ex) { return Result.Failure(ex.Message); }
@@ -145,7 +157,14 @@ public class RoleService : IRoleService
 {
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _currentUser;
-    public RoleService(IUnitOfWork uow, ICurrentUserContext currentUser) { _uow = uow; _currentUser = currentUser; }
+    private readonly IAuditService _audit;
+
+    public RoleService(IUnitOfWork uow, ICurrentUserContext currentUser, IAuditService audit)
+    {
+        _uow = uow;
+        _currentUser = currentUser;
+        _audit = audit;
+    }
 
     public async Task<Result<IEnumerable<RoleDto>>> GetAllAsync()
     {
@@ -248,12 +267,49 @@ public class RoleService : IRoleService
         }
     }
 
+    /// <summary>
+    /// Replaces a role's permissions.
+    ///
+    /// Audited as granted/revoked permission <em>keys</em> rather than ids: "Overtime.Approve"
+    /// answers the question an auditor is actually asking, where "61" needs a lookup against a
+    /// table that may have been renumbered since. Nothing about this operation was recorded
+    /// before — granting rights was the least traceable action in the system.
+    /// </summary>
     public async Task<Result> SavePermissionsAsync(int roleId, IEnumerable<int> permissionIds)
     {
         try
         {
-            await _uow.SavePermissionsAsync(roleId, permissionIds);
+            var requested = permissionIds?.Distinct().ToHashSet() ?? [];
+
+            var allPermissions = (await _uow.Permissions.GetAllAsync())
+                .ToDictionary(p => p.Id, p => $"{p.Module}.{p.Action}");
+            var currentIds = (await _uow.GetRolePermissionsAsync(roleId))
+                .Select(rp => rp.PermissionId).ToHashSet();
+
+            var granted = requested.Except(currentIds)
+                .Select(id => allPermissions.TryGetValue(id, out var k) ? k : $"#{id}")
+                .OrderBy(k => k).ToList();
+            var revoked = currentIds.Except(requested)
+                .Select(id => allPermissions.TryGetValue(id, out var k) ? k : $"#{id}")
+                .OrderBy(k => k).ToList();
+
+            await _uow.SavePermissionsAsync(roleId, requested);
             await _uow.SaveChangesAsync();
+
+            // A save that changed nothing is not worth an entry.
+            if (granted.Count > 0 || revoked.Count > 0)
+            {
+                var role = await _uow.Roles.GetByIdAsync(roleId);
+                await _audit.LogAsync(AppConstants.Modules.Roles, "UpdatePermissions",
+                    _currentUser.UserId, nameof(Role), roleId,
+                    oldValues: revoked.Count > 0
+                        ? JsonSerializer.Serialize(new { Role = role?.Name, Revoked = revoked })
+                        : null,
+                    newValues: granted.Count > 0
+                        ? JsonSerializer.Serialize(new { Role = role?.Name, Granted = granted })
+                        : null);
+            }
+
             return Result.Success();
         }
         catch (Exception ex)

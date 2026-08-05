@@ -100,6 +100,11 @@ public class AttendanceService : IAttendanceService
         {
             var log = await _uow.Attendance.GetByIdAsync(dto.Id);
             if (log == null) return Result.Failure("Attendance record not found.");
+
+            // Snapshot before anything is touched: correcting a punch changes what somebody is
+            // paid, so the trail has to show what the times were before the correction.
+            var before = AuditSnapshot.Capture(log);
+
             log.CheckIn = dto.CheckIn; log.CheckOut = dto.CheckOut; log.Status = dto.Status;
             if (dto.Remarks != null) log.Remarks = dto.Remarks;
             log.WorkingHours = log.CheckIn.HasValue && log.CheckOut.HasValue
@@ -115,7 +120,10 @@ public class AttendanceService : IAttendanceService
             log.ModifiedBy = modifiedBy; log.ModifiedAt = DateTime.Now;
             await _uow.Attendance.UpdateAsync(log);
             await _uow.SaveChangesAsync();
-            await _audit.LogAsync("Attendance", "Edit", modifiedBy, "AttendanceLog", log.Id);
+
+            var (oldValues, newValues) = AuditSnapshot.DiffAgainst(before, log);
+            await _audit.LogAsync("Attendance", "Edit", modifiedBy, "AttendanceLog", log.Id,
+                oldValues, newValues);
             return Result.Success();
         }
         catch (Exception ex) { AppLogger.Error("AttendanceService.EditAsync", ex); return Result.Failure(ex.Message); }
