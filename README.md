@@ -15,10 +15,12 @@ Employee attendance, leave and shift management. Two front-ends share one applic
 
 | Document | Audience |
 |---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layering, data access, authorization model, domain rules, known issues |
-| [docs/DEVELOPER-GUIDE.md](docs/DEVELOPER-GUIDE.md) | Setup, migrations, adding a feature, conventions, troubleshooting |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layering, data access, authorization model, attendance rules, known issues |
+| [docs/DEVELOPER-GUIDE.md](docs/DEVELOPER-GUIDE.md) | Dev setup, migrations, adding a feature, conventions, troubleshooting |
 | [docs/USER-GUIDE.md](docs/USER-GUIDE.md) | Day-to-day use for administrators, HR staff and employees |
-| [docs/DEVICE-INTEGRATION-DESIGN.md](docs/DEVICE-INTEGRATION-DESIGN.md) | ZKTeco TCP/IP fingerprint device module — design proposal, not yet built |
+| [docs/DEVICE-INTEGRATION-DESIGN.md](docs/DEVICE-INTEGRATION-DESIGN.md) | ZKTeco fingerprint device module — design, and what is built so far |
+| [DEPARTMENT_SHIFT_MANAGEMENT.md](DEPARTMENT_SHIFT_MANAGEMENT.md) | Branches, departments, designations, shifts and the roster |
+| [SETUP_COMPLETE.md](SETUP_COMPLETE.md) | Installation and production deployment |
 
 ---
 
@@ -131,6 +133,13 @@ by every concurrent request.
 ## Running
 
 ```powershell
-dotnet run --project AttendanceSystem.Web          # web
-dotnet run --project AttendanceManagementSystem    # desktop
+dotnet run --project AttendanceSystem.Web --launch-profile https   # https://localhost:7151
+dotnet run --project AttendanceManagementSystem                    # desktop
 ```
+
+**Use HTTPS.** The session cookie is issued `Secure`, so over plain HTTP you appear to sign in
+and are returned straight to the login page. The `http` profile (`http://localhost:5086`) is
+fine for hitting API endpoints, but not for a login flow.
+
+The database is created and migrated on first run. Sign in as `admin` / `Admin@123` and change
+it immediately.

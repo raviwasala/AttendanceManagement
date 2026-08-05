@@ -1,393 +1,179 @@
-# ✅ ASP.NET Core MVC Web Project - Setup Complete!
+# Installation & Deployment
 
-## 🎉 What Was Created
+Getting the Attendance Management System onto a server and running it in production.
 
-### 📦 New Project: **AttendanceSystem.Web**
-A complete ASP.NET Core MVC application targeting **.NET 10** with a professional admin template.
+For a development machine see [docs/DEVELOPER-GUIDE.md](docs/DEVELOPER-GUIDE.md) §2 — that is a
+different, simpler path. For day-to-day operation see [docs/USER-GUIDE.md](docs/USER-GUIDE.md).
+
+> **Filename note:** this file was previously a build-status snapshot. The name is kept so
+> existing links still resolve; `DEPLOYMENT.md` would describe it better if you want to rename it.
 
 ---
 
-## 📂 Project Structure
+## 1. What you are deploying
 
-```
-AttendanceSystem.Web/
-├── 🎮 Controllers/
-│   ├── HomeController.cs (Default home page)
-│   └── AdminController.cs (Admin dashboard controller with routing)
-│
-├── 🎨 Views/
-│   ├── Admin/
-│   │   ├── Index.cshtml ⭐ (Dashboard with KPI cards, quick actions, activity)
-│   │   ├── Users.cshtml ⭐ (User management with add/edit modal)
-│   │   ├── Attendance.cshtml ⭐ (Attendance records with filters)
-│   │   ├── Import.cshtml ⭐ (Biometric data import with progress)
-│   │   ├── Reports.cshtml ⭐ (Reports with Chart.js visualizations)
-│   │   └── Settings.cshtml ⭐ (6 settings tabs: General, DB, Email, Biometric, Security, Backup)
-│   ├── Home/
-│   │   ├── Index.cshtml
-│   │   └── Privacy.cshtml
-│   └── Shared/
-│       ├── _Layout.cshtml ✨ (Enhanced with Font Awesome, sidebar, gradient navbar)
-│       └── _ValidationScriptsPartial.cshtml
-│
-├── ⚙️ Configuration/
-│   ├── Program.cs (Enhanced with Serilog + AutoMapper)
-│   ├── appsettings.json
-│   └── appsettings.Development.json
-│
-├── 📄 Documentation/
-│   ├── README.md (Comprehensive guide)
-│   └── SETUP_GUIDE.md (This file)
-│
-└── 📦 AttendanceSystem.Web.csproj
+| Component | Required | Notes |
+|---|---|---|
+| `AttendanceSystem.Web` | Yes | The web application everyone uses |
+| SQL Server | Yes | 2014 or later |
+| `AttendanceManagementSystem` (desktop) | Optional | WinForms client, same database |
+| Microsoft Access Database Engine (64-bit) | Only for `.mdb` import | See §6 |
+| SMTP server | Only for password reset | Without it, admins set passwords directly |
+
+The web host must be **Windows** if you use `.mdb` biometric import — that path uses OleDb, which
+is Windows-only. CSV and Excel import work anywhere.
+
+If you plan to use fingerprint devices, the web host must be able to reach them on **TCP 4370**,
+which in practice means on-premise on the same LAN. See
+[docs/DEVICE-INTEGRATION-DESIGN.md](docs/DEVICE-INTEGRATION-DESIGN.md) §7.
+
+---
+
+## 2. Database
+
+Create an empty database and a **least-privilege SQL login** — not `sa`. The application needs
+DDL rights on first run, because it applies EF Core migrations at startup.
+
+```sql
+CREATE DATABASE AttendanceDB;
 ```
 
----
+Leave `Encrypt` at its secure default rather than turning it off. Use
+`TrustServerCertificate=True` only if the server presents a self-signed certificate and you
+accept that.
 
-## 🎯 Admin Template Features
+The schema is created and upgraded automatically: both hosts call `Database.Migrate()` on
+startup. There is no separate schema script to run.
 
-### 1️⃣ **Dashboard** (`/Admin`) ✅
-- **4 KPI Statistics Cards** - Present, Absent, Late, Total Records
-- **Quick Action Buttons** - Fast access to Users, Attendance, Import, Reports
-- **Recent Activity Feed** - System event log
-- **Gradient Styled Cards** - Modern, professional look
-
-### 2️⃣ **User Management** (`/Admin/Users`) ✅
-- **User List Table** - Sortable, filterable columns
-- **Search & Filter** - By name, email, status, department
-- **Add User Modal** - Form with First Name, Last Name, Email, Department, Role
-- **Bulk Operations** - Ready for implementation
-- **Pagination** - Example pagination controls
-
-### 3️⃣ **Attendance Records** (`/Admin/Attendance`) ✅
-- **Date Range Filtering** - From/To date pickers
-- **Department Filter** - Filter by department
-- **Statistics Row** - Present, Absent, On Leave, Late Arrivals counts
-- **Detailed Table** - Date, Employee Name, ID, Department, Check-In/Out, Status
-- **Export Button** - PDF/Excel export (ready for implementation)
-
-### 4️⃣ **Biometric Import** (`/Admin/Import`) ✅
-- **File Upload** - Supports .xlsx, .xls, .csv
-- **Import Type Selection** - Attendance, Users, or Biometric Templates
-- **Date Format Options** - DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD
-- **Template Download** - Download format templates
-- **Import History** - Track previous imports
-- **Progress Indicator** - Real-time progress bar with automation demo
-
-### 5️⃣ **Reports & Analytics** (`/Admin/Reports`) ✅
-- **Multiple Report Types**:
-  - Attendance Summary
-  - Individual Reports
-  - Department Reports
-  - Late Arrivals Report
-  - Absent Report
-- **Interactive Charts** - Using Chart.js
-  - Line chart (Attendance Trend)
-  - Doughnut chart (Department Distribution)
-- **Monthly Summary Table** - Working days, present, absent, late, leave, %
-- **Export Options** - PDF and Excel export
-
-### 6️⃣ **System Settings** (`/Admin/Settings`) ✅
-Tabbed interface with 6 settings sections:
-
-#### Tab 1: General Settings
-- System Name, Version, Timezone
-- Working Hours (Start/End time)
-- Enable Notifications toggle
-
-#### Tab 2: Database Settings
-- Server, Database Name, User, Password
-- Connection Test button
-
-#### Tab 3: Email Settings
-- SMTP Server, Port
-- From Email, Password
-- SSL/TLS toggle
-
-#### Tab 4: Biometric Settings
-- Device Type (Fingerprint, Face, Iris, Multi-modal)
-- Device API Endpoint
-- Sync Interval, Auto Sync toggle
-
-#### Tab 5: Security Settings
-- Password Policy (Standard/Strong/Custom)
-- Session Timeout
-- Max Login Attempts, Lockout Duration
-- Two-Factor Authentication toggle
-
-#### Tab 6: Backup Settings
-- Backup Location, Frequency
-- Backup Time, Retention Days
-- Backup Now button
+> **Upgrading a database created before migrations existed** — it has no `__EFMigrationsHistory`
+> table, so `Migrate()` tries to recreate existing tables and fails. Back it up, then baseline it
+> as described in [README.md](README.md). `docs/legacy/AttendanceDB_Setup.sql` is the old
+> full-schema script, kept for reference only — do not run it against a migrated database.
 
 ---
 
-## 🎨 UI/UX Features
+## 3. Configuration
 
-### Design Elements ✨
-- **Color Scheme**: Modern gradients (purple, pink, blue, cyan)
-- **Typography**: Professional, readable fonts
-- **Icons**: Font Awesome 6.4.0 (555+ icons integrated)
-- **Framework**: Bootstrap 5 (responsive, mobile-first)
-- **Layout**: Responsive sidebar on admin pages (3-column on desktop, stacked on mobile)
+**No credentials live in the repository.** The committed `appsettings.json` holds non-secret
+defaults with blank placeholders, and the application **fails fast at startup with a descriptive
+message** if the connection string is missing — it does not fall through to an opaque
+`SqlException` on the first query.
 
-### Interactive Components 🎮
-- **Modals**: Add User form in modal dialog
-- **Tabs**: Settings page with tabbed interface
-- **Forms**: Styled input fields with validation
-- **Tables**: With hover effects, pagination
-- **Buttons**: Primary, Secondary, Success, Danger, Info, Warning
-- **Alerts**: Ready for notifications
-- **Progress Bars**: For import progress tracking
+Supply configuration by environment variable:
 
-### Responsive Breakpoints
-- **Mobile** (xs): Full-width layout, stacked sidebar
-- **Tablet** (md/lg): 2-column with sidebar
-- **Desktop** (xl/xxl): 3-column optimal layout
+| Host | Variable |
+|---|---|
+| Web | `ConnectionStrings__DefaultConnection` |
+| Web (email) | `Smtp__Host`, `Smtp__Username`, `Smtp__Password`, `Smtp__FromAddress` |
+| Desktop | `ATTENDANCE_ConnectionStrings__DefaultConnection` |
+
+Note the **double underscore** — that is how .NET maps a flat environment variable onto nested
+configuration. The desktop client additionally uses the `ATTENDANCE_` prefix.
 
 ---
 
-## 🔧 Technical Setup
+## 4. HTTPS is not optional
 
-### Project File (AttendanceSystem.Web.csproj)
-```xml
-✅ SDK: Microsoft.NET.Sdk.Web
-✅ Target Framework: net10.0
-✅ Nullable: enabled
-✅ Implicit Usings: enabled
+The session cookie authenticates every request and is issued with `CookieSecurePolicy.Always`.
+**Over plain HTTP users appear to sign in and are immediately returned to the login page.**
+
+Terminate TLS at the host or at a reverse proxy in front of it. If you use a proxy, forward the
+scheme (`X-Forwarded-Proto`) so the application knows the original request was HTTPS.
+
+Development ports, for reference: HTTPS `7151`, HTTP `5086`.
+
+---
+
+## 5. First run
+
+1. Start the web application.
+2. Watch the log for `Database migrated to the latest version.` — this confirms both the
+   connection and the schema.
+3. Browse to the HTTPS address.
+4. Sign in as **`admin` / `Admin@123`**.
+5. **Change that password immediately.**
+6. Work through the setup order in
+   [DEPARTMENT_SHIFT_MANAGEMENT.md](DEPARTMENT_SHIFT_MANAGEMENT.md) §6: branches → departments
+   and designations → shifts → holidays → employees → shift roster.
+
+The default administrator is seeded on an empty database. Leaving its password unchanged leaves
+the entire system open.
+
+---
+
+## 6. Microsoft Access Database Engine
+
+Needed only to import `.mdb`/`.accdb` biometric exports. Install the **64-bit** redistributable,
+matching the process bitness of the web application.
+
+Check whether it is already present:
+
+```powershell
+(New-Object System.Data.OleDb.OleDbEnumerator).GetElements() |
+  Where-Object { $_.SOURCES_NAME -like 'Microsoft.ACE*' }
 ```
 
-### Dependencies Added
-```
-✅ AutoMapper v16.2.0
-✅ AutoMapper.Extensions.Microsoft.DependencyInjection v12.0.1
-✅ Microsoft.EntityFrameworkCore v10.0.10
-✅ Microsoft.EntityFrameworkCore.SqlServer v10.0.10
-✅ Microsoft.EntityFrameworkCore.Design v10.0.10
-✅ Serilog.AspNetCore v10.0.0
-✅ Serilog.Sinks.File v7.0.0
-```
+A row named `Microsoft.ACE.OLEDB.12.0` (or `.16.0`) means you are set.
 
-### Program.cs configuration
-```csharp
-✅ Serilog logging (Console + File outputs)
-✅ AutoMapper dependency injection
-✅ Controllers and Views
-✅ HTTPS redirect
-✅ Authorization middleware
-✅ Static assets mapping
-✅ Exception handling
-✅ Graceful shutdown with logging
-```
+> If an import reports *"No punches between … This file covers …"*, the engine is **not** the
+> problem — the date range is. The engine message only appears when the file genuinely could not
+> be opened. See [docs/USER-GUIDE.md](docs/USER-GUIDE.md) §6.
 
 ---
 
-## 🚀 How to Run
+## 7. Logging
 
-### Option 1: Visual Studio
-1. Open `AttendanceManagementSystem.slnx`
-2. Press **F5** to run
-3. Open browser to `https://localhost:5001`
-4. Navigate to `/Admin` for admin dashboard
+Serilog writes to the console and to rolling daily files:
 
-### Option 2: Command Line
-```bash
-cd AttendanceManagementSystem\AttendanceSystem.Web
-dotnet run
-# Open https://localhost:5001
-```
+| Host | Path |
+|---|---|
+| Web | `logs/attendance-web-.txt` |
+| Desktop | `Logs/attendance-.log` |
 
-### Access Points
-- **Home Page**: `https://localhost:5001/`
-- **Admin Dashboard**: `https://localhost:5001/Admin`
-- **User Management**: `https://localhost:5001/Admin/Users`
-- **Attendance**: `https://localhost:5001/Admin/Attendance`
-- **Import**: `https://localhost:5001/Admin/Import`
-- **Reports**: `https://localhost:5001/Admin/Reports`
-- **Settings**: `https://localhost:5001/Admin/Settings`
+The account running the application needs write access to that folder. Include these when
+diagnosing anything; they carry the startup migration result, authorisation failures and import
+outcomes.
+
+Credentials and tokens are never logged, and must stay that way.
 
 ---
 
-## 📋 Project Integration
+## 8. Backups
 
-### Your Current Layers
-- ✅ **AttendanceSystem.Domain** (Entities)
-- ✅ **AttendanceSystem.Application** (Business Logic)
-- ✅ **AttendanceSystem.Infrastructure** (Data Access)
-- ✅ **AttendanceSystem.Common** (Utilities)
-- ✅ **AttendanceSystem.Web** (NEW - UI Layer)
+Back up the SQL Server database. Everything that matters lives there — attendance, employees,
+audit logs, company settings, and employee photos (stored as bytes on the employee row, not as
+files on disk).
 
-### How to Connect Infrastructure
-In `Program.cs`, uncomment and implement:
-```csharp
-// Register your services from infrastructure
-builder.Services.AddScoped<IAttendanceService, AttendanceService>();
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IBiometricService, BiometricService>();
-builder.Services.AddScoped<IReportService, ReportService>();
-```
-
-### Add to Controllers
-```csharp
-private readonly IAttendanceService _service;
-
-public AdminController(IAttendanceService service, ILogger<AdminController> logger)
-{
-	_service = service;
-	_logger = logger;
-}
-
-// Then use in action methods
-var data = await _service.GetAttendanceRecords(filter);
-```
+There is no separate file store to back up. Uploaded company logos are the one exception; check
+`wwwroot` if you have customised branding.
 
 ---
 
-## 🔐 Security Features (Configured)
-- ✅ HTTPS Redirect
-- ✅ HSTS (Strict-Transport-Security)
-- ✅ CSRF Protection (built-in to ASP.NET Core MVC)
-- ✅ Structured Logging (Serilog)
+## 9. Post-deployment checklist
 
-### To Implement
-- [ ] ASP.NET Core Identity
-- [ ] Role-based Authorization
-- [ ] Two-Factor Authentication
-- [ ] API Key Authentication
-- [ ] SQL Injection Prevention
-- [ ] XSS Protection
-- [ ] Data Encryption
+- [ ] Default `admin` password changed
+- [ ] HTTPS working; signing in does not bounce back to the login page
+- [ ] `Database migrated to the latest version.` seen in the log
+- [ ] SQL login is least-privilege, not `sa`
+- [ ] Connection string supplied by environment variable, not committed
+- [ ] Log directory writable, and included in whatever collects logs
+- [ ] Database backup scheduled and a restore tested
+- [ ] Access Database Engine installed if `.mdb` import is used
+- [ ] SMTP configured, or staff told that admins reset passwords directly
+- [ ] Organisation structure set up in the order given in §5
 
 ---
 
-## 📊 Logging
+## 10. Known limitations to plan around
 
-### Log Outputs
-- **Console**: Real-time output during development
-- **File**: `logs/attendance-web-YYYY-MM-DD.txt` (auto-rolling daily)
+These are documented in full in [docs/DEVELOPER-GUIDE.md](docs/DEVELOPER-GUIDE.md) §9. The ones
+that affect a deployment decision:
 
-### Example Log Entries
-```
-2026-01-15 10:30:45.123 +05:30 [INF] Admin dashboard accessed
-2026-01-15 10:31:12.456 +05:30 [WRN] Failed login attempt detected
-2026-01-15 10:32:00.789 +05:30 [ERR] Database connection failed
-```
-
----
-
-## 🎯 Next Steps
-
-### Phase 1: Immediate (This week)
-- [ ] Test the web application
-- [ ] Verify all UI pages load correctly
-- [ ] Check responsive design on mobile
-- [ ] Review admin template styling
-
-### Phase 2: Integration (Next week)
-- [ ] Add authentication/authorization
-- [ ] Connect to your infrastructure services
-- [ ] Implement database operations
-- [ ] Wire up API calls
-
-### Phase 3: Enhancement (Following week)
-- [ ] Add real data to tables
-- [ ] Implement export functionality (PDF/Excel)
-- [ ] Add form validations
-- [ ] Create audit logging
-
-### Phase 4: Deployment (Following)
-- [ ] Add environment-specific configs
-- [ ] Setup CI/CD pipeline
-- [ ] Database migrations
-- [ ] Deploy to test/prod environment
-
----
-
-## 📚 File Highlights
-
-### Key Files to Review
-1. **Controllers/AdminController.cs**
-   - 6 Action methods for each admin page
-   - Logging implemented
-   - Ready to add business logic
-
-2. **Views/Shared/_Layout.cshtml**
-   - Responsive navbar with gradient
-   - Conditional sidebar (only on admin pages)
-   - Font Awesome icons integrated
-   - Professional styling
-
-3. **Views/Admin/Index.cshtml**
-   - KPI cards with gradients
-   - Quick action buttons
-   - Recent activity table
-   - Professional dashboard layout
-
-4. **Program.cs**
-   - Serilog configuration
-   - AutoMapper setup
-   - Ready for infrastructure registration
-   - Graceful error handling
-
----
-
-## 🆘 Troubleshooting
-
-### "Port already in use"
-```bash
-dotnet run --urls "https://localhost:5002"
-```
-
-### "NuGet restored but build fails"
-```bash
-dotnet clean
-dotnet restore
-dotnet build
-```
-
-### "HTTPS certificate error"
-```bash
-dotnet dev-certs https --trust
-```
-
-### "Views not compiling"
-- Rebuild entire solution
-- Check all Razor syntax
-- Verify _ViewImports.cshtml exists
-
----
-
-## 📞 Support Resources
-
-- **ASP.NET Core Docs**: https://docs.microsoft.com/aspnet/core
-- **Bootstrap 5**: https://getbootstrap.com/docs/5.0
-- **Font Awesome**: https://fontawesome.com
-- **Chart.js**: https://www.chartjs.org
-- **Serilog**: https://serilog.net
-
----
-
-## ✅ Verification Checklist
-
-- ✅ Project created successfully
-- ✅ Added to solution
-- ✅ Project references configured
-- ✅ NuGet packages installed
-- ✅ Build successful (no errors or warnings)
-- ✅ Set as startup project
-- ✅ All admin pages created
-- ✅ Layout enhanced with styling
-- ✅ Controllers ready
-- ✅ Documentation complete
-
----
-
-**Status**: 🟢 **READY TO RUN**
-
-Press **F5** in Visual Studio to launch the application!
-
----
-
-**Created**: 2026  
-**Framework**: .NET 10  
-**Version**: 1.0.0
+- **Time is stored as local `DateTime` throughout.** Do not deploy across time zones, and expect
+  ambiguity at daylight-saving transitions, until this is moved to `DateTimeOffset`.
+- **Some front-end assets load from a CDN** (toastr, SweetAlert2, Chart.js). On an air-gapped or
+  restricted network, notifications degrade to browser `alert()` and charts will not render.
+  Vendor them locally if that matters.
+- **Fingerprint devices cannot yet pull attendance.** Device records and reachability testing
+  work; collection is still by file import.
+- **Session ids are not rotated on sign-in**, pending a move to cookie authentication.

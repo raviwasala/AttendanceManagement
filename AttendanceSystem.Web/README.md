@@ -1,357 +1,147 @@
-# Attendance Management System - Web Portal
+# AttendanceSystem.Web
 
-## 📋 Overview
+The ASP.NET Core MVC web front-end. Server-rendered Razor for page structure, data loaded
+client-side from a JSON API on the same host.
 
-The **Attendance Management System Web Portal** is a modern ASP.NET Core MVC application that provides a comprehensive admin dashboard for managing attendance records, users, and biometric data. Built on .NET 10 with a responsive Bootstrap-based UI and a complete admin template.
+This file covers what is specific to *this project*. Everything cross-cutting lives one level up:
 
-## ✨ Features
+| For | See |
+|---|---|
+| Why the solution is shaped this way | [../docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) |
+| Setup, migrations, adding a feature | [../docs/DEVELOPER-GUIDE.md](../docs/DEVELOPER-GUIDE.md) |
+| Deployment | [../SETUP_COMPLETE.md](../SETUP_COMPLETE.md) |
+| Using the application | [../docs/USER-GUIDE.md](../docs/USER-GUIDE.md) |
 
-### Admin Dashboard
-- **Real-time Statistics**: Present/Absent/Late arrivals overview
-- **Quick Actions**: Fast access to common operations
-- **Recent Activity Feed**: Track system events and changes
+---
 
-### User Management
-- Add, edit, and delete user accounts
-- Assign departments and roles
-- Bulk import user data
-- User status tracking (Active/Inactive/Pending)
+## Running it
 
-### Attendance Records
-- View attendance records with detailed filtering
-- Filter by date range, department, and employee
-- Export attendance data to Excel/PDF
-- Statistics dashboard (Present, Absent, Late, On Leave)
+```powershell
+dotnet run --launch-profile https   # https://localhost:7151
+dotnet run --launch-profile http    # http://localhost:5086
+```
 
-### Biometric Data Import
-- Upload biometric data from Excel/CSV files
-- Support for multiple import types:
-  - Attendance Records
-  - User Data
-  - Biometric Templates
-- Import history tracking
-- Template download for standardized data format
-- Real-time import progress tracking
+**Use the `https` profile to sign in.** The session cookie is issued with
+`CookieSecurePolicy.Always`, so over plain HTTP you appear to sign in and are returned straight
+to the login page. The `http` profile is fine for hitting API endpoints or checking static
+assets.
 
-### Reports & Analytics
-- Multiple report types:
-  - Attendance Summary
-  - Individual Reports
-  - Department Reports
-  - Late Arrivals Report
-  - Absent Report
-- Interactive charts (Chart.js)
-- Export to PDF and Excel
-- Monthly statistics summaries
+Requires a connection string in user-secrets — see the developer guide. The app fails fast at
+startup with a clear message if it is missing.
 
-### System Settings
-- **General Settings**: Timezone, working hours, system preferences
-- **Database Settings**: Connection configuration and testing
-- **Email Settings**: SMTP configuration for notifications
-- **Biometric Settings**: Device configuration and sync intervals
-- **Security Settings**: Password policies, session management, 2FA
-- **Backup Settings**: Automated backup configuration and scheduling
+---
 
-## 🏗️ Project Structure
+## Layout
 
 ```
 AttendanceSystem.Web/
 ├── Controllers/
-│   ├── HomeController.cs
-│   └── AdminController.cs
+│   ├── AuthController.cs          login, logout, profile, password reset
+│   ├── AdminController.cs         renders the admin screens
+│   ├── MeController.cs            employee self-service pages
+│   └── Api/                       JSON API, one controller per module
 ├── Views/
-│   ├── Admin/
-│   │   ├── Index.cshtml (Dashboard)
-│   │   ├── Users.cshtml (User Management)
-│   │   ├── Attendance.cshtml (Attendance Records)
-│   │   ├── Import.cshtml (Data Import)
-│   │   ├── Reports.cshtml (Reports & Analytics)
-│   │   └── Settings.cshtml (System Settings)
-│   ├── Home/
-│   │   ├── Index.cshtml
-│   │   └── Privacy.cshtml
-│   └── Shared/
-│       ├── _Layout.cshtml (Main Layout)
-│       └── _ValidationScriptsPartial.cshtml
-├── wwwroot/
-│   ├── css/
-│   │   └── site.css
-│   ├── js/
-│   │   └── site.js
-│   └── lib/ (Bootstrap, jQuery)
-├── Program.cs
-├── appsettings.json
-└── AttendanceSystem.Web.csproj
+│   ├── Admin/                     one view per admin screen
+│   ├── Auth/  Me/  Home/
+│   └── Shared/_Layout.cshtml      sidebar, theme wiring, permission gating
+├── Filters/SessionAuthorizeAttribute.cs    authentication + permission gate
+├── Session/HttpSessionUserContext.cs       ICurrentUserContext over HttpContext.Session
+├── assets/                        purchased Adminty theme — OUTSIDE wwwroot
+└── wwwroot/
+    ├── js/site.js                 esc(), notify*, amsPage table helper
+    ├── js/pages/admin/            one script per admin screen
+    └── css/site.css
 ```
 
-## 🛠️ Technology Stack
+### `assets/` is not in `wwwroot`
 
-- **Framework**: ASP.NET Core (.NET 10)
-- **View Engine**: Razor Pages with MVC Controllers
-- **UI Framework**: Bootstrap 5
-- **Icons**: Font Awesome 6.4.0
-- **Charts**: Chart.js
-- **Logging**: Serilog
-- **Mapping**: AutoMapper
-- **ORM**: Entity Framework Core 10
-- **Database**: SQL Server
+The Adminty theme lives at the **content root**, and `Program.cs` maps it to `/assets` with a
+`PhysicalFileProvider`. Reference it as `~/assets/...`.
 
-## 📦 NuGet Packages
-
-- `AutoMapper` v16.2.0 - Object mapping
-- `AutoMapper.Extensions.Microsoft.DependencyInjection` v12.0.1 - DI integration
-- `Microsoft.EntityFrameworkCore` v10.0.10 - ORM
-- `Microsoft.EntityFrameworkCore.SqlServer` v10.0.10 - SQL Server provider
-- `Microsoft.EntityFrameworkCore.Design` v10.0.10 - EF tools
-- `Serilog.AspNetCore` v10.0.0 - Structured logging for ASP.NET Core
-- `Serilog.Sinks.File` v7.0.0 - File logging sink
-
-## 🚀 Getting Started
-
-### Prerequisites
-- .NET 10 SDK installed
-- SQL Server (local or remote)
-- Visual Studio 2026 or later (or VS Code)
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/raviwasala/AttendanceManagement
-   cd AttendanceManagementSystem
-   ```
-
-2. **Open the solution**
-   ```bash
-   Explorer AttendanceManagementSystem.slnx
-   ```
-
-3. **Restore NuGet packages**
-   ```bash
-   dotnet restore
-   ```
-
-4. **Update configuration**
-   Edit `appsettings.json`:
-   ```json
-   {
-	 "ConnectionStrings": {
-	   "DefaultConnection": "Server=localhost;Database=AttendanceDB;Trusted_Connection=true;"
-	 },
-	 "Logging": {
-	   "LogLevel": {
-		 "Default": "Information"
-	   }
-	 }
-   }
-   ```
-
-5. **Run migrations** (when DB context is configured)
-   ```bash
-   dotnet ef database update
-   ```
-
-6. **Start the application**
-   - Press **F5** in Visual Studio, or
-   - Run `dotnet run` from the command line
-
-7. **Access the application**
-   - Open browser to: `https://localhost:5001`
-   - Navigate to `/Admin` for the admin dashboard
-
-## 🔧 Configuration
-
-### appsettings.json
-```json
-{
-  "ConnectionStrings": {
-	"DefaultConnection": "Server=.;Database=AttendanceDB;Trusted_Connection=true;"
-  },
-  "Logging": {
-	"LogLevel": {
-	  "Default": "Information",
-	  "Microsoft.AspNetCore": "Warning"
-	}
-  }
-}
-```
-
-### Serilog Logging
-Logs are written to:
-- **Console**: Real-time output
-- **File**: `logs/attendance-web-YYYY-MM-DD.txt` (daily rolling)
-
-## 📡 API Integration Points
-
-The following services need to be integrated from your infrastructure layer:
-
-```csharp
-// Register in Program.cs when ready:
-builder.Services.AddScoped<IAttendanceService, AttendanceService>();
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IBiometricService, BiometricService>();
-builder.Services.AddScoped<IReportService, ReportService>();
-```
-
-## 🎨 UI Components
-
-### Admin Dashboard Components
-- **Stat Cards**: KPI displays with gradient backgrounds
-- **Quick Action Buttons**: Fast navigation to common tasks
-- **Recent Activity Table**: System event log
-- **Responsive Sidebar**: Navigation menu with icon indicators
-- **Modal Dialogs**: Add/Edit forms
-
-### Responsive Design
-- Mobile-first approach
-- Breakpoints: xs, sm, md, lg, xl
-- Touch-friendly controls
-- Collapsible navigation on small screens
-
-## 🔐 Security Considerations
-
-### Currently Configured
-- HTTPS redirect
-- HSTS headers
-- CSRF protection (auto in MVC)
-
-### To Be Implemented
-- Role-based Authorization (Admin, Manager, Employee)
-- User authentication
-- Two-factor authentication
-- SQL injection prevention (use EF Core parameterized queries)
-- XSS protection
-- Data encryption for sensitive fields
-
-## 📊 Admin Pages Breakdown
-
-| Page | Purpose | Key Features |
-|------|---------|--------------|
-| Dashboard | Overview of system state | KPIs, Quick actions, Activity log |
-| Users | User account management | Add/Edit/Delete users, Status tracking |
-| Attendance | View attendance records | Filter, Export, Statistics |
-| Import | Biometric data import | File upload, Type selection, Progress |
-| Reports | Analytics and reporting | Multiple report types, Charts, Export |
-| Settings | System configuration | Database, Email, Security, Backup |
-
-## 🧪 Development Tips
-
-### Adding a New Admin Page
-
-1. **Create Controller Action** in `AdminController.cs`
-   ```csharp
-   [HttpGet("NewPage")]
-   public IActionResult NewPage()
-   {
-	   _logger.LogInformation("New page accessed");
-	   return View();
-   }
-   ```
-
-2. **Create View** in `Views/Admin/NewPage.cshtml`
-   ```html
-   @{
-	   ViewData["Title"] = "New Page";
-   }
-   <div class="container-fluid mt-4">
-	   <!-- Your content here -->
-   </div>
-   ```
-
-3. **Add Sidebar Link** in `Views/Shared/_Layout.cshtml`
-   ```html
-   <li><a href="/Admin/NewPage"><i class="fas fa-icon"></i> New Page</a></li>
-   ```
-
-### Using AutoMapper
-
-Configure mappings in a new `AutoMapper/MappingProfile.cs`:
-```csharp
-public class MappingProfile : Profile
-{
-	public MappingProfile()
-	{
-		CreateMap<UserEntity, UserDto>();
-	}
-}
-```
-
-### Logging
-
-```csharp
-_logger.LogInformation("User {UserId} accessed dashboard", userId);
-_logger.LogWarning("Failed login attempt for user {Username}", username);
-_logger.LogError(ex, "Error processing import for file {FileName}", fileName);
-```
-
-## 📝 Next Steps
-
-1. **Implement Authentication**
-   - Add ASP.NET Core Identity
-   - Create login/logout flows
-
-2. **Wire Infrastructure Services**
-   - Implement `IAttendanceService`
-   - Implement `IUserService`
-   - Implement `IBiometricService`
-
-3. **Database Integration**
-   - Configure DbContext
-   - Create migrations
-   - Seed initial data
-
-4. **API Endpoints**
-   - Create API controllers for AJAX calls
-   - Implement CRUD operations
-
-5. **Testing**
-   - Add unit tests
-   - Add integration tests
-   - Add E2E tests
-
-## 📚 Resources
-
-- [ASP.NET Core Docs](https://docs.microsoft.com/aspnet/core)
-- [Bootstrap 5 Docs](https://getbootstrap.com/docs/5.0)
-- [Font Awesome Icons](https://fontawesome.com/icons)
-- [Chart.js Documentation](https://www.chartjs.org)
-- [Entity Framework Core](https://docs.microsoft.com/ef/core)
-- [Serilog Documentation](https://serilog.net)
-
-## 🐛 Troubleshooting
-
-### Build Issues
-```bash
-# Clean and rebuild
-dotnet clean
-dotnet build
-```
-
-### Package Issues
-```bash
-# Clear NuGet cache
-nuget locals all -clear
-dotnet restore
-```
-
-### Database Connection
-Check `appsettings.json` for:
-- Correct server name
-- Database exists
-- User has permissions
-- Network connectivity
-
-## 👨‍💼 Support
-
-For issues, questions, or feature requests, please visit:
-- [GitHub Issues](https://github.com/raviwasala/AttendanceManagement/issues)
-
-## 📄 License
-
-This project is part of the Attendance Management System.
+> It is a third-party UI framework **kept whole**. Much of it is not referenced by any current
+> view; that is expected. Do not prune it by reference-checking.
 
 ---
 
-**Version**: 1.0.0  
-**Last Updated**: 2026  
-**Target Framework**: .NET 10
+## Conventions specific to this project
+
+### The API speaks PascalCase
+
+`Program.cs` sets `PropertyNamingPolicy = null`, so JSON property names match the DTO property
+names exactly. Page scripts read `e.EmployeeCode`, **not** `e.employeeCode`. Enums serialise as
+strings; `byte[]` (employee photo) serialises as bare base64.
+
+### Every endpoint carries a permission
+
+```csharp
+[Route("api/employees")]
+[SessionAuthorize]                                   // signed in — NOT an authorization decision
+public class EmployeesApiController : ApiControllerBase
+{
+    [HttpGet]
+    [SessionAuthorize(Modules.Employees, Actions.View)]   // the actual check
+    public async Task<IActionResult> GetAll() { … }
+}
+```
+
+Class-level `[SessionAuthorize]` alone only proves *someone* is signed in — an Employee-role
+session satisfies it as well as an administrator's. The per-action attribute is the real gate.
+
+The filter answers differently by caller: API requests get 401/403 JSON, browser navigations get
+a redirect to Login or AccessDenied.
+
+### Escape everything from the database
+
+Table renderers build markup by string concatenation, so every database value must pass through
+`esc()` from `site.js`. An employee named `<img src=x onerror=…>` otherwise runs script in every
+admin's browser — and names can arrive from a biometric device file, not just a vetted form.
+
+`employees.js` is the reference implementation. Several page scripts still need this treatment.
+
+### Sidebar visibility
+
+Wrap nav entries in `@if (CanView(...))`. Do **not** use the `hidden` attribute: the theme's
+`.pcoded .pcoded-navbar .pcoded-item>li{display:block}` is an author-level rule that beats the
+browser's `[hidden]{display:none}`, so hidden items stay visible.
+
+### Shared front-end helpers (`wwwroot/js/site.js`)
+
+| Helper | Purpose |
+|---|---|
+| `esc(value)` | HTML-escape a database value before concatenating it into markup |
+| `notifySuccess` / `notifyError` | Toasts |
+| `notifyConfirm(opts, cb)` | Confirmation dialog, honours the Confirm-before-delete setting |
+| `amsPage(sel, items, rowFn, opts)` | Renders a table with paging; pass `server: { total, page, pageSize, onPage }` for server-side paging |
+
+---
+
+## Screens
+
+| Group | Screens |
+|---|---|
+| Dashboard | Index |
+| People | Employees, Departments, Designations, Branches, Users, Roles |
+| Attendance & Leave | Attendance, Attendance Review, Biometric Import, Devices, Leave, Holidays |
+| Shifts | Shifts, Shift Roster |
+| Overtime | Overtime Rules, Register, Approval, Summary |
+| Reports & Admin | Reports, Audit Logs, Settings |
+| Self-service | My Attendance, My Leave, My Profile |
+
+Each admin screen is a Razor view under `Views/Admin/` plus one script under
+`wwwroot/js/pages/admin/` with the same name.
+
+---
+
+## Third-party assets
+
+Bootstrap 5, jQuery, jQuery Validation and the Adminty theme are vendored locally. **Toastr,
+SweetAlert2 and Chart.js load from a CDN** — on a restricted or air-gapped network, toasts
+degrade to browser `alert()` and charts do not render. Vendoring them is on the backlog.
+
+---
+
+## Warnings
+
+This project and its dependencies build with **0 warnings**. Keep it that way — a new warning is
+easier to fix the day it appears than in a batch of a hundred. (The WinForms desktop project in
+the same solution carries a separate pre-existing baseline of ~88; that is expected.)

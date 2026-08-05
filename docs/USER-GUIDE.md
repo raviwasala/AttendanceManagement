@@ -1,265 +1,253 @@
 # User Guide
 
 Attendance Management System — for administrators, HR staff and employees.
+For how it is built, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
 ## 1. Signing in
 
-Open the address your administrator gave you (for example `https://attendance.yourcompany.com`)
-and enter your username and password.
+Open the address your administrator gave you and enter your username and password.
 
-- **Remember me** keeps you signed in on that device for 30 days. Only use it on a device that
-  is yours. Signing out, or changing your password, ends it immediately.
-- After **5 failed attempts your account locks**. An administrator must unlock it — waiting will
+The first administrator account is **`admin` / `Admin@123`**. **Change it immediately** —
+Profile → Change Password.
+
+**Use the HTTPS address.** The sign-in cookie is marked secure, so over plain `http://` you will
+appear to sign in and be returned straight to the login page.
+
+- **Remember me** keeps you signed in on that device for 30 days. Only use it on a device that is
+  yours. Signing out, or changing your password, ends it immediately.
+- Sessions expire after **60 minutes** of inactivity.
+- After **5 failed attempts your account locks.** An administrator must unlock it — waiting will
   not clear it.
-- **Forgot Password?** sends a reset link to your registered email. The link is valid for
-  **24 hours** and works once. For privacy the page always says a link has been sent, whether or
-  not the address is registered.
+- **Forgot Password?** sends a reset link to your registered email, valid for **24 hours**, usable
+  once. For privacy the page always says a link has been sent, whether or not the address is
+  registered. It only works if SMTP is configured; otherwise ask an administrator to set a new
+  password directly.
 
 ### What you can see
 
-The menu shows only what your role allows, so your sidebar may be shorter than a colleague's.
-If you open a page you do not have rights to, you get an **Access Denied** screen — that is
-normal, not a fault. Ask your administrator if you need access.
-
-Typical roles:
+The menu shows only what your role allows, so your sidebar may be shorter than a colleague's. If
+you open a page you do not have rights to you get an **Access Denied** screen — that is normal,
+not a fault.
 
 | Role | Typical access |
 |---|---|
-| Administrator | everything, including users, roles and settings |
-| HR Manager | employees, attendance, leave, shifts, reports — not user or role administration |
-| Employee | dashboard, own attendance, leave requests, holidays |
+| Administrator | Everything, including users, roles and settings |
+| HR Manager | Everything except users, roles, audit logs and changing settings |
+| Employee | Dashboard, own attendance and leave, holidays |
 
 ---
 
-## 2. Dashboard
+## 2. Setting up a new site
 
-The landing page after sign-in.
+Order matters — later screens depend on earlier ones.
 
-- **Four tiles** — Total Employees, Present Today, Absent Today, On Leave Today.
-- **Today's Attendance** — a doughnut showing present / absent / late / on-leave, with the
-  attendance percentage in the centre.
-- **Recent Attendance** — today's check-ins and check-outs. *View All* opens the full record.
-- **Quick Links** — shortcuts to the main screens.
-
-*Absent* is calculated as total active employees minus those present minus those on approved
-leave — so it counts anyone with no record today, not only people explicitly marked absent.
+1. **Settings** — company name, logo, work start/end times, weekend days.
+2. **Branches** — physical locations.
+3. **Departments** and **Designations**.
+4. **Shifts** — see §3. This is the screen that most affects your numbers.
+5. **Holidays** — for the current year.
+6. **Employees** — see §4.
+7. **Shift Roster** — assign employees to shifts.
+8. **Users** and **Roles** — logins for whoever needs them.
 
 ---
 
-## 3. Setting up (administrators)
+## 3. Shifts
 
-Do this in order — later screens depend on earlier ones.
+A shift decides who is late, how long they worked, and what counts as overtime. Get it right
+before importing attendance.
 
-### 3.1 Company settings
-
-**Settings** — company name, address, contact details, logo, standard working hours, weekend
-days and the maximum late minutes tolerated.
-
-### 3.2 Organisation structure
-
-| Screen | Purpose |
+| Field | What it does |
 |---|---|
-| **Branches** | physical locations |
-| **Departments** | e.g. Administration, IT, HR, Finance |
-| **Designations** | job titles, e.g. Manager, Software Engineer |
+| **Start / End time** | The rostered day. End before start means an overnight shift. |
+| **Night shift** | Tick for a shift crossing midnight (22:00–06:00). Without it, hours come out negative. |
+| **Grace (in)** | Minutes after start before an arrival counts as late. |
+| **Grace (out)** | Minutes before end that leaving still is not "early". Separate from grace in — most sites tolerate a late arrival but not an early exit. |
+| **Break minutes** | Unpaid, deducted from worked time. This is why *gross* and *working* hours differ. |
+| **Standard working hours** | Paid hours in a normal day; the overtime threshold. Left at 0, the system uses span minus break. |
+| **Weekly off days** | Days this shift does not run. |
+| **Allowed late days per month** | Tolerance before a day is flagged. **Reporting only** — it changes no hours and no pay. |
+| **Working days per month** | Recorded for payroll's daily-rate divisor. Does not affect attendance. |
 
-Each screen works the same way: **Add** to create, the pencil to edit, the bin to delete.
-Records are never truly erased — they are hidden and remain in history.
+### Overtime settings
 
-### 3.3 Shifts
+Overtime is only recorded when **OT enabled** is ticked. Then:
 
-**Shifts** defines working patterns:
+- **OT counts from shift end** — only time past the shift end plus the **OT starts after**
+  threshold counts. Arriving early earns nothing. This is the usual choice.
+- **Unticked** — anything beyond standard working hours counts, whenever it was worked.
 
-| Field | Meaning |
-|---|---|
-| Name | e.g. "General Shift" |
-| Start / End time | e.g. 09:00 – 18:00 |
-| **Grace minutes** | lateness tolerated before someone is marked Late |
-| Weekly off days | e.g. Saturday, Sunday |
-
-With grace 15 and start 09:00, arriving at 09:14 is **Present**; 09:20 is **Late by 5 minutes**
-— lateness is counted from the *end* of the grace period, not from the start time.
-
-Assign shifts on the **Assignments** tab, with an effective-from date (and optional
-effective-to). Change someone's shift by adding a new assignment with a later effective-from —
-the most recent one applies. Do not edit history.
-
-> An employee with **no shift assigned is never marked late or early** — every check-in records
-> as Present. Assign shifts to everyone whose punctuality you want tracked.
-
-### 3.4 Employees
-
-**Employees → Add Employee.** Required: first name, last name, department, designation, branch,
-joining date. Employee code is generated if you leave it blank.
-
-**Biometric Enroll ID** is the number the fingerprint/face device knows the person by. It must
-match the device exactly or their punches will not import.
-
-Use the search box and the department/status filters to find people. The toggle button
-activates or deactivates someone without deleting them — deactivate leavers so they drop out of
-attendance counts while their history is kept.
-
-### 3.5 Users and roles
-
-**System Users** creates login accounts, optionally linked to an employee record.
-**Role & Access Control** defines what each role may do, as a grid of modules against actions
-(View, Create, Edit, Delete, Export, Approve).
-
-Changes take effect the **next time the affected user signs in**, since permissions are read
-into their session at sign-in.
-
-> Give each person their own account. Shared logins make the audit trail worthless — every
-> action is recorded against whoever was signed in.
+**On a holiday or weekly off, all worked time is overtime**, regardless of the above. Someone
+called in for four hours on their day off is credited four hours.
 
 ---
 
-## 4. Daily use
+## 4. Employees
 
-### 4.1 Attendance records
+**Employees → Add Employee.**
 
-**Attendance Records → Today** lists **every active employee**, not only those who have
-punched. Anyone without a record is shown greyed out with a derived status — Absent, On Leave,
-Holiday or Weekly Off — and a **Check In** button to record them manually. This is why the
-totals here agree with the dashboard.
+- **Full Name** is the required one, and fills in automatically from *Name with Initials* +
+  *Last Name*. Type in it directly to set it yourself; clear it to go back to automatic. Names
+  imported from a device often are not "initials + surname", which is why editing wins.
+- **Employee Code** is generated if left blank.
+- **User ID** is your site's own identifier and need not be unique.
+- **Photo** — Upload takes a JPG/PNG/WebP up to 5 MB and stores a square 400×400 version.
+  Remove clears it back to the default silhouette.
 
-The status filter includes **Checked In (Present + Late)**, which matches how the dashboard
-counts "Present Today" — someone who arrived late is still present.
+> ### Biometric Enroll ID — the field that breaks imports
+>
+> This is the ID the person is enrolled under on the fingerprint device. **If it is blank, no
+> biometric import can ever match that employee** and their attendance silently will not appear.
+>
+> The Employees list shows a yellow **not set** badge for exactly this reason. Chase those badges
+> before running an import, not after.
 
-Clicking a dashboard tile opens this page already filtered to the people behind that number.
+---
+
+## 5. Daily attendance
+
+**Attendance** shows one row per active employee for the chosen date — not only those with a
+record. Absent is not something stored; it is the *absence* of a record, so employees with no
+punch appear with a derived status.
+
+Statuses, in the order they take precedence:
 
 | Status | Meaning |
 |---|---|
-| Present | checked in within the grace period |
-| Late | checked in after start time + grace |
-| Absent | no record for a working day |
-| On Leave | approved leave covers the date |
-| Holiday | date is a configured holiday |
-| Weekly Off | day is a weekly off day for the shift |
+| **On Leave** | Approved leave covers the date |
+| **Holiday** | The date is a holiday |
+| **Weekly Off** | The day is in the shift's weekly off days |
+| **Late** | Arrived after start + grace |
+| **Present** | Everything else |
+| **Absent** | No record at all |
 
-You can add or correct a record manually — useful for a forgotten punch or a device outage.
-Manual records are flagged as such, and every edit is recorded against your account.
+The dashboard counts **Present + Late** as present, which is why the filter offers **Checked In**
+rather than only the raw statuses.
 
-**Working hours** = check-out minus check-in. It does not deduct breaks. **Early leave** is
-flagged when someone checks out before their shift ends.
-
-### 4.2 Biometric import
-
-**Biometric Import** brings punches in from the device.
-
-1. Export from your device software as **CSV, Excel (.xlsx/.xls) or MS Access (.mdb/.accdb)**.
-2. Choose the file and the date range.
-3. **Preview** — check the parsed rows before anything is saved. You can correct them here.
-4. **Import**.
-
-For each person each day, the **earliest punch becomes check-in and the latest becomes
-check-out**. Intermediate punches — lunch, etc. — are not stored as separate entries.
-
-If rows are skipped, the usual cause is a **Biometric Enroll ID that does not match any
-employee**. Fix it on the employee record and re-import.
-
-> Import after the working day is complete. Importing mid-afternoon records that moment as
-> check-out, and re-importing will report the day as already present.
-
-### 4.3 Leave
-
-**Leave Management** has two parts.
-
-**Leave Types** — name, days allowed per year, whether paid. Seeded: Annual (14), Sick (10),
-Casual (7), Unpaid (30).
-
-**Requests** — apply on behalf of an employee, or approve/reject pending ones.
-
-Applying needs employee, leave type, from/to dates and a reason. The system rejects the request
-if the balance is insufficient and tells you how many days remain.
-
-> **Leave days are counted as whole calendar days, inclusive of both ends.** Monday to Friday is
-> 5 days; Friday to Monday is **4 days, including the weekend**. Weekends and public holidays
-> are *not* deducted automatically. Bear this in mind when setting annual entitlements.
-
-Balances are tracked per calendar year, based on the **from** date.
-
-Approving or rejecting is recorded with your name and the time. Rejection takes a reason —
-the employee sees it.
-
-### 4.4 Holidays
-
-**Holidays** — the company calendar. Each entry has a date, name, type (Public or Company) and
-an optional "recurring" flag for fixed-date annual holidays.
-
-Attendance on a holiday is recorded with status *Holiday*. Keep the calendar current before the
-year starts, so reports classify days correctly from the outset.
+**Attendance Review** is where you correct records. Fix a time and every derived figure —
+lateness, hours, overtime — is recalculated by the same rules used everywhere else. A record you
+edit by hand is marked as manually corrected, and **a later import will not overwrite it**.
 
 ---
 
-## 5. Reports
+## 6. Biometric import
 
-**Reports** offers:
+**Biometric Import** loads punches from a device export: CSV, Excel, or an MS Access
+`.mdb`/`.accdb`.
 
-| Report | Shows |
+1. Choose the file.
+2. **Set the date range.** It defaults to the 1st of the current month to today.
+3. **Preview & Edit Punches** — parses the file and shows what it found, without saving.
+4. Correct or untick rows, then **Import Selected Punches**. Or **Import Directly** to skip the
+   review.
+
+### Reading the result
+
+| Line | Meaning |
 |---|---|
-| Daily Attendance | everyone's record for one date |
-| Monthly Summary | per-employee totals for a month |
-| Late Report | late arrivals over a date range |
-| Absent Report | absences over a date range |
-| Leave Report | leave taken over a date range |
-| Employee List | current employee register |
+| Punches read | Rows found in the file within the date range |
+| Days created | New attendance records |
+| Days updated | Existing days refreshed — usually a check-out that had not happened yet |
+| Unchanged | Same punches as last time |
+| Left as manually corrected | Someone edited these by hand, so the device did not overwrite them |
+| **Punches matching no employee** | **The Biometric Enroll ID is missing — see §4** |
 
-Most can be filtered by department. Choose the report, set the date range and filter, then
-**Generate**.
+### When it says there is nothing to import
 
-**Excel and PDF export are available in the desktop client.** The web Reports screen displays
-results on screen.
+> *"No punches between 2026-08-01 and 2026-08-05. This file covers 2018-02-04 to 2026-07-01 —
+> widen the date range and try again."*
 
----
+This is the most common outcome and it is not a fault. The default range starts on the 1st of the
+current month; if your export ends earlier, everything falls outside it. Set the **From Date**
+back and re-run.
 
-## 6. Your profile
+If you are told to install the **Microsoft Access Database Engine**, that is different: it means
+the `.mdb` genuinely could not be opened — a real missing-driver problem, not a date-range one.
 
-The menu under your name (top right):
-
-- **My Profile** — update your full name and email. You cannot change your own role — that is
-  deliberate.
-- **Change Password** — needs your current password. Minimum 8 characters with at least one
-  uppercase letter, one lowercase letter and one digit. Changing it signs out "remember me" on
-  every device.
-- **Logout**.
+The first punch of a day becomes check-in and the last becomes check-out. Early-morning punches
+belonging to an overnight shift are attributed to the shift that started the previous evening,
+rather than treated as a separate day.
 
 ---
 
-## 7. Desktop client
+## 7. Leave
 
-The Windows desktop application covers the same ground with two additions:
+Employees apply under **My Leave**; approvers use **Leave**.
 
-- **Excel and PDF export** from the Reports screen.
-- Direct reading of biometric `.mdb` files on the local machine.
+- Days are counted **inclusive of both dates, as calendar days**. Weekends and holidays inside a
+  range are *not* excluded — a Friday-to-Monday request is 4 days.
+- An application is refused if it would exceed the leave type's yearly entitlement.
+- Requests are Pending until Approved or Rejected, and can be Cancelled.
 
-Sign-in and permissions work identically.
+Approved leave changes that day's attendance status to **On Leave**.
 
 ---
 
-## 8. Troubleshooting
+## 8. Overtime
 
-| Problem | What to do |
+| Screen | Purpose |
 |---|---|
-| "Invalid username or password" | Check caps lock. After 5 tries the account locks. |
-| "Your account is locked" | Ask an administrator to unlock it. |
-| "Your account is inactive" | An administrator deactivated it; ask them to reactivate. |
-| Signed out immediately after signing in | You may be on `http://` instead of `https://`. Use the secure address. |
-| Signed out after a while | Sessions expire after 60 minutes of inactivity. |
-| Access Denied | Your role lacks that permission. Ask an administrator. |
-| Menu shorter than a colleague's | Expected — the menu reflects your role. |
-| Reset email never arrived | Check spam. If nothing, ask an administrator — email may not be configured. |
-| Import skipped rows | Biometric Enroll IDs don't match employee records. |
-| Someone shows Absent but was at work | No punch imported, or no shift assigned. Check both, then correct manually. |
-| Nobody is ever marked Late | Shifts are probably not assigned. See §3.3. |
-| Leave balance lower than expected | Weekends and holidays inside a leave range are counted. See §4.3. |
+| **Overtime Rules** | Rate multipliers and how overtime is paid |
+| **Overtime Register** | Every overtime record, filterable |
+| **Overtime Approval** | Approve or reject claims |
+| **Overtime Summary** | Totals per employee or period, for payroll |
 
-### For administrators
+Overtime minutes are calculated automatically from attendance using the shift's settings (§3).
+Approval is a separate, human decision — calculating overtime does not authorise paying it.
 
-Every create, update, delete, sign-in and approval is written to the **audit log** with the
-user and timestamp — useful when reconstructing what happened to a record.
+---
 
-**Immediately after installation:** sign in as `admin` / `Admin@123` and change that password.
-If accounts were created in bulk they may share a default password — verify, and require
-everyone to change theirs on first sign-in.
+## 9. Devices
+
+**Devices** records your fingerprint terminals: name, branch, IP address, port (4370 by default)
+and comm key.
+
+**Test Connection** checks the terminal answers and reports its clock. Clock drift is the most
+common real cause of "the attendance is wrong" — if the device clock is minutes out, so are the
+punches.
+
+> **Devices cannot yet pull attendance automatically.** This release records devices and tests
+> reachability only. Attendance still arrives through **Biometric Import** (§6). See
+> [DEVICE-INTEGRATION-DESIGN.md](DEVICE-INTEGRATION-DESIGN.md) for what is planned.
+
+---
+
+## 10. Reports and audit
+
+**Reports** covers daily attendance, monthly summaries, late arrivals, absentees, leave and the
+employee list. Filter by date range and department, then export.
+
+**Audit Logs** records who changed what and when — administrators only.
+
+---
+
+## 11. For employees
+
+| Screen | Purpose |
+|---|---|
+| **My Attendance** | Your own records and monthly totals |
+| **My Leave** | Apply for leave, see balances and request status |
+| **My Profile** | Update your full name and email; change your password |
+
+You cannot change your own role or permissions.
+
+---
+
+## 12. Troubleshooting
+
+| Symptom | Cause and fix |
+|---|---|
+| Sign in succeeds, returns to login | Using `http://`. Use the HTTPS address. |
+| Account locked | 5 failed attempts. An administrator unlocks it in Users. |
+| Menu item missing | Your role lacks that permission. |
+| Import found nothing | Date range misses the file's data. The message states the file's actual coverage — widen the From Date. |
+| Employee missing from import | Biometric Enroll ID not set on their record (§4). |
+| Hours look short | The shift's break minutes are deducted from worked time. |
+| Night-shift hours negative or wrong | The shift is not ticked as a night shift. |
+| Overtime always zero | OT not enabled on the shift, or nobody passed the OT threshold. |
+| Someone marked late unfairly | Check the shift's grace-in minutes, and that they are on the right shift for that date. |
+| Edited record reverted | It should not — manual corrections are protected from import. Report it. |
+| Password reset email never arrives | SMTP is not configured. Ask an administrator to set the password directly. |
+| Icons show as empty boxes | The icon font failed to load — a browser or network issue, not data loss. |

@@ -110,6 +110,113 @@ function fillDropdowns() {
     $('#empDept').html(dOpts); $('#empDesig').html(deOpts); $('#empBranch').html(bOpts);
 }
 
+/* ── Photo ───────────────────────────────────────────────────────────────────
+   Photos are stored on the employee row as bytes, so they travel in the same JSON
+   payload as everything else — base64 in, base64 out, no upload endpoint and no
+   files on disk to go missing when the record is deleted.
+
+   A phone camera JPEG is several megabytes; storing that per employee would bloat
+   both the table and every list query that touches it. Each picture is therefore
+   drawn onto a 400x400 canvas before it is encoded, which lands around 30-60 KB. */
+var PHOTO_MAX_PX = 400;
+var PHOTO_MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+// Drawn rather than fetched: a data URI cannot 404, so the placeholder survives
+// any future reshuffle of the theme's image folders.
+var DEFAULT_AVATAR =
+    'data:image/svg+xml;utf8,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 118 118">' +
+        '<rect width="118" height="118" fill="%23eef1f4"/>' +
+        '<circle cx="59" cy="45" r="21" fill="%23b6c0cc"/>' +
+        '<path d="M18 112c0-22 18-33 41-33s41 11 41 33z" fill="%23b6c0cc"/></svg>');
+
+function setPhoto(dataUri) {
+    var has = !!dataUri;
+    $('#empPhotoData').val(dataUri || '');
+    $('#empPhotoPreview').attr('src', has ? dataUri : DEFAULT_AVATAR);
+    $('#empPhotoClear').toggleClass('d-none', !has);
+}
+
+function clearPhoto() {
+    setPhoto('');
+    $('#empPhotoFile').val('');   // lets the same file be picked again after removing
+}
+
+function onPhotoPicked(input) {
+    var file = input.files && input.files[0];
+    if (!file) return;
+
+    if (file.size > PHOTO_MAX_UPLOAD_BYTES) {
+        notifyError('That image is larger than 5 MB. Please choose a smaller one.', 'Photo too large');
+        input.value = '';
+        return;
+    }
+
+    var reader = new FileReader();
+    reader.onload = function (e) {
+        var img = new Image();
+        img.onload = function () {
+            // Square centre-crop, so portrait and landscape shots both fill the circle
+            // instead of being squashed into it.
+            var side = Math.min(img.width, img.height);
+            var sx = (img.width - side) / 2;
+            var sy = (img.height - side) / 2;
+
+            var canvas = document.createElement('canvas');
+            canvas.width = canvas.height = PHOTO_MAX_PX;
+            canvas.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, PHOTO_MAX_PX, PHOTO_MAX_PX);
+
+            setPhoto(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = function () {
+            notifyError('That file could not be read as an image.', 'Invalid photo');
+            input.value = '';
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+/* Strips the "data:image/jpeg;base64," prefix. The API binds byte[], and
+   System.Text.Json expects bare base64 for that.
+
+   Returns "" rather than null when there is no photo, which is what makes Remove
+   work: the service treats null as "leave the existing photo alone", so a null
+   here would quietly ignore the removal. The form is the authority on the photo,
+   so it always states the full current position. */
+function photoToBase64() {
+    var v = $('#empPhotoData').val();
+    if (!v) return '';
+    var comma = v.indexOf(',');
+    return comma >= 0 ? v.substring(comma + 1) : v;
+}
+
+/* ── Full name assembly ──────────────────────────────────────────────────────
+   Full Name is composed from Name with Initials + Last Name while it is untouched.
+   Once somebody types in it directly, it is theirs and this stops: the imported
+   records carry a full name that is not the initialled form plus a surname, and
+   silently rewriting those on edit would corrupt them. */
+var fullNameIsAuto = true;
+
+function onNamePartChanged() {
+    if (!fullNameIsAuto) return;
+    var parts = [$('#empInitials').val().trim(), $('#empLast').val().trim()];
+    $('#empFirst').val(parts.filter(Boolean).join(' '));
+}
+
+function onFullNameEdited() {
+    // An emptied box is a request to go back to automatic, not a manual blank.
+    fullNameIsAuto = $('#empFirst').val().trim() === '';
+    if (fullNameIsAuto) onNamePartChanged();
+    updateFullNameHint();
+}
+
+function updateFullNameHint() {
+    $('#empFirstHint').text(fullNameIsAuto
+        ? 'Filled in from Name with Initials and Last Name. Type here to set it yourself.'
+        : 'Set by hand. Clear this box to go back to filling it in automatically.');
+}
+
 function openModal() {
     fillDropdowns();
     $('#empId').val(0); $('#empCode').val(''); $('#empFirst').val(''); $('#empLast').val('');
@@ -117,6 +224,8 @@ function openModal() {
     $('#empEmail').val(''); $('#empPhone').val(''); $('#empGender').val('');
     $('#empJoin').val(new Date().toISOString().split('T')[0]); $('#empDob').val('');
     $('#empAddr').val(''); $('#empEnrollId').val(''); $('#empActive').prop('checked', true);
+    clearPhoto();
+    fullNameIsAuto = true; updateFullNameHint();
     $('#empModalTitle').text('Add Employee');
     new bootstrap.Modal('#empModal').show();
 }
@@ -136,6 +245,15 @@ function editEmp(id) {
         $('#empAddr').val(e.Address); $('#empEnrollId').val(e.BiometricEnrollId || '');
         $('#empActive').prop('checked', e.IsActive);
         $('#empDept').val(e.DepartmentId); $('#empDesig').val(e.DesignationId); $('#empBranch').val(e.BranchId);
+
+        // Photo comes back as bare base64 from the byte[] column.
+        setPhoto(e.Photo ? 'data:image/jpeg;base64,' + e.Photo : '');
+
+        // An existing name is the record's own, not something to recompute from the
+        // other two boxes — leave it be unless the user clears it.
+        fullNameIsAuto = !$('#empFirst').val().trim();
+        updateFullNameHint();
+
         $('#empModalTitle').text('Edit Employee');
         new bootstrap.Modal('#empModal').show();
     });
@@ -160,7 +278,8 @@ function saveEmp() {
         // Blank means "not enrolled", which is a legitimate state — send null, not 0.
         BiometricEnrollId: $('#empEnrollId').val() === '' ? null : parseInt($('#empEnrollId').val()),
         DepartmentId: parseInt($('#empDept').val()), DesignationId: parseInt($('#empDesig').val()),
-        BranchId: parseInt($('#empBranch').val()), IsActive: $('#empActive').is(':checked')
+        BranchId: parseInt($('#empBranch').val()), IsActive: $('#empActive').is(':checked'),
+        Photo: photoToBase64()
     };
     $.ajax({ url: '/api/employees', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
         success: function () { 

@@ -115,7 +115,7 @@ public class EmployeeService : IEmployeeService
                     JoiningDate = dto.JoiningDate,
                     Gender = dto.Gender,
                     Address = dto.Address?.Trim(),
-                    Photo = dto.Photo,
+                    Photo = dto.Photo is { Length: > 0 } ? dto.Photo : null,
                     DepartmentId = dto.DepartmentId,
                     DesignationId = dto.DesignationId,
                     BranchId = dto.BranchId,
@@ -149,7 +149,10 @@ public class EmployeeService : IEmployeeService
                 emp.JoiningDate = dto.JoiningDate;
                 emp.Gender = dto.Gender;
                 emp.Address = dto.Address?.Trim();
-                if (dto.Photo != null) emp.Photo = dto.Photo;
+                // null means the caller is not talking about the photo, so leave it. An empty
+                // array is a caller that is talking about it and says there isn't one — that
+                // is how "Remove photo" reaches the database instead of being ignored.
+                if (dto.Photo != null) emp.Photo = dto.Photo.Length > 0 ? dto.Photo : null;
                 emp.DepartmentId = dto.DepartmentId;
                 emp.DesignationId = dto.DesignationId;
                 emp.BranchId = dto.BranchId;

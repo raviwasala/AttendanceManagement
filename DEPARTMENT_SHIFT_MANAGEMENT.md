@@ -1,620 +1,201 @@
-# 🎯 Department & Shift Management Features - Complete Setup
+# Organisation & Shift Structure
 
-## ✅ Overview
+How employees are organised, how shifts are defined, and how the two are joined by the roster.
 
-You now have **complete Department and Shift Management** features available in **BOTH systems**:
-- ✅ **ASP.NET Core MVC Web Application** (AttendanceSystem.Web)
-- ✅ **Windows Forms/Infrastructure Layer** (AttendanceManagementSystem + Infrastructure Services)
-
----
-
-## 🏗️ Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│         PRESENTATION LAYERS                                  │
-├─────────────────────────────────────────────────────────────┤
-│  MVC Web App (AttendanceSystem.Web)  │   Windows Forms App   │
-│  • Department Pages                   │  (To be implemented)  │
-│  • Shift Pages                        │                       │
-│  • Employee Pages                     │                       │
-├─────────────────────────────────────────────────────────────┤
-│         APPLICATION LAYER                                    │
-├─────────────────────────────────────────────────────────────┤
-│  DTOs (Data Transfer Objects)                                │
-│  • DepartmentDto                                             │
-│  • ShiftDto                                                  │
-│  • EmployeeDto                                               │
-│  • AttendanceRecordDto                                       │
-├─────────────────────────────────────────────────────────────┤
-│         BUSINESS LOGIC LAYER (Interfaces)                    │
-├─────────────────────────────────────────────────────────────┤
-│  • IDepartmentService                                        │
-│  • IShiftService                                             │
-│  • IEmployeeService                                          │
-│  • IAttendanceService                                        │
-├─────────────────────────────────────────────────────────────┤
-│         INFRASTRUCTURE LAYER                                 │
-├─────────────────────────────────────────────────────────────┤
-│  • DepartmentService (Implementation)                        │
-│  • ShiftService (Implementation)                             │
-│  • EmployeeService (Implementation)                          │
-│  • AttendanceService (Implementation)                        │
-│  • Database Access via EF Core                               │
-├─────────────────────────────────────────────────────────────┤
-│         DOMAIN LAYER (Entities)                              │
-├─────────────────────────────────────────────────────────────┤
-│  • Department Entity                                         │
-│  • Shift Entity                                              │
-│  • Employee Entity                                           │
-│  • AttendanceRecord Entity                                   │
-└─────────────────────────────────────────────────────────────┘
-```
+This is the reference for the structural data every attendance figure depends on. For the
+arithmetic those structures drive, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §5. For
+operating the screens, see [docs/USER-GUIDE.md](docs/USER-GUIDE.md).
 
 ---
 
-## 📊 Domain Entities
+## 1. The shape of it
 
-### 1. **Department Entity**
+```
+Branch ─────┐
+            │
+Department ─┼──► Employee ──< EmployeeShift >── Shift
+            │                 (dated assignment)
+Designation ┘
+```
+
+- **Branch** — a physical location. Devices belong to a branch too.
+- **Department** — an organisational unit.
+- **Designation** — a job title.
+- **Shift** — a rostered working pattern.
+- **EmployeeShift** — *which* shift an employee works, *from when*.
+
+An employee carries exactly one branch, one department and one designation at a time. Shifts are
+different: they are dated, because people change shift and history must stay correct.
+
+All of these inherit `BaseEntity`, so all are **soft-deleted** — a deleted department disappears
+from lists but existing employees keep pointing at it, and historic records stay readable.
+
+---
+
+## 2. Branch, Department, Designation
+
+Simple lookups: a name, a code, an active flag. They exist to filter and group — nearly every
+report and list can be sliced by them. They do **not** scope permissions.
+
+Set these up **before** creating employees: all three are required on an employee.
+
+Deleting one is a soft delete. It stops appearing in dropdowns; employees already assigned are
+not reassigned automatically and should be moved first.
+
+---
+
+## 3. Shift
+
+The shift is the most consequential record in the system. Nothing about lateness, worked hours or
+overtime can be computed without one, and a wrong shift produces wrong numbers *silently* — they
+look like ordinary attendance.
+
+### Fields
+
+| Field | Type | Effect |
+|---|---|---|
+| `ShiftCode` | string | Short code for rosters and reports, e.g. `GEN`, `NGT` |
+| `Name` | string | Display name |
+| `StartTime` / `EndTime` | TimeSpan | The rostered day |
+| `IsNightShift` | bool | The shift crosses midnight |
+| `GraceMinutes` | int | Minutes after start before an arrival is late |
+| `GraceOutMinutes` | int | Minutes before end that leaving is still not early |
+| `BreakMinutes` | int | Unpaid, deducted from worked time |
+| `StandardWorkingHours` | double | Paid hours per day; the overtime threshold. 0 = derive it |
+| `IsOtEnabled` | bool | Whether overtime is recorded at all |
+| `OtCountsFromShiftEnd` | bool | How overtime is measured — see §3.3 |
+| `OtStartAfterMinutes` | int | Minutes past shift end before overtime accrues |
+| `WeeklyOffDays` | string | Comma-separated day names, default `Saturday,Sunday` |
+| `AllowedLateDaysPerMonth` | int | Monthly tolerance. **Reporting only.** 0 = no limit |
+| `WorkingDaysPerMonth` | int | Payroll's daily-rate divisor. Does not affect attendance |
+
+### 3.1 Two grace periods, not one
+
+`GraceMinutes` and `GraceOutMinutes` are deliberately separate. Sites commonly tolerate a late
+arrival but not an early exit, and a single symmetric grace cannot express that.
+
+### 3.2 Night shifts
+
+`IsNightShift` marks a shift running past midnight. It matters because the check-out lands on the
+*following* calendar day: without it the expected end is before the start and every duration goes
+negative.
+
+Two derived properties handle the arithmetic:
+
+- `SpanHours` — 22:00–06:00 is **8 hours, not −16**.
+- `TimesCrossMidnight` — true when `EndTime <= StartTime`, used to warn on save when the flag and
+  the times disagree.
+
+The calculator trusts the flag but also honours times that plainly cross over, so a shift saved
+before the flag existed still computes correctly.
+
+### 3.3 Overtime measurement
+
+Only when `IsOtEnabled`. Then one of three routes:
+
+| Condition | Overtime is |
+|---|---|
+| The day is a holiday or a weekly off | **all** worked time |
+| `OtCountsFromShiftEnd = true` | time past `EndTime + OtStartAfterMinutes` |
+| `OtCountsFromShiftEnd = false` | time past `EffectiveStandardHours`, whenever worked |
+
+The non-working-day rule overrides the others by design. Measuring from the shift end would mean
+someone called in for four hours on their Sunday off leaves long before the shift's nominal end
+and earns nothing — the opposite of what a day off is worth. **The shift's end time is
+meaningless on a day the shift does not run.**
+
+`EffectiveStandardHours` = `StandardWorkingHours` when set, otherwise `SpanHours − BreakMinutes`.
+Leaving `StandardWorkingHours` at 0 is normal and safe.
+
+### 3.4 Late allowance is reporting only
+
+`AllowedLateDaysPerMonth` flags days beyond the monthly tolerance. It changes **nothing** about
+status, working hours or overtime.
+
+That restraint is deliberate: anything that changes what a person is paid should be a decision
+somebody makes, not a side effect of a counter.
+
+### 3.5 Weekly off days
+
+Stored as a comma-separated string of `DayOfWeek` names (`"Saturday,Sunday"`). Matching is
+case-insensitive and tolerates whitespace. A day listed here yields status **Weekly Off** and —
+per §3.3 — makes all worked time overtime.
+
+---
+
+## 4. EmployeeShift — the dated assignment
+
 ```csharp
-public class Department
+public class EmployeeShift : BaseEntity
 {
-	public int DepartmentId { get; set; }
-	public string DepartmentName { get; set; }
-	public string Description { get; set; }
-	public string DepartmentHead { get; set; }
-	public string HeadEmail { get; set; }
-	public string HeadPhoneNumber { get; set; }
-	public bool IsActive { get; set; }
-	public DateTime CreatedDate { get; set; }
-	public DateTime? ModifiedDate { get; set; }
-
-	// Navigation
-	public virtual ICollection<Shift> Shifts { get; set; }
-	public virtual ICollection<Employee> Employees { get; set; }
+    public int EmployeeId { get; set; }
+    public int ShiftId { get; set; }
+    public DateTime EffectiveFrom { get; set; }
+    public DateTime? EffectiveTo { get; set; }   // null = open-ended
 }
 ```
 
-**Fields:**
-- 🏢 Department Name - Unique identifier (IT, HR, Finance, Operations, etc.)
-- 📝 Description - Department purpose and details
-- 👤 Department Head - Head's name
-- 📧 Head Email - Contact email
-- 📱 Head Phone - Contact phone
-- ✅ Is Active - Status flag
-- 📅 Created/Modified Dates - Audit trail
+Resolution for a given date: the assignment where `EffectiveFrom <= date` and `EffectiveTo` is
+null or `>= date`. **If several match, the latest `EffectiveFrom` wins.**
+
+That tie-break is what makes a shift change safe. Moving someone from day to night shift is a new
+row with a new `EffectiveFrom`; last month's attendance still resolves against the shift they
+actually worked, so historic lateness and overtime do not silently change.
+
+> **Never edit a shift's times to reflect a change of pattern.** Editing the `Shift` row rewrites
+> history: every past record recalculated against it produces different numbers. Create a new
+> shift and a new `EmployeeShift` row instead.
+
+### No shift assigned
+
+An employee with no assignment covering a date is **never marked late or early**; status falls
+through to Present. Hours are still computed from the punches, without a break deduction and
+without overtime.
+
+This is a legitimate state, not an error — but it is worth auditing, because it silently disables
+every rule above.
 
 ---
 
-### 2. **Shift Entity**
-```csharp
-public class Shift
-{
-	public int ShiftId { get; set; }
-	public string ShiftName { get; set; }
-	public string Description { get; set; }
-	public TimeSpan StartTime { get; set; }      // 09:00 AM
-	public TimeSpan EndTime { get; set; }        // 05:00 PM
-	public TimeSpan? BreakStartTime { get; set; } // 01:00 PM
-	public TimeSpan? BreakEndTime { get; set; }   // 02:00 PM
-	public decimal WorkingHoursPerDay { get; set; }
-	public int GracePeriodMinutes { get; set; }
-	public string ColorCode { get; set; }        // #667eea
-	public string ShiftType { get; set; }        // Morning, Afternoon, Night
-	public bool IsActive { get; set; }
-	public int? DepartmentId { get; set; }       // Optional - can be cross-dept
+## 5. Shift Roster
 
-	// Navigation
-	public virtual Department Department { get; set; }
-	public virtual ICollection<Employee> Employees { get; set; }
-}
-```
+The **Shift Roster** screen manages `EmployeeShift` rows: assign a shift to employees from a
+date, and close the previous assignment.
 
-**Shift Types:**
-- 🌅 **Morning**: 09:00 AM - 05:00 PM (standard)
-- 🌤️ **Afternoon**: 02:00 PM - 10:00 PM
-- 🌙 **Night**: 10:00 PM - 06:00 AM
-- 🔄 **Flexible**: Custom hours
+Typical sequence for a shift change:
+
+1. Open Shift Roster and filter to the employees affected.
+2. Assign the new shift with `EffectiveFrom` = the first day of the new pattern.
+3. Close the previous assignment with `EffectiveTo` = the day before.
+
+Do this **before** importing attendance for the new period, so imported punches are judged
+against the right shift.
 
 ---
 
-### 3. **Employee Entity**
-```csharp
-public class Employee
-{
-	public int EmployeeId { get; set; }
-	public string EmployeeCode { get; set; }     // EMP001, EMP002, etc.
-	public string FirstName { get; set; }
-	public string LastName { get; set; }
-	public string Email { get; set; }
-	public string PhoneNumber { get; set; }
-	public string Address { get; set; }
-	public int? DepartmentId { get; set; }       // FK to Department
-	public int? ShiftId { get; set; }            // FK to Shift
-	public string Designation { get; set; }      // Manager, Developer, etc.
-	public string BiometricTemplateId { get; set; } // Fingerprint/Face ID
-	public DateTime? DateOfJoining { get; set; }
-	public bool IsActive { get; set; }
+## 6. Setup order
 
-	// Navigation
-	public virtual Department Department { get; set; }
-	public virtual Shift Shift { get; set; }
-	public virtual ICollection<AttendanceRecord> AttendanceRecords { get; set; }
-}
-```
+Each step depends on those above it:
+
+1. **Branches**
+2. **Departments**, **Designations**
+3. **Shifts**
+4. **Holidays** — needed before attendance, since holiday status and holiday overtime depend on it
+5. **Employees** — branch, department and designation are required
+6. **Shift Roster** — assign shifts
+7. Only then import or record attendance
+
+Getting 3 and 4 wrong is the usual cause of numbers that look plausible but are not.
 
 ---
 
-### 4. **AttendanceRecord Entity**
-```csharp
-public class AttendanceRecord
-{
-	public int AttendanceId { get; set; }
-	public int EmployeeId { get; set; }
-	public DateTime AttendanceDate { get; set; }
-	public TimeSpan? CheckInTime { get; set; }
-	public TimeSpan? CheckOutTime { get; set; }
-	public string Status { get; set; }           // Present, Absent, Late, OnLeave
-	public int? LateMinutes { get; set; }        // Minutes late
-	public decimal? WorkedHours { get; set; }    // Total working hours
-	public string Remarks { get; set; }
-	public string BiometricDeviceId { get; set; }
-	public bool IsManualEntry { get; set; }
-
-	// Navigation
-	public virtual Employee Employee { get; set; }
-}
-```
-
-**Attendance Status Values:**
-- ✅ **Present** - Employee attended full day
-- ❌ **Absent** - Employee didn't attend
-- ⏰ **Late** - Employee came after grace period
-- 🏖️ **OnLeave** - On approved leave
-- 🌤️ **HalfDay** - Half day attendance
-- 🚑 **Medical** - Medical leave
-
----
-
-## 🌐 Web Application Pages (MVC)
-
-### 1. **Department Management** (`/Admin/Departments`)
-
-**Features:**
-- ✅ View all departments in table format
-- ✅ Add new department with modal form
-- ✅ Edit department details
-- ✅ Delete department
-- ✅ Search by department name
-- ✅ Filter by status (Active/Inactive)
-- ✅ View employee count, shift count per department
-
-**Form Fields:**
-```
-- Department Name (Required)
-- Description
-- Department Head Name
-- Head Email
-- Head Phone Number
-- Is Active (Checkbox)
-```
-
-**Table Columns:**
-```
-Department Name | Head | Email | Phone | Employees | Shifts | Status | Actions
-```
-
----
-
-### 2. **Shift Management** (`/Admin/Shifts`)
-
-**Features:**
-- ✅ View shifts in card view (modern UI)
-- ✅ View shifts in table view
-- ✅ Add new shift with timing configurations
-- ✅ Edit shift details
-- ✅ Delete shift
-- ✅ Search by shift name
-- ✅ Filter by shift type (Morning/Afternoon/Night/Flexible)
-- ✅ Color coding for UI display
-
-**Form Fields:**
-```
-- Shift Name (Required)
-- Shift Type - Dropdown (Required)
-- Description
-- Start Time (Required)
-- End Time (Required)
-- Break Start Time
-- Break End Time
-- Working Hours Per Day (Required)
-- Grace Period Minutes
-- Color Code (Color Picker)
-- Is Active (Checkbox)
-- Department Assignment (Optional)
-```
-
-**Card Display:**
-```
-┌─────────────────────────┐
-│ 🌅 Morning Shift        │
-│ Standard working hours  │
-│                         │
-│ Timing: 09:00 - 05:00  │
-│ Break: 01:00 - 02:00   │
-│ Hours: 8 hrs           │
-│ Grace: 5 mins          │
-│                         │
-│ [Edit] [Delete]        │
-└─────────────────────────┘
-```
-
----
-
-### 3. **Employee Management** (`/Admin/Employees`)
-
-**Features:**
-- ✅ View all employees with detailed information
-- ✅ Add new employee with complete profile
-- ✅ Edit employee details
-- ✅ Delete employee record
-- ✅ Search by name or employee code
-- ✅ Filter by department
-- ✅ Filter by shift
-- ✅ Bulk import employees
-- ✅ Assign department and shift
-- ✅ Manage biometric template IDs
-
-**Form Fields:**
-```
-- Employee Code (Required)
-- First Name (Required)
-- Last Name (Required)
-- Email
-- Phone Number
-- Address
-- Department (Required)
-- Shift (Required)
-- Designation
-- Date of Joining
-- Biometric Template ID
-- Is Active (Checkbox)
-```
-
-**Table Columns:**
-```
-Employee Code | Name | Email | Department | Shift | Designation | Joined | Status | Actions
-```
-
----
-
-## 🔧 Service Layer (Application & Infrastructure)
-
-### Services Available
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│  SERVICE INTERFACE        │  METHODS                         │
-├──────────────────────────────────────────────────────────────┤
-│  IDepartmentService      │ • GetAllDepartmentsAsync()       │
-│                          │ • GetDepartmentByIdAsync(id)     │
-│                          │ • AddDepartmentAsync(dto)        │
-│                          │ • UpdateDepartmentAsync(id, dto) │
-│                          │ • DeleteDepartmentAsync(id)      │
-│                          │ • DeactivateDepartmentAsync(id)  │
-│                          │ • GetActiveDepartmentsAsync()    │
-│                          │                                   │
-│  IShiftService           │ • GetAllShiftsAsync()            │
-│                          │ • GetShiftByIdAsync(id)          │
-│                          │ • AddShiftAsync(dto)             │
-│                          │ • UpdateShiftAsync(id, dto)      │
-│                          │ • DeleteShiftAsync(id)           │
-│                          │ • DeactivateShiftAsync(id)       │
-│                          │ • GetActiveShiftsAsync()         │
-│                          │ • GetShiftsByDepartmentAsync(id) │
-│                          │                                   │
-│  IEmployeeService        │ • GetAllEmployeesAsync()         │
-│                          │ • GetEmployeeByIdAsync(id)       │
-│                          │ • GetEmployeeByCodeAsync(code)   │
-│                          │ • AddEmployeeAsync(dto)          │
-│                          │ • UpdateEmployeeAsync(id, dto)   │
-│                          │ • DeleteEmployeeAsync(id)        │
-│                          │ • DeactivateEmployeeAsync(id)    │
-│                          │ • GetActiveEmployeesAsync()      │
-│                          │ • GetEmployeesByDepartmentAsync()│
-│                          │ • GetEmployeesByShiftAsync()     │
-│                          │                                   │
-│  IAttendanceService      │ • GetAttendanceByIdAsync(id)     │
-│                          │ • AddAttendanceAsync(dto)        │
-│                          │ • UpdateAttendanceAsync(id, dto) │
-│                          │ • GetAttendanceByDateAsync(date) │
-│                          │ • GetAttendanceByEmployeeAsync() │
-│                          │ • GetAttendanceByDepartmentAsync()│
-│                          │ • GetAttendanceByShiftAsync()    │
-│                          │ • GetLateArrivalsAsync()         │
-│                          │ • GetAbsencesAsync()             │
-└──────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 💻 Using in MVC Web Application
-
-### 1. **Register Services in Program.cs**
-
-```csharp
-// In Program.cs, add these registrations:
-builder.Services.AddScoped<IDepartmentService, DepartmentService>();
-builder.Services.AddScoped<IShiftService, ShiftService>();
-builder.Services.AddScoped<IEmployeeService, EmployeeService>();
-builder.Services.AddScoped<IAttendanceService, AttendanceService>();
-```
-
-### 2. **Inject in Controllers**
-
-```csharp
-[Route("Admin")]
-public class AdminController : Controller
-{
-	private readonly IDepartmentService _departmentService;
-	private readonly IShiftService _shiftService;
-	private readonly IEmployeeService _employeeService;
-
-	public AdminController(
-		IDepartmentService departmentService,
-		IShiftService shiftService,
-		IEmployeeService employeeService,
-		ILogger<AdminController> logger)
-	{
-		_departmentService = departmentService;
-		_shiftService = shiftService;
-		_employeeService = employeeService;
-		_logger = logger;
-	}
-
-	[HttpGet("Departments")]
-	public async Task<IActionResult> Departments()
-	{
-		var departments =  await _departmentService.GetAllDepartmentsAsync();
-		return View(departments);
-	}
-}
-```
-
-### 3. **Use in Views**
-
-```html
-@model IEnumerable<DepartmentDto>
-
-<div class="table-responsive">
-	<table class="table table-hover">
-		<tbody>
-			@foreach(var dept in Model)
-			{
-				<tr>
-					<td>@dept.DepartmentName</td>
-					<td>@dept.DepartmentHead</td>
-					<td>@dept.EmployeeCount Employees</td>
-					<td>@(dept.IsActive ? "Active" : "Inactive")</td>
-				</tr>
-			}
-		</tbody>
-	</table>
-</div>
-```
-
----
-
-## 🖥️ Windows Forms Implementation (Optional)
-
-You can also implement Department/Shift/Employee management in the Windows Forms app:
-
-```csharp
-// Windows Forms Example
-public partial class DepartmentForm : Form
-{
-	private readonly IDepartmentService _departmentService;
-
-	public DepartmentForm(IDepartmentService departmentService)
-	{
-		_departmentService = departmentService;
-		InitializeComponent();
-	}
-
-	private async void LoadDepartments()
-	{
-		var departments = await _departmentService.GetAllDepartmentsAsync();
-		dataGridViewDepartments.DataSource = departments.ToList();
-	}
-
-	private async void buttonAdd_Click(object sender, EventArgs e)
-	{
-		var newDept = new DepartmentDto
-		{
-			DepartmentName = textBoxName.Text,
-			DepartmentHead = textBoxHead.Text,
-			IsActive = true
-		};
-
-		await _departmentService.AddDepartmentAsync(newDept);
-		LoadDepartments();
-	}
-}
-```
-
----
-
-## 🔗 Relationship Diagram
-
-```
-┌──────────────────┐
-│   Department     │
-├──────────────────┤
-│ • DepartmentId   │
-│ • Name           │
-│ • Head           │
-│ • Email          │
-└──────────────────┘
-		│ 1
-		│ (has many)
-		│
-		├─────────────────────┬──────────────────┐
-		│                     │                  │
-		▼ 1                   ▼ 1                │
-┌──────────────────┐  ┌──────────────────┐      │
-│    Shift         │  │    Employee      │      │
-├──────────────────┤  ├──────────────────┤      │
-│ • ShiftId        │  │ • EmployeeId     │      │
-│ • Name           │  │ • Code           │      │
-│ • StartTime      │  │ • FirstName      │      │
-│ • EndTime        │  │ • LastName       │      │
-│ • BreakTime      │◄─│ • DepartmentId ──┼──────┤
-│ • WorkingHours   │  │ • ShiftId ───────┤─────┐
-│ • GracePeriod    │  │ • Designation    │     │
-└──────────────────┘  │ • BiometricId    │     │
-		│ 1           └──────────────────┘     │
-		│ (has many)         │ 1                │
-		│                    │ (has many)       │
-		│                    │                  │
-		│            ┌──────────────────┐      │
-		│            │ AttendanceRecord │      │
-		│            ├──────────────────┤      │
-		│            │ • AttendanceId   │      │
-		│            │ • EmployeeId ────┼──────┘
-		│            │ • Date           │
-		│            │ • CheckInTime    │
-		│            │ • CheckOutTime   │
-		│            │ • Status         │
-		│            │ • LateMinutes    │
-		│            │ • WorkedHours    │
-		│            └──────────────────┘
-		│
-		└─────────────────────────────────────┘
-			  (Shift can be department-wide
-			   or cross-department)
-```
-
----
-
-## 📋 Quick Feature Checklist
-
-### ✅ Departments Features
-- [x] CRUD Operations (Create, Read, Update, Delete)
-- [x] Search by name
-- [x] Filter by status
-- [x] View employee count
-- [x] View shift count
-- [x] Department Head management
-- [x] Contact information
-- [x] Audit trail (Created/Modified dates)
-
-### ✅ Shifts Features
-- [x] Flexible timing configuration
-- [x] Break time management
-- [x] Grace period configuration
-- [x] Multiple shift types
-- [x] Color coding for UI
-- [x] Department assignment (optional)
-- [x] Active/Inactive status
-- [x] Working hours categorization
-
-### ✅ Employees Features
-- [x] Complete employee profile
-- [x] Department assignment
-- [x] Shift assignment
-- [x] Biometric template linking
-- [x] Search functionality
-- [x] Multi-filter capability
-- [x] Bulk import support
-- [x] Active/Inactive status
-
-### ✅ Attendance Features
-- [x] Automatic status calculation
-- [x] Late arrival detection (using grace period)
-- [x] Check-in/Check-out tracking
-- [x] Worked hours calculation
-- [x] Multiple status options
-- [x] Manual editing capability
-- [x] Date range queries
-- [x] Department-wise reports
-
----
-
-## 🚀 Next Steps
-
-1. **Wire Up Database Connection**
-   - Map entities to DbContext
-   - Create migrations
-   - Seed initial departments and shifts
-
-2. **Implement Service Methods**
-   - Replace TODO placeholders with actual DB queries
-   - Use Entity Framework Core for data access
-
-3. **Create API Endpoints**
-   - Add REST API controllers for frontend integration
-   - Implement AJAX calls in views
-
-4. **Add Validations**
-   - Server-side validation
-   - Business rule enforcement
-   - Unique constraint checks
-
-5. **Implement Authentication/Authorization**
-   - Add role-based access
-   - Department-specific permissions
-   - Audit logging
-
-6. **Advanced Features**
-   - Bulk operations (import/export)
-   - Schedule management
-   - Automatic attendance calculation
-   - Real-time reporting dashboards
-
----
-
-## 📊 Files Created/Modified
-
-### ✅ Files Created:
-- `AttendanceSystem.Web/Views/Admin/Departments.cshtml`
-- `AttendanceSystem.Web/Views/Admin/Shifts.cshtml`
-- `AttendanceSystem.Web/Views/Admin/Employees.cshtml`
-- `AttendanceSystem.Domain/Entities/AttendanceRecord.cs` (new)
-
-### ✅ Files Modified:
-- `AttendanceSystem.Web/Controllers/AdminController.cs` (added 3 new actions)
-- `AttendanceSystem.Web/Views/Shared/_Layout.cshtml` (updated sidebar)
-
-### ✅ Existing Infrastructure Files (Already in Project):
-- `AttendanceSystem.Domain/Entities/Department.cs`
-- `AttendanceSystem.Domain/Entities/Shift.cs`
-- `AttendanceSystem.Domain/Entities/Employee.cs`
-- `AttendanceSystem.Application/DTOs/DepartmentDto.cs`
-- `AttendanceSystem.Application/DTOs/ShiftDto.cs`
-- `AttendanceSystem.Application/DTOs/EmployeeDto.cs`
-- `AttendanceSystem.Application/Interfaces/IDepartmentService.cs`
-- `AttendanceSystem.Application/Interfaces/IShiftService.cs`
-- `AttendanceSystem.Application/Interfaces/IEmployeeService.cs`
-- `AttendanceSystem.Application/Interfaces/IAttendanceService.cs`
-
----
-
-##  🟢 BUILD STATUS: ✅ **SUCCESS**
-
-All Web Pages Deployed:
-- ✅ Departments Management
-- ✅ Shifts Management
-- ✅ Employees Management
-- ✅ Fully Responsive UI
-- ✅ Modal forms
-- ✅ Search & Filter
-- ✅ Professional Design
-
-**Ready to push to production!**
-
----
-
-**Last Updated**: 2026  
-**Version**: 1.0.0  
-**Framework**: .NET 10  
-**UI**: Bootstrap 5 + Font Awesome 6.4.0
+## 7. Checklist before trusting the numbers
+
+- [ ] Every shift crossing midnight has **Night shift** ticked
+- [ ] Break minutes reflect the actual unpaid break
+- [ ] Weekly off days match reality for each shift
+- [ ] Holidays are entered for the period being calculated
+- [ ] Every active employee has an `EmployeeShift` covering the period
+- [ ] Shift changes were made as new assignments, not by editing shift times
+- [ ] `OtCountsFromShiftEnd` and `OtStartAfterMinutes` match how the site actually pays overtime
+- [ ] Every employee has a **Biometric Enroll ID** if attendance arrives by import
