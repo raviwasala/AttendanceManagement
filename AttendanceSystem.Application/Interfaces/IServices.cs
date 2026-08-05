@@ -328,10 +328,13 @@ public interface IBiometricImportService
     /// <summary>Import punches directly from a ZKTeco/Access MDB file or ODBC source.</summary>
     Task<BiometricImportResultDto> ImportFromAccessFileAsync(string mdbFilePath, DateTime fromDate, DateTime toDate);
 
-    /// <summary>Import punches from a CSV or Excel file exported from the device software.</summary>
+    /// <summary>
+    /// Import punches from a device export: CSV, Excel, or an Access .mdb/.accdb.
+    /// The file's extension selects the reader.
+    /// </summary>
     Task<BiometricImportResultDto> ImportFromFileAsync(string filePath, DateTime fromDate, DateTime toDate);
 
-    /// <summary>Parse raw punch rows and return preview without saving.</summary>
+    /// <summary>Parse raw punch rows and return preview without saving. Same formats as above.</summary>
     Task<List<BiometricPunchDto>> PreviewFileAsync(string filePath, DateTime? fromDate = null, DateTime? toDate = null);
 
     /// <summary>Read raw punch rows from an Access database without saving them.</summary>

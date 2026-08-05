@@ -10,7 +10,10 @@
             Label = "Total Employees", ValueId = "statTotal",
             Icon = "icon-users",       Colour = "bg-c-yellow",
             Module = AppConstants.Modules.Employees,
-            Href = Url.Action("Employees", "Admin"),
+            // ?? "" keeps every tile's Href the same non-nullable type. Without it this first
+            // entry types the anonymous array as string? while the concatenated ones below are
+            // string, which the compiler reports as a mismatch on each of them.
+            Href = Url.Action("Employees", "Admin") ?? "",
             Hint = "View all employees"
         },
         new {

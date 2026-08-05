@@ -117,7 +117,8 @@ public static class AttendanceCalculator
             // hours on their Sunday off leaves long before the shift's nominal end and earns
             // nothing, which is the opposite of what a day off is worth. The shift's end time
             // is meaningless on a day the shift does not run.
-            var isNonWorkingDay = isHoliday || (shift != null && IsWeeklyOff(shift, date));
+            // shift is non-null here: the enclosing `shift is { IsOtEnabled: true }` guarantees it.
+            var isNonWorkingDay = isHoliday || IsWeeklyOff(shift, date);
 
             if (isNonWorkingDay)
             {

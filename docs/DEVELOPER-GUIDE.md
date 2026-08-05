@@ -296,19 +296,20 @@ dotnet restore AttendanceManagementSystem.slnx
 dotnet build   AttendanceManagementSystem.slnx
 ```
 
-### Current warning baseline (~102 on a full rebuild)
+### Current warning baseline: **0 warnings, 0 errors** on a full rebuild
 
-| Count | Code | Cause |
+The former ~102-warning baseline is gone. What cleared it:
+
+| Was | Code | Resolution |
 |---|---|---|
-| 68 | CS8618 | non-nullable WinForms fields declared `= null!` |
-| 54/46/2 | CS8600/8602/8604 | `SelectedRows[0].DataBoundItem` cast without a null check |
-| 22 | CA1416 | OleDb is Windows-only; `Infrastructure` targets plain `net10.0` |
-| 6 | CS0414 | field assigned, never used |
-| 4 | NU1608 | `AutoMapper.Extensions.Microsoft.DependencyInjection 12.0.1` pins AutoMapper 12 but 16.2.0 resolves |
-| 2 | CS8321 | unused local function |
+| 68 / 54 / 46 / 2 / 6 | CS8618, CS8600/8602/8604, CS0414 | all lived in the WinForms desktop project, which has been removed |
+| 22 | CA1416 | OleDb entry points now check `OperatingSystem.IsWindows()` once and delegate to `[SupportedOSPlatform("windows")]` readers, so the constraint is declared rather than suppressed |
+| 4 | NU1608 | AutoMapper removed — it was referenced by three projects and used by none |
+| 2 | CS8321 | unused `NavSection` local function dropped from `_Layout.cshtml` |
+| 3 | CS8619 | dashboard tile `Href` values given one consistent nullability |
+| 1 | CS8602 | redundant `shift != null` removed in `AttendanceCalculator`; the enclosing pattern already proves it |
 
-**AutoMapper is referenced by four projects but used nowhere** (zero hits for `AutoMapper` or
-`IMapper` in source). Removing both packages clears NU1608 and some weight.
+Keep it at zero: a new warning is easier to fix the day it appears than in a batch of a hundred.
 
 ### Common problems
 
@@ -344,7 +345,7 @@ dotnet build   AttendanceManagementSystem.slnx
 4. **Time handling** mixes local and UTC; unify on `DateTimeOffset`/`TimeProvider`.
 5. **Session id not rotated** on sign-in; needs cookie auth for a full fix.
 6. **CDN assets** should be vendored for on-premise deployments.
-7. **AutoMapper** unused — remove.
+7. ~~**AutoMapper** unused — remove.~~ Done — removed from all three projects.
 8. **`Infrastructure` → `Application`** reference inverts the intended dependency direction.
 9. **Action buttons are not permission-gated** in views — users see Edit/Delete, then get a 403
    toast. Server-side is safe; this is polish.

@@ -16,13 +16,10 @@
         (string.IsNullOrEmpty(a) || action.Equals(a, StringComparison.OrdinalIgnoreCase))
         ? "active" : "";
 
-    string NavSection(string c) =>
-        controller.Equals(c, StringComparison.OrdinalIgnoreCase) ? "pcoded-trigger" : "";
-
     // Opens a collapsible group when the page currently shown is one of its children, so a
     // user never lands on a page whose menu entry is hidden inside a collapsed parent.
-    // NavSection is not enough here: every admin page shares the "Admin" controller, so
-    // matching on controller alone would expand every group at once.
+    // Matching on the controller cannot do this: every admin page shares the "Admin"
+    // controller, so it would expand every group at once. Hence the match on action names.
     string OpenIf(params string[] actions) =>
         actions.Any(a => action.Equals(a, StringComparison.OrdinalIgnoreCase))
             ? "pcoded-trigger active" : "";

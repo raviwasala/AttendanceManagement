@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.OleDb;
 using System.Globalization;
+using System.Runtime.Versioning;
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Application.Services;
@@ -322,7 +323,22 @@ public class BiometricImportService : IBiometricImportService
     /// Reads punch records directly from a ZKTeco-style MS Access .mdb file.
     /// A punch table must contain both an enrollment ID and a punch date/time.
     /// </summary>
-    private static async Task<List<BiometricPunchDto>> ReadFromAccessAsync(
+    private static Task<List<BiometricPunchDto>> ReadFromAccessAsync(
+        string mdbFilePath, DateTime fromDate, DateTime toDate)
+    {
+        // OLE DB is a Windows-only API. Checking once here lets the reader below be marked
+        // Windows-only honestly, rather than suppressing the platform analyser at each of its
+        // eleven call sites and pretending the constraint is not real.
+        if (!OperatingSystem.IsWindows())
+            throw new PlatformNotSupportedException(
+                "Reading MS Access (.mdb/.accdb) files requires Windows. " +
+                "Export the database to CSV or Excel to import it on another platform.");
+
+        return ReadFromAccessWindowsAsync(mdbFilePath, fromDate, toDate);
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static async Task<List<BiometricPunchDto>> ReadFromAccessWindowsAsync(
         string mdbFilePath, DateTime fromDate, DateTime toDate)
     {
         if (fromDate < new DateTime(1900, 1, 1)) fromDate = new DateTime(1900, 1, 1);
@@ -529,7 +545,17 @@ public class BiometricImportService : IBiometricImportService
     }
 
     /// <summary>Reads all Enroll-table fields for display only; it never writes to the Access file.</summary>
-    public async Task<DataTable> ReadEnrollTableAsync(string mdbFilePath)
+    public Task<DataTable> ReadEnrollTableAsync(string mdbFilePath)
+    {
+        if (!OperatingSystem.IsWindows())
+            throw new PlatformNotSupportedException(
+                "Reading MS Access (.mdb/.accdb) files requires Windows.");
+
+        return ReadEnrollTableWindowsAsync(mdbFilePath);
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static async Task<DataTable> ReadEnrollTableWindowsAsync(string mdbFilePath)
     {
         string[] providers =
         [
@@ -616,10 +642,6 @@ public class BiometricImportService : IBiometricImportService
 
         return punches;
     }
-
-    private static bool HasColumn(IEnumerable<string> columns, params string[] candidates) =>
-        columns.Any(column => candidates.Any(candidate =>
-            column.Equals(candidate, StringComparison.OrdinalIgnoreCase)));
 
     /// <summary>
     /// Reads punch records from an Excel file (.xlsx).
