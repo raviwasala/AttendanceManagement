@@ -27,7 +27,8 @@ $(function () {
         });
     }).always(loadReview);
 
-    $('#arFilter').on('change', renderRows);
+    // Filtering is a server round trip now, so it reloads rather than re-rendering.
+    $('#arFilter').on('change', function () { loadReview(1); });
 
     // Picking one person is usually followed by wanting a longer window, so widen it once.
     $('#arEmployee').on('change', function () {
@@ -74,10 +75,13 @@ function loadReview(page) {
 
     $('#arBody').html('<tr><td colspan="11" class="text-center py-4 text-muted">Loading…</td></tr>');
 
+    var rowFilter = $('#arFilter').val() || '';
+
     var url = '/api/attendance-review?from=' + from + '&to=' + to
             + '&page=' + arPage + '&pageSize=' + (amsPageSize() || 25)
             + (emp ? '&employeeId=' + emp : '')
-            + (dept ? '&departmentId=' + dept : '');
+            + (dept ? '&departmentId=' + dept : '')
+            + (rowFilter ? '&rowFilter=' + encodeURIComponent(rowFilter) : '');
 
     $.getJSON(url, function (d) { review = d; renderSummary(); renderRows(); })
      .fail(function (xhr) {
@@ -89,28 +93,57 @@ function loadReview(page) {
 function renderSummary() {
     $('#arRangeLabel').text(review.RangeDisplay);
 
-    var tile = function (label, value, colour) {
+    var active = review.RowFilter || '';
+
+    /*
+     * A tile with a `filter` is a button: clicking it narrows the table to those rows, and
+     * clicking the active one again clears the filter. Tiles with no filter (totals like
+     * "Hours") stay inert rather than pretending to be clickable.
+     */
+    var tile = function (label, value, colour, filter) {
+        var clickable = !!filter;
+        var isOn = clickable && filter === active;
+
         return '<div class="col-6 col-md">'
-             + '<div class="card stat-card ' + colour + '"><div class="card-body stat-card-body py-2">'
-             + '<div class="stat-card-text"><p class="stat-card-label mb-0">' + label + '</p>'
+             + '<div class="card stat-card ' + colour + (clickable ? ' ar-tile' : '')
+             + (isOn ? ' ar-tile-on' : '') + '"'
+             + (clickable ? ' data-filter="' + esc(filter) + '" title="'
+                          + (isOn ? 'Click to clear this filter' : 'Show only these rows') + '"' : '')
+             + '><div class="card-body stat-card-body py-2">'
+             + '<div class="stat-card-text"><p class="stat-card-label mb-0">' + label
+             + (isOn ? ' <i class="feather icon-x-circle"></i>' : '') + '</p>'
              + '<h3 class="stat-card-value" style="font-size:1.35rem;">' + value + '</h3></div>'
              + '</div></div></div>';
     };
 
     // Over a range, counts of day-rows are more meaningful than a headcount.
     var html = tile(review.IsRange ? 'Day records' : 'Employees',
-                    review.IsRange ? review.Rows.length : review.TotalEmployees, 'bg-c-yellow')
-             + tile('Present', review.Present, 'bg-c-green')
-             + tile('Late', review.Late, 'bg-c-yellow')
-             + tile('Absent', review.Absent, 'bg-c-pink')
-             + tile('No check-out', review.MissingCheckOut, 'bg-c-blue');
+                    review.IsRange ? review.TotalRows : review.TotalEmployees, 'bg-c-yellow', '')
+             + tile('Present', review.Present, 'bg-c-green', 'present')
+             + tile('Late', review.Late, 'bg-c-yellow', 'late')
+             + tile('Absent', review.Absent, 'bg-c-pink', 'absent')
+             + tile('No check-out', review.MissingCheckOut, 'bg-c-blue', 'nocheckout');
 
     if (review.IsRange) {
-        html += tile('Late mins', review.TotalLateMinutes, 'bg-c-purple')
-              + tile('Hours', review.TotalWorkingHours, 'bg-c-grey')
-              + tile('Overtime', fmtMins(review.TotalOvertimeMinutes), 'bg-c-blue');
+        html += tile('Late mins', review.TotalLateMinutes, 'bg-c-purple', '')
+              + tile('Hours', review.TotalWorkingHours, 'bg-c-grey', '')
+              + tile('Overtime', fmtMins(review.TotalOvertimeMinutes), 'bg-c-blue', 'overtime');
     }
     $('#arSummary').html(html);
+
+    // Delegated so it survives every re-render.
+    //
+    // getAttribute rather than jQuery's .data(): .data() caches its first read, and these tiles
+    // are rebuilt on every load, so reading the attribute directly is the safer of the two.
+    // An empty result also has to fall through to "no filter" rather than to undefined, which
+    // would clear the dropdown instead of setting it.
+    $('#arSummary').off('click.artile').on('click.artile', '.ar-tile', function () {
+        var f = this.getAttribute('data-filter') || '';
+        // Clicking the tile that is already on clears it — the same gesture both ways.
+        var next = (f === (review.RowFilter || '')) ? '' : f;
+        $('#arFilter').val(next);
+        loadReview(1);
+    });
 
     if (review.Truncated) {
         notifyError('Too many rows — showing the first 5000. Narrow the range, employee or department.');
@@ -126,26 +159,17 @@ function badge(s) {
     return '<span class="badge bg-' + cls + '">' + esc(s) + '</span>';
 }
 
-function visibleRows() {
-    var f = $('#arFilter').val();
-    if (!f) return review.Rows;
-    return review.Rows.filter(function (r) {
-        switch (f) {
-            case 'late':       return r.StatusDisplay === 'Late';
-            case 'absent':     return r.StatusDisplay === 'Absent';
-            case 'nocheckout': return r.CheckIn && !r.CheckOut;
-            case 'recorded':   return !!r.CheckIn;
-            case 'exceptions':
-                return r.StatusDisplay === 'Late' || r.StatusDisplay === 'Absent'
-                    || (r.CheckIn && !r.CheckOut) || r.HasNoShift || r.IsEarlyLeave;
-            default: return true;
-        }
-    });
-}
-
+/*
+ * The row filter runs on the server now.
+ *
+ * It used to filter review.Rows here, which was correct while that array held the whole grid.
+ * Once the screen was paged it silently became "filter this page": choosing Late narrowed the
+ * 25 rows in front of you while the pager still counted all 110, and later pages showed rows
+ * the filter should have excluded.
+ */
 function renderRows() {
     if (!review) return;
-    var rows = visibleRows();
+    var rows = review.Rows;
     var single = !review.IsRange;
 
     // Hide whichever column carries no information for this query.

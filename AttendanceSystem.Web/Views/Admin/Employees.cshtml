@@ -47,18 +47,21 @@
             <table class="table table-hover table-custom mb-0">
                 <thead>
                     <tr>
+                        @* Code shows the system code with the site's own User ID beneath it —
+                           staff recognise "513 T", not "EMP-00006". *@
                         <th class="ps-4">Code</th>
                         <th>Name</th>
+                        <th>NIC</th>
                         <th>Department</th>
                         <th>Designation</th>
-                        <th>Branch</th>
+                        <th>Cost Centre</th>
                         <th>Enroll ID</th>
                         <th>Status</th>
                         <th class="pe-4 text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="empBody">
-                    <tr><td colspan="8" class="text-center py-4 text-muted">Loading employees...</td></tr>
+                    <tr><td colspan="9" class="text-center py-4 text-muted">Loading employees...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -81,11 +84,32 @@
                         <input type="text" id="empCode" class="form-control" placeholder="Auto-generated if blank">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold small">First Name <span class="text-danger">*</span></label>
-                        <input type="text" id="empFirst" class="form-control" maxlength="100">
+                        <label class="form-label fw-semibold small">User ID</label>
+                        <input type="text" id="empUserCode" class="form-control" maxlength="50"
+                               placeholder="e.g. 513 T, Welewatta">
+                        <div class="form-text small">The site's own identifier. Need not be unique.</div>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold small">Last Name <span class="text-danger">*</span></label>
+                        <label class="form-label fw-semibold small">NIC</label>
+                        <input type="text" id="empNic" class="form-control" maxlength="20"
+                               placeholder="199912345678 or 991234567V">
+                    </div>
+
+                    @* Full name is one field. Sri Lankan names do not split reliably into first
+                       and last, so the imported records keep the whole name here and use the
+                       initialled form for display where space is short. Last name stays for
+                       records that genuinely have one. *@
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" id="empFirst" class="form-control" maxlength="100">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold small">Name with Initials</label>
+                        <input type="text" id="empInitials" class="form-control" maxlength="200"
+                               placeholder="e.g. W H A U Dinakshi">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small">Last Name</label>
                         <input type="text" id="empLast" class="form-control" maxlength="100">
                     </div>
                     <div class="col-md-4">

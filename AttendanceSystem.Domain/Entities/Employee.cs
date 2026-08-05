@@ -3,10 +3,30 @@ namespace AttendanceSystem.Domain.Entities;
 /// <summary>Employee record.</summary>
 public class Employee : BaseEntity
 {
+    /// <summary>System-generated unique code. Not the same as <see cref="UserCode"/>.</summary>
     public string EmployeeCode { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The site's own identifier — "5 T", "89(W) 7 (E)", "Welewatta".
+    ///
+    /// Deliberately not the primary code: the supplied values repeat (dozens of people share
+    /// "Welewatta") and many are blank, so it cannot carry a unique constraint. Kept because it
+    /// is what staff actually recognise on a payslip or a roster.
+    /// </summary>
+    public string? UserCode { get; set; }
+
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
-    public string FullName => $"{FirstName} {LastName}";
+    public string FullName => $"{FirstName} {LastName}".Trim();
+
+    /// <summary>
+    /// Name in the abbreviated form the company uses — "W H A U Dinakshi". Sri Lankan names do
+    /// not split reliably into first/last, so this is the form shown wherever space is short.
+    /// </summary>
+    public string? NameWithInitials { get; set; }
+
+    /// <summary>National Identity Card number. Old 10-character or new 12-digit format.</summary>
+    public string? Nic { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }
     public DateTime? DateOfBirth { get; set; }

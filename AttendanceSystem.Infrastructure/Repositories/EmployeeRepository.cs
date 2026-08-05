@@ -37,11 +37,16 @@ public class EmployeeRepository : Repository<Employee>, IEmployeeRepository
             var term = search.Trim();
             // First+last is matched as well as each part, so "Kasun Perera" finds the person
             // even though no single column holds that string.
+            // NIC and the site's own UserCode are how staff are looked up in practice, so both
+            // are searchable alongside the name and the system code.
             query = query.Where(e =>
                 EF.Functions.Like(e.EmployeeCode, $"%{term}%") ||
                 EF.Functions.Like(e.FirstName, $"%{term}%") ||
                 EF.Functions.Like(e.LastName, $"%{term}%") ||
                 EF.Functions.Like(e.FirstName + " " + e.LastName, $"%{term}%") ||
+                (e.UserCode != null && EF.Functions.Like(e.UserCode, $"%{term}%")) ||
+                (e.NameWithInitials != null && EF.Functions.Like(e.NameWithInitials, $"%{term}%")) ||
+                (e.Nic != null && EF.Functions.Like(e.Nic, $"%{term}%")) ||
                 (e.Email != null && EF.Functions.Like(e.Email, $"%{term}%")) ||
                 (e.Phone != null && EF.Functions.Like(e.Phone, $"%{term}%")));
         }

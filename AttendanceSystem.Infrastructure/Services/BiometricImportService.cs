@@ -3,6 +3,7 @@ using System.Data.OleDb;
 using System.Globalization;
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Application.Services;
 using AttendanceSystem.Domain.Entities;
 using AttendanceSystem.Domain.Enums;
 using AttendanceSystem.Domain.Interfaces;
@@ -95,88 +96,211 @@ public class BiometricImportService : IBiometricImportService
     // CORE PROCESSING
     // ──────────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Turns raw device punches into attendance records.
+    ///
+    /// Three things this deliberately does, each of which it used to get wrong:
+    ///
+    /// It runs the same <see cref="AttendanceCalculator"/> that check-in, the edit screen and
+    /// the review screen use. Imported rows previously came in as "Present, not late, no
+    /// overtime" with raw clock-difference hours, so lateness, the break deduction and every
+    /// overtime claim were absent until somebody re-saved each row by hand — which defeats the
+    /// point of importing.
+    ///
+    /// It refreshes a day that already exists instead of skipping it. A day imported at 3pm
+    /// has a check-in and no check-out; skipping on re-import meant the check-out never
+    /// arrived. Rows a person has corrected by hand are still left alone — the device must not
+    /// overwrite a human decision.
+    ///
+    /// It attributes an early-morning punch to the night shift it belongs to. A 22:00–06:30
+    /// shift produces punches on two calendar dates; grouping naively by date turned one shift
+    /// into two half-days, neither of which computed sensibly.
+    /// </summary>
     private async Task<BiometricImportResultDto> ProcessPunchesAsync(List<BiometricPunchDto> punches)
     {
         var result = new BiometricImportResultDto { TotalRead = punches.Count };
+        if (punches.Count == 0) return result;
 
-        // Load all employees with BiometricEnrollId into a lookup
+        // ── Lookups, loaded once ────────────────────────────────────────────
         var employees = await _context.Employees
             .Where(e => e.IsActive && !e.IsDeleted && e.BiometricEnrollId != null)
+            .Select(e => new { e.Id, EnrollId = e.BiometricEnrollId!.Value, e.EmployeeCode, e.FirstName })
             .ToListAsync();
 
-        var enrollMap = employees.ToDictionary(e => e.BiometricEnrollId!.Value, e => e.Id);
+        // Grouped rather than ToDictionary: two employees sharing an enrolment id is a data
+        // error, not a reason to abort the whole import with a duplicate-key exception. The
+        // first wins and the clash is reported.
+        var enrollMap = new Dictionary<int, int>();
+        foreach (var g in employees.GroupBy(e => e.EnrollId))
+        {
+            enrollMap[g.Key] = g.First().Id;
+            if (g.Count() > 1)
+            {
+                result.Warnings.Add(
+                    $"Enrol ID {g.Key} is assigned to {g.Count()} employees " +
+                    $"({string.Join(", ", g.Select(x => x.EmployeeCode))}). " +
+                    $"Punches were credited to {g.First().EmployeeCode} only.");
+            }
+        }
 
-        // Group punches by EnrollId + Date → first punch = CheckIn, last punch = CheckOut
-        var grouped = punches
-            .Where(p => enrollMap.ContainsKey(p.EnrollId))
-            .GroupBy(p => new { p.EnrollId, p.PunchTime.Date })
-            .ToList();
+        var shifts = await _context.Shifts.AsNoTracking().ToDictionaryAsync(s => s.Id);
+        var assignments = await _context.EmployeeShifts.AsNoTracking()
+            .Where(es => !es.IsDeleted).ToListAsync();
 
-        foreach (var group in grouped)
+        var minDate = punches.Min(p => p.PunchTime).Date.AddDays(-1);
+        var maxDate = punches.Max(p => p.PunchTime).Date;
+
+        var holidays = (await _context.Holidays.AsNoTracking()
+                .Where(h => !h.IsDeleted && h.HolidayDate >= minDate && h.HolidayDate <= maxDate)
+                .Select(h => h.HolidayDate)
+                .ToListAsync())
+            .Select(d => d.Date).ToHashSet();
+
+        var leaves = await _context.LeaveRequests.AsNoTracking()
+            .Where(l => !l.IsDeleted && l.Status == LeaveStatus.Approved &&
+                        l.FromDate <= maxDate && l.ToDate >= minDate)
+            .Select(l => new { l.EmployeeId, l.FromDate, l.ToDate })
+            .ToListAsync();
+
+        // ── Attribute each punch to the day whose shift it belongs to ───────
+        var attributed = new List<(int EmployeeId, DateTime Date, DateTime PunchTime)>();
+        foreach (var p in punches)
+        {
+            if (!enrollMap.TryGetValue(p.EnrollId, out var employeeId))
+            {
+                result.UnmatchedPunches++;
+                continue;
+            }
+            attributed.Add((employeeId, AttendanceDateFor(employeeId, p.PunchTime), p.PunchTime));
+        }
+
+        foreach (var id in punches.Select(p => p.EnrollId).Distinct()
+                                  .Where(id => !enrollMap.ContainsKey(id)))
+        {
+            result.Warnings.Add($"Enrol ID {id} matches no employee — set it on the employee record to import these punches.");
+        }
+
+        if (attributed.Count == 0)
+        {
+            await _context.SaveChangesAsync();
+            return result;
+        }
+
+        // ── Existing rows for the affected employee/date pairs, in one query ─
+        var employeeIds = attributed.Select(a => a.EmployeeId).Distinct().ToList();
+        var firstDate = attributed.Min(a => a.Date);
+        var lastDate = attributed.Max(a => a.Date);
+
+        var existing = (await _context.AttendanceLogs
+                .Where(a => !a.IsDeleted && employeeIds.Contains(a.EmployeeId) &&
+                            a.AttendanceDate >= firstDate && a.AttendanceDate <= lastDate)
+                .ToListAsync())
+            .ToDictionary(a => (a.EmployeeId, a.AttendanceDate.Date));
+
+        foreach (var group in attributed.GroupBy(a => new { a.EmployeeId, a.Date }))
         {
             try
             {
-                if (!enrollMap.TryGetValue(group.Key.EnrollId, out int employeeId))
-                {
-                    result.Warnings.Add($"EnrollId {group.Key.EnrollId} not mapped to any employee.");
-                    result.Skipped++;
-                    continue;
-                }
-
+                var employeeId = group.Key.EmployeeId;
                 var date = group.Key.Date;
 
-                // Skip if already exists
-                bool exists = await _context.AttendanceLogs.AnyAsync(
-                    a => a.EmployeeId == employeeId && a.AttendanceDate == date && !a.IsDeleted);
+                var ordered = group.OrderBy(g => g.PunchTime).ToList();
+                var checkIn = ordered.First().PunchTime;
+                var checkOut = ordered.Count > 1 ? ordered.Last().PunchTime : (DateTime?)null;
 
-                if (exists)
+                existing.TryGetValue((employeeId, date), out var log);
+
+                if (log is { IsManual: true })
                 {
+                    result.SkippedManual++;
+                    continue;
+                }
+
+                var isNew = log == null;
+                if (isNew)
+                {
+                    log = new AttendanceLog
+                    {
+                        EmployeeId = employeeId,
+                        AttendanceDate = date,
+                        IsManual = false,
+                        CreatedAt = DateTime.Now
+                    };
+                }
+                else if (log!.CheckIn == checkIn && log.CheckOut == checkOut)
+                {
+                    // Same punches as last time — nothing to do.
                     result.Skipped++;
                     continue;
                 }
 
-                var sorted = group.OrderBy(p => p.PunchTime).ToList();
-                var checkIn  = sorted.First().PunchTime;
-                var checkOut = sorted.Count > 1 ? sorted.Last().PunchTime : (DateTime?)null;
+                log.CheckIn = checkIn;
+                log.CheckOut = checkOut;
 
-                var log = new AttendanceLog
+                var shift = ResolveShift(employeeId, date);
+                var onLeave = leaves.Any(l => l.EmployeeId == employeeId &&
+                                              l.FromDate.Date <= date && l.ToDate.Date >= date);
+
+                var calc = AttendanceCalculator.Calculate(
+                    shift, date, log.CheckIn, log.CheckOut, holidays.Contains(date), onLeave);
+
+                AttendanceCalculator.Apply(log, calc);
+
+                if (isNew)
                 {
-                    EmployeeId      = employeeId,
-                    AttendanceDate  = date,
-                    CheckIn         = checkIn,
-                    CheckOut        = checkOut,
-                    Status          = AttendanceStatus.Present,
-                    WorkingHours    = checkOut.HasValue
-                                        ? (checkOut.Value - checkIn).TotalHours
-                                        : null,
-                    IsManual        = false,
-                    IsLate          = false,
-                    IsEarlyLeave    = false,
-                    CreatedAt       = DateTime.Now
-                };
-
-                _context.AttendanceLogs.Add(log);
-                result.Inserted++;
+                    _context.AttendanceLogs.Add(log);
+                    existing[(employeeId, date)] = log;
+                    result.Inserted++;
+                }
+                else
+                {
+                    log.ModifiedAt = DateTime.Now;
+                    result.Updated++;
+                }
             }
             catch (Exception ex)
             {
                 result.Failed++;
-                result.Errors.Add($"EnrollId {group.Key.EnrollId} on {group.Key.Date:d}: {ex.Message}");
+                result.Errors.Add($"Employee {group.Key.EmployeeId} on {group.Key.Date:d}: {ex.Message}");
             }
         }
 
-        // Warn about unmapped enrollIds
-        var unmapped = punches
-            .Select(p => p.EnrollId)
-            .Distinct()
-            .Where(id => !enrollMap.ContainsKey(id))
-            .ToList();
-
-        foreach (var id in unmapped)
-            result.Warnings.Add($"EnrollId {id} has no matching employee (BiometricEnrollId not set).");
-
         await _context.SaveChangesAsync();
         return result;
+
+        // ── local helpers ───────────────────────────────────────────────────
+
+        Shift? ResolveShift(int employeeId, DateTime date)
+        {
+            // Same rule as everywhere else: latest EffectiveFrom that covers the date wins.
+            var current = assignments
+                .Where(a => a.EmployeeId == employeeId &&
+                            a.EffectiveFrom.Date <= date &&
+                            (a.EffectiveTo == null || a.EffectiveTo.Value.Date >= date))
+                .OrderByDescending(a => a.EffectiveFrom)
+                .FirstOrDefault();
+
+            return current != null && shifts.TryGetValue(current.ShiftId, out var s) ? s : null;
+        }
+
+        /// <summary>
+        /// Which attendance date a punch belongs to. Normally its own date — but when the
+        /// employee worked a midnight-crossing shift the day before, and the punch falls
+        /// within that shift's tail, it belongs to the previous day.
+        /// </summary>
+        DateTime AttendanceDateFor(int employeeId, DateTime punchTime)
+        {
+            var previousDay = punchTime.Date.AddDays(-1);
+            var previousShift = ResolveShift(employeeId, previousDay);
+
+            if (previousShift == null || !AttendanceCalculator.CrossesMidnight(previousShift))
+                return punchTime.Date;
+
+            // A two-hour tail past the rostered end, so a late departure still lands on the
+            // right day without swallowing the next morning's arrival.
+            var tailEnds = previousShift.EndTime.Add(TimeSpan.FromHours(2));
+            return punchTime.TimeOfDay <= tailEnds ? previousDay : punchTime.Date;
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────

@@ -203,7 +203,7 @@ public interface IAttendanceReviewService
     /// </summary>
     Task<Result<AttendanceReviewDto>> GetReviewAsync(
         DateTime fromDate, DateTime toDate, int? employeeId = null, int? departmentId = null,
-        PageRequest? page = null);
+        PageRequest? page = null, string? rowFilter = null);
 
     /// <summary>
     /// Creates, updates or clears one employee's entry for one date, then recalculates.

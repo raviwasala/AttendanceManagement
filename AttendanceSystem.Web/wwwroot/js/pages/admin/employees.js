@@ -43,11 +43,11 @@ function loadEmps(page) {
             // '' means All; only send the flag when one of the two states is chosen.
             + (status === '' ? '' : '&isActive=' + encodeURIComponent(status));
 
-    $('#empBody').html('<tr><td colspan="8" class="text-center py-4 text-muted">Loading…</td></tr>');
+    $('#empBody').html('<tr><td colspan="9" class="text-center py-4 text-muted">Loading…</td></tr>');
 
     $.getJSON(url, function (d) { empData = d; renderTable(); })
      .fail(function (xhr) {
-         $('#empBody').html('<tr><td colspan="8" class="text-danger text-center py-3">'
+         $('#empBody').html('<tr><td colspan="9" class="text-danger text-center py-3">'
              + esc(xhr.responseText || 'Failed to load employees.') + '</td></tr>');
      });
 }
@@ -57,8 +57,17 @@ function renderTable() {
 
     amsPage('#empBody', data.Items, function (e) {
         return '<tr>'
-            + '<td class="fw-semibold text-primary">' + esc(e.EmployeeCode) + '</td>'
-            + '<td>' + esc(e.FullName) + '</td>'
+            + '<td class="fw-semibold text-primary">' + esc(e.EmployeeCode)
+              + (e.UserCode
+                    ? '<div class="text-muted fw-normal" style="font-size:.7rem;">' + esc(e.UserCode) + '</div>'
+                    : '') + '</td>'
+            // Full name on top, the abbreviated form beneath: some of these names run to eight
+            // words, and the initialled form is what appears on internal paperwork.
+            + '<td>' + esc(e.FullName)
+              + (e.NameWithInitials && e.NameWithInitials !== e.FullName
+                    ? '<div class="text-muted" style="font-size:.7rem;">' + esc(e.NameWithInitials) + '</div>'
+                    : '') + '</td>'
+            + '<td class="text-muted small">' + (e.Nic ? esc(e.Nic) : '—') + '</td>'
             + '<td class="text-muted">' + esc(e.Department) + '</td>'
             + '<td class="text-muted">' + esc(e.Designation) + '</td>'
             + '<td class="text-muted">' + esc(e.Branch) + '</td>'
@@ -74,7 +83,7 @@ function renderTable() {
             + '<button class="btn btn-sm btn-outline-danger" onclick="deleteEmp(' + e.Id + ')" title="Delete"><i class="fa fa-trash"></i></button>'
             + '</td></tr>';
     }, {
-        colspan: 8,
+        colspan: 9,
         empty: 'No employees match these filters.',
         label: 'employee',
         server: {
@@ -104,6 +113,7 @@ function fillDropdowns() {
 function openModal() {
     fillDropdowns();
     $('#empId').val(0); $('#empCode').val(''); $('#empFirst').val(''); $('#empLast').val('');
+    $('#empUserCode').val(''); $('#empInitials').val(''); $('#empNic').val('');
     $('#empEmail').val(''); $('#empPhone').val(''); $('#empGender').val('');
     $('#empJoin').val(new Date().toISOString().split('T')[0]); $('#empDob').val('');
     $('#empAddr').val(''); $('#empEnrollId').val(''); $('#empActive').prop('checked', true);
@@ -116,6 +126,9 @@ function editEmp(id) {
         fillDropdowns();
         $('#empId').val(e.Id); $('#empCode').val(e.EmployeeCode);
         $('#empFirst').val(e.FirstName); $('#empLast').val(e.LastName);
+        $('#empUserCode').val(e.UserCode || '');
+        $('#empInitials').val(e.NameWithInitials || '');
+        $('#empNic').val(e.Nic || '');
         $('#empEmail').val(e.Email); $('#empPhone').val(e.Phone);
         $('#empGender').val(e.Gender);
         $('#empJoin').val(e.JoiningDate ? e.JoiningDate.split('T')[0] : '');
@@ -129,11 +142,16 @@ function editEmp(id) {
 }
 
 function saveEmp() {
-    if (!$('#empFirst').val().trim() || !$('#empLast').val().trim() || !$('#empDept').val() || !$('#empDesig').val() || !$('#empBranch').val() || !$('#empJoin').val()) {
-        notifyError('First Name, Last Name, Department, Designation, Branch and Joining Date are required.', 'Validation Error'); return;
+    // Last name is no longer required: the imported records carry the whole name in Full Name,
+    // and demanding a surname would make every one of them impossible to edit.
+    if (!$('#empFirst').val().trim() || !$('#empDept').val() || !$('#empDesig').val() || !$('#empBranch').val() || !$('#empJoin').val()) {
+        notifyError('Full Name, Department, Designation, Branch and Joining Date are required.', 'Validation Error'); return;
     }
     var dto = {
         Id: parseInt($('#empId').val()) || 0, EmployeeCode: $('#empCode').val().trim(),
+        UserCode: $('#empUserCode').val().trim() || null,
+        NameWithInitials: $('#empInitials').val().trim() || null,
+        Nic: $('#empNic').val().trim() || null,
         FirstName: $('#empFirst').val().trim(), LastName: $('#empLast').val().trim(),
         Email: $('#empEmail').val().trim() || null, Phone: $('#empPhone').val().trim() || null,
         Gender: $('#empGender').val() || null,

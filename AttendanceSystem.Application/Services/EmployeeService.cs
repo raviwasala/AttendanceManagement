@@ -104,8 +104,11 @@ public class EmployeeService : IEmployeeService
                 var emp = new Employee
                 {
                     EmployeeCode = code,
+                    UserCode = dto.UserCode?.Trim(),
+                    NameWithInitials = dto.NameWithInitials?.Trim(),
+                    Nic = dto.Nic?.Trim(),
                     FirstName = dto.FirstName.Trim(),
-                    LastName = dto.LastName.Trim(),
+                    LastName = dto.LastName?.Trim() ?? string.Empty,
                     Email = dto.Email?.Trim(),
                     Phone = dto.Phone?.Trim(),
                     DateOfBirth = dto.DateOfBirth,
@@ -135,8 +138,11 @@ public class EmployeeService : IEmployeeService
 
                 var before = AuditSnapshot.Capture(emp);
 
+                emp.UserCode = dto.UserCode?.Trim();
+                emp.NameWithInitials = dto.NameWithInitials?.Trim();
+                emp.Nic = dto.Nic?.Trim();
                 emp.FirstName = dto.FirstName.Trim();
-                emp.LastName = dto.LastName.Trim();
+                emp.LastName = dto.LastName?.Trim() ?? string.Empty;
                 emp.Email = dto.Email?.Trim();
                 emp.Phone = dto.Phone?.Trim();
                 emp.DateOfBirth = dto.DateOfBirth;
@@ -228,7 +234,9 @@ public class EmployeeService : IEmployeeService
 
     private static EmployeeDto MapToDto(Employee e) => new()
     {
-        Id = e.Id, EmployeeCode = e.EmployeeCode, FirstName = e.FirstName,
+        Id = e.Id, EmployeeCode = e.EmployeeCode, UserCode = e.UserCode,
+        NameWithInitials = e.NameWithInitials, Nic = e.Nic,
+        FirstName = e.FirstName,
         LastName = e.LastName, Email = e.Email, Phone = e.Phone,
         DateOfBirth = e.DateOfBirth, JoiningDate = e.JoiningDate, Gender = e.Gender,
         Address = e.Address, Photo = e.Photo, DepartmentId = e.DepartmentId,
@@ -240,8 +248,9 @@ public class EmployeeService : IEmployeeService
 
     private static EmployeeListItemDto MapToListDto(Employee e) => new()
     {
-        Id = e.Id, EmployeeCode = e.EmployeeCode,
-        FullName = $"{e.FirstName} {e.LastName}",
+        Id = e.Id, EmployeeCode = e.EmployeeCode, UserCode = e.UserCode,
+        NameWithInitials = e.NameWithInitials, Nic = e.Nic,
+        FullName = $"{e.FirstName} {e.LastName}".Trim(),
         Department = e.Department?.Name ?? string.Empty,
         Designation = e.Designation?.Name ?? string.Empty,
         Branch = e.Branch?.Name ?? string.Empty,

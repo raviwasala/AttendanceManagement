@@ -34,13 +34,19 @@
             </div>
             <div class="col-auto">
                 <label class="form-label small mb-1">Show</label>
+                @* Values match the filter names the API understands. The stat tiles set this
+                   same control, so the dropdown always reflects what is on screen. *@
                 <select id="arFilter" class="form-select form-select-sm" style="min-width:150px;">
                     <option value="">All rows</option>
                     <option value="exceptions">Needs attention</option>
                     <option value="recorded">Has a record</option>
+                    <option value="present">Present only</option>
                     <option value="late">Late only</option>
                     <option value="absent">Absent only</option>
+                    <option value="onleave">On leave only</option>
                     <option value="nocheckout">Missing check-out</option>
+                    <option value="overtime">Has overtime</option>
+                    <option value="overlate">Over late allowance</option>
                 </select>
             </div>
             <div class="col-auto">
@@ -100,6 +106,16 @@
 
 @section Styles {
     <style>
+        /* Tiles that filter behave like buttons; the active one is pulled forward with a ring
+           so it is obvious the table below is showing a subset rather than everything. */
+        .ar-tile { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+        .ar-tile:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.16); }
+        .ar-tile-on {
+            outline: 3px solid rgba(255,255,255,.85);
+            outline-offset: -3px;
+            box-shadow: 0 6px 18px rgba(0,0,0,.22);
+        }
+
         .ar-time { width: 92px; text-align: center; font-variant-numeric: tabular-nums; }
         .ar-dirty { background: #fff9db !important; }
         .ar-row-noshift { background: #fff5f5; }

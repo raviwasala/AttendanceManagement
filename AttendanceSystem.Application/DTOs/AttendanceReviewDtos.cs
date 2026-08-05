@@ -122,7 +122,12 @@ public class AttendanceReviewDto
     // whole grid, not the page, so the header keeps meaning what it says.
     public int Page { get; set; } = 1;
     public int PageSize { get; set; }
+
+    /// <summary>Rows after the row filter — what the pager counts against.</summary>
     public int TotalRows { get; set; }
+
+    /// <summary>Echoed back so the screen can show which tile is active after a reload.</summary>
+    public string? RowFilter { get; set; }
 
     /// <summary>Set when the result was capped, so the UI can say so rather than mislead.</summary>
     public bool Truncated { get; set; }

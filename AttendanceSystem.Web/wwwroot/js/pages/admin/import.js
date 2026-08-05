@@ -209,27 +209,60 @@ function importDirectFile() {
 }
 
 function showImportSummary(result) {
-    var total = result.totalRead !== undefined ? result.totalRead : (result.TotalRead || 0);
-    var inserted = result.inserted !== undefined ? result.inserted : (result.Inserted || 0);
-    var skipped = result.skipped !== undefined ? result.skipped : (result.Skipped || 0);
-    var failed = result.failed !== undefined ? result.failed : (result.Failed || 0);
-    var errors = result.errors || result.Errors || [];
-    var warnings = result.warnings || result.Warnings || [];
+    // The API has been seen to serialise either casing, so both are read.
+    var pick = function (lower, upper) {
+        return result[lower] !== undefined ? result[lower] : (result[upper] || 0);
+    };
 
-    var html = '<div class="alert alert-success mb-3"><strong><i class="fa fa-check-circle me-1"></i>Biometric Import Complete!</strong></div>'
+    var total     = pick('totalRead', 'TotalRead');
+    var inserted  = pick('inserted', 'Inserted');
+    var updated   = pick('updated', 'Updated');
+    var skipped   = pick('skipped', 'Skipped');
+    var manual    = pick('skippedManual', 'SkippedManual');
+    var unmatched = pick('unmatchedPunches', 'UnmatchedPunches');
+    var failed    = pick('failed', 'Failed');
+    var errors    = result.errors || result.Errors || [];
+    var warnings  = result.warnings || result.Warnings || [];
+
+    var row = function (label, value, cls, hint) {
+        return '<tr><td>' + esc(label)
+             + (hint ? '<div class="text-muted" style="font-size:.72rem;">' + esc(hint) + '</div>' : '')
+             + '</td><td class="fw-bold ' + (cls || '') + '">' + esc(value) + '</td></tr>';
+    };
+
+    var html = '<div class="alert alert-success mb-3"><strong><i class="fa fa-check-circle me-1"></i>'
+             + 'Biometric Import Complete</strong></div>'
         + '<table class="table table-sm border mb-2">'
-        + '<tr><td>Total Punches Read</td><td class="fw-bold">' + total + '</td></tr>'
-        + '<tr><td>New Attendance Logs Inserted</td><td class="fw-bold text-success">' + inserted + '</td></tr>'
-        + '<tr><td>Duplicates / Skipped</td><td class="fw-bold text-warning">' + skipped + '</td></tr>'
-        + '<tr><td>Failed Entries</td><td class="fw-bold text-danger">' + failed + '</td></tr>'
+        + row('Punches read', total)
+        + row('Days created', inserted, 'text-success')
+        + row('Days updated', updated, 'text-primary',
+              'Already imported, refreshed from the device — usually a check-out that had not happened yet.')
+        + row('Unchanged', skipped, 'text-muted', 'Same punches as the last import.')
+        + row('Left as manually corrected', manual, 'text-warning',
+              'Someone edited these by hand, so the device did not overwrite them.')
+        + row('Punches matching no employee', unmatched, unmatched ? 'text-danger' : 'text-muted',
+              'Set the Biometric Enroll ID on the employee record to import these.')
+        + row('Failed', failed, failed ? 'text-danger' : 'text-muted')
         + '</table>';
 
+    if (inserted + updated > 0) {
+        html += '<div class="alert alert-light border py-2 mb-2 small">'
+              + '<i class="feather icon-check-circle text-success me-1"></i>'
+              + 'Lateness, early leave, working hours and overtime were calculated against each '
+              + 'employee\'s rostered shift. Review them in '
+              + '<a href="/Admin/AttendanceReview">Attendance Review</a>.</div>';
+    }
+
     if (warnings && warnings.length > 0) {
-        html += '<div class="alert alert-warning py-2 mb-2"><strong class="small">Warnings (' + warnings.length + '):</strong><br><span class="small">' + warnings.join('<br>') + '</span></div>';
+        html += '<div class="alert alert-warning py-2 mb-2"><strong class="small">Warnings ('
+              + warnings.length + '):</strong><br><span class="small">'
+              + warnings.map(esc).join('<br>') + '</span></div>';
     }
 
     if (errors && errors.length > 0) {
-        html += '<div class="alert alert-danger py-2 mb-0"><strong class="small">Errors (' + errors.length + '):</strong><br><span class="small">' + errors.join('<br>') + '</span></div>';
+        html += '<div class="alert alert-danger py-2 mb-0"><strong class="small">Errors ('
+              + errors.length + '):</strong><br><span class="small">'
+              + errors.map(esc).join('<br>') + '</span></div>';
     }
 
     $('#resultPanel').html(html);

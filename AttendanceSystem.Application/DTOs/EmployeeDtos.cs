@@ -6,6 +6,9 @@ public class EmployeeDto
 {
     public int Id { get; set; }
     public string EmployeeCode { get; set; } = string.Empty;
+    public string? UserCode { get; set; }
+    public string? NameWithInitials { get; set; }
+    public string? Nic { get; set; }
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string FullName => $"{FirstName} {LastName}";
@@ -37,8 +40,14 @@ public class SaveEmployeeDto
 {
     public int Id { get; set; }
     public string EmployeeCode { get; set; } = string.Empty;
+    [MaxLength(50)]  public string? UserCode { get; set; }
+    [MaxLength(200)] public string? NameWithInitials { get; set; }
+    [MaxLength(20)]  public string? Nic { get; set; }
+
+    // LastName is optional: Sri Lankan names do not split reliably, and the imported data holds
+    // the whole name in FirstName with NameWithInitials carrying the short form.
     [Required, MaxLength(100)] public string FirstName { get; set; } = string.Empty;
-    [Required, MaxLength(100)] public string LastName { get; set; } = string.Empty;
+    [MaxLength(100)] public string LastName { get; set; } = string.Empty;
     [EmailAddress, MaxLength(200)] public string? Email { get; set; }
     [MaxLength(20)] public string? Phone { get; set; }
     public DateTime? DateOfBirth { get; set; }
@@ -59,6 +68,9 @@ public class EmployeeListItemDto
 {
     public int Id { get; set; }
     public string EmployeeCode { get; set; } = string.Empty;
+    public string? UserCode { get; set; }
+    public string? NameWithInitials { get; set; }
+    public string? Nic { get; set; }
     public string FullName { get; set; } = string.Empty;
     public string Department { get; set; } = string.Empty;
     public string Designation { get; set; } = string.Empty;

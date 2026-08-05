@@ -63,7 +63,7 @@ public class AttendanceReviewService : IAttendanceReviewService
     /// </summary>
     public async Task<Result<AttendanceReviewDto>> GetReviewAsync(
         DateTime fromDate, DateTime toDate, int? employeeId = null, int? departmentId = null,
-        PageRequest? page = null)
+        PageRequest? page = null, string? rowFilter = null)
     {
         try
         {
@@ -161,7 +161,18 @@ public class AttendanceReviewService : IAttendanceReviewService
             dto.TotalOvertimeMinutes = dto.Rows.Sum(r => r.OvertimeMinutes ?? 0);
             dto.OverLateAllowance = dto.Rows.Count(r => r.IsOverLateAllowance);
 
+            // The row filter is applied after the statistics and before the page.
+            //
+            // After the statistics, because the tiles must keep describing the whole day — a
+            // "Late 2" tile that read 2 only because you were already filtering to late rows
+            // would be circular. Before the page, because filtering a single page would narrow
+            // 25 rows while the pager still counted all 110.
+            if (!string.IsNullOrWhiteSpace(rowFilter))
+                dto.Rows = ApplyRowFilter(dto.Rows, rowFilter);
+
+            dto.RowFilter = rowFilter;
             dto.TotalRows = dto.Rows.Count;
+
             if (page is { PageSize: > 0 })
             {
                 dto.Page = page.Page;
@@ -303,6 +314,35 @@ public class AttendanceReviewService : IAttendanceReviewService
         RangeDisplay = dayCount == 1
             ? from.ToString("dddd, dd MMMM yyyy")
             : $"{from:dd MMM yyyy} – {to:dd MMM yyyy} ({dayCount} days)"
+    };
+
+    /// <summary>
+    /// Narrows the grid to the rows a stat tile or the Show dropdown selected.
+    ///
+    /// Kept here rather than in the browser so that filtering and paging agree — the two are
+    /// applied to the same list, in the same place, once.
+    /// </summary>
+    private static List<AttendanceReviewRowDto> ApplyRowFilter(
+        List<AttendanceReviewRowDto> rows, string filter) => filter.ToLowerInvariant() switch
+    {
+        "present"    => rows.Where(r => r.Status == AttendanceStatus.Present).ToList(),
+        "late"       => rows.Where(r => r.Status == AttendanceStatus.Late).ToList(),
+        "absent"     => rows.Where(r => r.Status == AttendanceStatus.Absent).ToList(),
+        "onleave"    => rows.Where(r => r.Status == AttendanceStatus.OnLeave).ToList(),
+        "nocheckout" => rows.Where(r => r.CheckIn.HasValue && !r.CheckOut.HasValue).ToList(),
+        "recorded"   => rows.Where(r => r.CheckIn.HasValue).ToList(),
+        "overtime"   => rows.Where(r => (r.OvertimeMinutes ?? 0) > 0).ToList(),
+        "overlate"   => rows.Where(r => r.IsOverLateAllowance).ToList(),
+
+        // Everything an operator would want to act on, in one view.
+        "exceptions" => rows.Where(r =>
+                            r.Status == AttendanceStatus.Late ||
+                            r.Status == AttendanceStatus.Absent ||
+                            (r.CheckIn.HasValue && !r.CheckOut.HasValue) ||
+                            r.HasNoShift || r.IsEarlyLeave).ToList(),
+
+        // An unknown value narrows nothing rather than silently emptying the screen.
+        _ => rows
     };
 
     /// <summary>

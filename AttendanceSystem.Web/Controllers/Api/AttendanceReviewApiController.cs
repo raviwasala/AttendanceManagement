@@ -32,14 +32,15 @@ public class AttendanceReviewApiController : ApiControllerBase
         [FromQuery] int? employeeId, [FromQuery] int? departmentId,
         [FromQuery] DateTime? date,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = PageRequest.DefaultPageSize)
+        [FromQuery] int pageSize = PageRequest.DefaultPageSize,
+        [FromQuery] string? rowFilter = null)
     {
         // `date` is kept for callers that only want a single day; from/to take precedence.
         var start = from ?? date ?? DateTime.Today;
         var end = to ?? date ?? start;
 
         var r = await _review.GetReviewAsync(start, end, employeeId, departmentId,
-            new PageRequest { Page = page, PageSize = pageSize });
+            new PageRequest { Page = page, PageSize = pageSize }, rowFilter);
 
         return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
     }

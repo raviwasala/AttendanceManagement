@@ -180,7 +180,16 @@ public class AttendanceDbContext : DbContext
             e.Property(x => x.Phone).HasMaxLength(20);
             e.Property(x => x.Gender).HasMaxLength(10);
             e.Property(x => x.Address).HasMaxLength(500);
+            e.Property(x => x.UserCode).HasMaxLength(50);
+            e.Property(x => x.NameWithInitials).HasMaxLength(200);
+            e.Property(x => x.Nic).HasMaxLength(20);
             e.HasIndex(x => x.EmployeeCode).IsUnique();
+
+            // UserCode and NIC are indexed for lookup but NOT unique: the supplied data has the
+            // same UserCode on many people and repeats an NIC across two records. Searchable,
+            // not authoritative.
+            e.HasIndex(x => x.UserCode);
+            e.HasIndex(x => x.Nic);
             e.HasOne(x => x.Department).WithMany(x => x.Employees).HasForeignKey(x => x.DepartmentId);
             e.HasOne(x => x.Designation).WithMany(x => x.Employees).HasForeignKey(x => x.DesignationId);
             e.HasOne(x => x.Branch).WithMany(x => x.Employees).HasForeignKey(x => x.BranchId);
