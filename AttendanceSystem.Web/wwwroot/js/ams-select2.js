@@ -34,8 +34,15 @@
         // looks broken rather than erroring.
         var $modal = $el.closest('.modal');
 
+        // A select sized inline — style="width:auto" on an inline toolbar, or a fixed px
+        // width — is laying itself out next to its neighbours on one line. The theme's
+        // `.select2-container{width:100% !important}` overrides that once select2 takes over,
+        // which pushes each control onto a line of its own and stacks the whole toolbar.
+        // Carry the original width across so those rows stay on one line.
+        var inlineWidth = el.style.width;
+
         var opts = {
-            width: '100%',
+            width: inlineWidth || '100%',
             // Adminty styles .select2-container; keeping the default theme lets
             // those overrides apply.
             minimumResultsForSearch: $el.is('[data-search]') ? 0 : SEARCH_MIN_OPTIONS
@@ -43,6 +50,14 @@
         if ($modal.length) opts.dropdownParent = $modal;
 
         $el.select2(opts);
+
+        if (inlineWidth) {
+            // Passed as a custom property because the theme's rule is !important and would
+            // otherwise beat an inline width; the CSS reads it back out. See ams-select2.css.
+            $el.next('.select2-container')
+               .addClass('ams-select-sized')
+               .css('--ams-select-w', inlineWidth);
+        }
     }
 
     /** Initialises every eligible <select> in `scope`. Safe to call repeatedly. */

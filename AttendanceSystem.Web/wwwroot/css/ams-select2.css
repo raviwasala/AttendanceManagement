@@ -18,6 +18,20 @@
     --ams-select-accent-soft: #eef2f6;     /* hover / selected background */
 }
 
+/* ── Width ──────────────────────────────────────────────────────────────────────
+   The theme sets `.select2-container{width:100% !important}`, which is right inside a
+   form column and wrong on an inline toolbar: it makes every dropdown claim a full line,
+   so a From / To / Department / Employee row stacks into four.
+
+   ams-select2.js tags any select that carried its own inline width and passes the value
+   through as a custom property — an inline width alone cannot win against the theme's
+   !important, but a rule reading the property can. */
+
+.select2-container.ams-select-sized {
+    width: var(--ams-select-w, auto) !important;
+    min-width: 7rem;                    /* a two-character year must not collapse */
+}
+
 /* ── Closed control ─────────────────────────────────────────────────────────── */
 
 .select2-container--default .select2-selection--single {
