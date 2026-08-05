@@ -24,8 +24,13 @@ namespace AttendanceSystem.Infrastructure.Services;
 public class DataTransferService : IDataTransferService
 {
     private readonly AttendanceDbContext _db;
+    private readonly Microsoft.Extensions.Configuration.IConfiguration _config;
 
-    public DataTransferService(AttendanceDbContext db) => _db = db;
+    public DataTransferService(AttendanceDbContext db, Microsoft.Extensions.Configuration.IConfiguration config)
+    {
+        _db = db;
+        _config = config;
+    }
 
     // Order matters on restore: a table is only written after everything it points at.
     // Employees before AttendanceLogs, lookups before Employees.
@@ -204,6 +209,156 @@ public class DataTransferService : IDataTransferService
             AppLogger.Error("DataTransferService.CreateBackupAsync", ex);
             return Result<ExportFileDto>.Failure("Backup failed. See the log for details.");
         }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // SQL Server backup
+    // ──────────────────────────────────────────────────────────────────────────
+
+    public async Task<Result<SqlBackupDto>> CreateSqlBackupAsync()
+    {
+        try
+        {
+            var dbName = _db.Database.GetDbConnection().Database;
+            if (string.IsNullOrWhiteSpace(dbName))
+                return Result<SqlBackupDto>.Failure("Could not determine the database name.");
+
+            // Identifier, so it cannot be parameterised. Bracket-quote it and reject a name
+            // that could break out — the name comes from our own connection string, but this
+            // costs nothing and removes the question entirely.
+            if (dbName.Contains(']') || dbName.Contains('\''))
+                return Result<SqlBackupDto>.Failure($"Refusing to back up a database named '{dbName}'.");
+
+            var info = await ReadServerInfoAsync();
+            var directory = await ResolveBackupDirectoryAsync();
+
+            if (string.IsNullOrWhiteSpace(directory))
+                return Result<SqlBackupDto>.Failure(
+                    "SQL Server did not report a backup directory. Set Backup:SqlDirectory in " +
+                    "configuration to a folder the SQL Server service account can write to.");
+
+            var fileName = $"{dbName}-{DateTime.Now:yyyyMMdd-HHmmss}.bak";
+            var fullPath = Path.Combine(directory, fileName);
+
+            // COPY_ONLY matters: a plain FULL backup resets the differential base and breaks
+            // the restore chain of whatever maintenance plan is already running. An on-demand
+            // download must not quietly sabotage the scheduled backups.
+            // CHECKSUM so a corrupt read is caught now rather than on the day it is restored.
+            var compression = info.SupportsCompression ? ", COMPRESSION" : string.Empty;
+            var sql =
+                $"BACKUP DATABASE [{dbName}] TO DISK = @path " +
+                $"WITH COPY_ONLY, INIT, CHECKSUM, FORMAT{compression}, " +
+                $"NAME = N'{dbName} on-demand backup'";
+
+            var pathParam = new Microsoft.Data.SqlClient.SqlParameter("@path", fullPath);
+
+            // BACKUP on a large database easily outlasts the default 30s command timeout.
+            var previous = _db.Database.GetCommandTimeout();
+            _db.Database.SetCommandTimeout(TimeSpan.FromMinutes(30));
+            try
+            {
+#pragma warning disable EF1002 // database name validated above; the path is a parameter
+                await _db.Database.ExecuteSqlRawAsync(sql, pathParam);
+#pragma warning restore EF1002
+            }
+            finally
+            {
+                _db.Database.SetCommandTimeout(previous);
+            }
+
+            var dto = new SqlBackupDto
+            {
+                FilePath = fullPath,
+                FileName = fileName,
+                SqlMachine = info.MachineName,
+                CanStream = info.IsLocal && File.Exists(fullPath)
+            };
+
+            if (dto.CanStream) dto.SizeBytes = new FileInfo(fullPath).Length;
+
+            if (!info.IsLocal)
+                dto.Warnings.Add(
+                    $"SQL Server runs on '{info.MachineName}', so the file was written there and " +
+                    "cannot be downloaded from here. Collect it from that machine.");
+            else if (!File.Exists(fullPath))
+                // Almost always this: SQL Server's default backup folder lives under Program
+                // Files, which the web account cannot read. The backup itself worked.
+                dto.Warnings.Add(
+                    $"The backup was written to {fullPath}, but this application cannot read it. " +
+                    "Set Backup:SqlDirectory to a folder granting write to the SQL Server service " +
+                    "account and read to the account this application runs as.");
+
+            return Result<SqlBackupDto>.Success(dto);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("DataTransferService.CreateSqlBackupAsync", ex);
+            return Result<SqlBackupDto>.Failure("SQL backup failed: " + ex.Message);
+        }
+    }
+
+    private sealed record ServerInfo(string MachineName, bool IsLocal, bool SupportsCompression);
+
+    private async Task<ServerInfo> ReadServerInfoAsync()
+    {
+        var machine = await ScalarAsync("CAST(SERVERPROPERTY('MachineName') AS nvarchar(128))") ?? "";
+        var edition = await ScalarAsync("CAST(CAST(SERVERPROPERTY('EngineEdition') AS int) AS nvarchar(10))") ?? "";
+
+        // Express (4) and Web (?) cannot compress backups; asking anyway fails the whole
+        // statement rather than degrading.
+        var supportsCompression = edition != "4";
+
+        var isLocal = string.Equals(machine, Environment.MachineName, StringComparison.OrdinalIgnoreCase)
+                   || machine.Length == 0;
+
+        return new ServerInfo(machine, isLocal, supportsCompression);
+    }
+
+    /// <summary>
+    /// Where SQL Server may write. Configuration wins, then the instance's own default, then
+    /// the registry value the default is derived from — a folder the service account can
+    /// already write to, which an arbitrary path chosen here would usually not be.
+    /// </summary>
+    private async Task<string?> ResolveBackupDirectoryAsync()
+    {
+        var configured = _config["Backup:SqlDirectory"];
+        if (!string.IsNullOrWhiteSpace(configured)) return configured.TrimEnd('\\');
+
+        var property = await ScalarAsync("CAST(SERVERPROPERTY('InstanceDefaultBackupPath') AS nvarchar(512))");
+        if (!string.IsNullOrWhiteSpace(property)) return property.TrimEnd('\\');
+
+        try
+        {
+            var conn = _db.Database.GetDbConnection();
+            if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText =
+                "DECLARE @p nvarchar(512); " +
+                "EXEC master.dbo.xp_instance_regread N'HKEY_LOCAL_MACHINE', " +
+                "N'Software\\Microsoft\\MSSQLServer\\MSSQLServer', N'BackupDirectory', @p OUTPUT; " +
+                "SELECT @p;";
+            var value = await cmd.ExecuteScalarAsync();
+            return value?.ToString()?.TrimEnd('\\');
+        }
+        catch (Exception ex)
+        {
+            // xp_instance_regread needs elevated rights; not having them is normal, and the
+            // caller reports the configuration setting to use instead.
+            AppLogger.Error("DataTransferService.ResolveBackupDirectoryAsync (registry probe)", ex);
+            return null;
+        }
+    }
+
+    private async Task<string?> ScalarAsync(string expression)
+    {
+        var conn = _db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT " + expression;
+        var value = await cmd.ExecuteScalarAsync();
+        return value == DBNull.Value ? null : value?.ToString();
     }
 
     /// <summary>

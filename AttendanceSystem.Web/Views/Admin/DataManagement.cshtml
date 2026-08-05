@@ -185,22 +185,49 @@
                 <div class="col-md-5">
                     <div class="card h-100">
                         <div class="card-body">
-                            <h6 class="mb-2"><i class="feather icon-save me-1"></i>Backup</h6>
-                            <p class="text-muted small">
-                                Downloads every table as a ZIP of CSV files with a manifest.
-                                Take one before a restore, before an upgrade, and on a schedule.
-                            </p>
-                            <button class="btn btn-primary btn-sm px-3" onclick="downloadBackup()">
-                                <i class="feather icon-download me-1"></i>Download backup
-                            </button>
+                            <h6 class="mb-3"><i class="feather icon-save me-1"></i>Backup</h6>
 
-                            @* Being straight about what this is worth: a logical archive is not
-                               a substitute for SQL Server's own backups. *@
-                            <div class="alert alert-light border small mt-3 mb-0">
-                                This is a <strong>logical</strong> archive — it can be restored
-                                onto a different server, but it is not a point-in-time SQL
-                                <code>.bak</code>. For a production system, keep a SQL Server
-                                maintenance plan running as well.
+                            @* Two backups that do genuinely different jobs. Presenting them
+                               side by side with what each is *for* is the difference between
+                               an informed choice and clicking whichever is on top. *@
+                            <div class="border rounded p-3 mb-3">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <h6 class="mb-0 small fw-bold">SQL Server backup</h6>
+                                    <span class="badge bg-success">.bak</span>
+                                </div>
+                                <p class="small text-muted mb-2">
+                                    A real <code>BACKUP DATABASE</code>, byte-exact and
+                                    restorable by a DBA. Taken <code>COPY_ONLY</code>, so it
+                                    does not disturb any scheduled backup routine.
+                                    <strong>Use this one for disaster recovery.</strong>
+                                </p>
+                                <button class="btn btn-primary btn-sm px-3" onclick="downloadSqlBackup()">
+                                    <i class="feather icon-download me-1"></i>Download .bak
+                                </button>
+                                <div class="small text-muted mt-2 mb-0">
+                                    Written by SQL Server itself, so it is only downloadable
+                                    while the database is on this machine. Large databases take
+                                    a while — the download starts when it finishes.
+                                </div>
+                            </div>
+
+                            <div class="border rounded p-3">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <h6 class="mb-0 small fw-bold">Logical archive</h6>
+                                    <span class="badge bg-secondary">.zip</span>
+                                </div>
+                                <p class="small text-muted mb-2">
+                                    Every table as CSV, with a manifest. Readable in Excel, and
+                                    the only one the <em>Restore</em> panel accepts.
+                                    <strong>Use this one to move data between servers.</strong>
+                                </p>
+                                <button class="btn btn-outline-primary btn-sm px-3" onclick="downloadBackup()">
+                                    <i class="feather icon-download me-1"></i>Download .zip
+                                </button>
+                                <div class="small text-muted mt-2 mb-0">
+                                    Not a point-in-time backup and it does not preserve identity
+                                    seeds. Keep a SQL Server maintenance plan running as well.
+                                </div>
                             </div>
                         </div>
                     </div>

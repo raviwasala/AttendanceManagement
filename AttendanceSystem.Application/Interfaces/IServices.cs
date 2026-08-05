@@ -363,6 +363,16 @@ public interface IDataTransferService
     /// <summary>Every table as a ZIP of CSVs, with a manifest.</summary>
     Task<Result<ExportFileDto>> CreateBackupAsync();
 
+    /// <summary>
+    /// A real SQL Server backup (<c>BACKUP DATABASE</c>), written by SQL Server itself.
+    ///
+    /// Byte-exact and restorable by a DBA, which the logical archive is not — but it is
+    /// written to the <em>database server's</em> filesystem, so it can only be handed to the
+    /// browser when SQL Server and the web host are the same machine. Taken WITH COPY_ONLY so
+    /// it does not disturb the log chain of whatever scheduled backup routine already exists.
+    /// </summary>
+    Task<Result<SqlBackupDto>> CreateSqlBackupAsync();
+
     /// <summary>Reads an archive and reports what restoring it would change. Writes nothing.</summary>
     Task<Result<RestorePreviewDto>> PreviewRestoreAsync(byte[] archive);
 

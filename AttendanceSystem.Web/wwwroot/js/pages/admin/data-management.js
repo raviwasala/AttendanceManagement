@@ -28,6 +28,54 @@ function downloadBackup() {
     window.location.href = '/api/data/backup';
 }
 
+/* A BACKUP DATABASE on a real database takes long enough that a plain navigation
+   looks like nothing happened. Fetch it instead, so the wait can be shown and a
+   failure — a path SQL Server cannot write to, most likely — arrives as a readable
+   message rather than a blank page. */
+function downloadSqlBackup() {
+    var $btn = $('button[onclick="downloadSqlBackup()"]');
+    var original = $btn.html();
+    $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin me-1"></i>Backing up…');
+
+    fetch('/api/data/backup/sql', { credentials: 'same-origin' })
+        .then(function (res) {
+            var type = res.headers.get('content-type') || '';
+
+            if (!res.ok) {
+                return res.text().then(function (t) { throw new Error(t || 'SQL backup failed.'); });
+            }
+
+            // JSON rather than a file means SQL Server is on another machine and wrote
+            // the backup there; there is nothing to download, only somewhere to look.
+            if (type.indexOf('application/json') !== -1) {
+                return res.json().then(function (d) {
+                    notifySuccess('Backup written on ' + esc(d.SqlMachine || 'the database server') + '.');
+                    $('#resPreview').html('<div class="alert alert-info py-2 mb-0 small">'
+                        + 'The backup was written to <code>' + esc(d.FilePath) + '</code> on '
+                        + esc(d.SqlMachine || 'the database server')
+                        + '. Collect it from that machine.</div>');
+                });
+            }
+
+            var name = 'backup.bak';
+            var cd = res.headers.get('content-disposition') || '';
+            var m = /filename="?([^";]+)"?/i.exec(cd);
+            if (m) name = m[1];
+
+            return res.blob().then(function (blob) {
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = name;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                URL.revokeObjectURL(a.href);
+                notifySuccess('SQL backup downloaded (' + (blob.size / 1048576).toFixed(1) + ' MB).');
+            });
+        })
+        .catch(function (e) { notifyError(e.message || 'SQL backup failed.'); })
+        .then(function () { $btn.prop('disabled', false).html(original); },
+              function () { $btn.prop('disabled', false).html(original); });
+}
+
 function downloadTemplate() {
     window.location.href = '/api/data/employees/template';
 }

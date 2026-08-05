@@ -85,6 +85,28 @@ public class DataApiController : ApiControllerBase
             : BadRequest(r.ErrorMessage);
     }
 
+    [HttpGet("backup/sql")]
+    [SessionAuthorize(Modules.Settings, Actions.Edit)]
+    public async Task<IActionResult> SqlBackup()
+    {
+        var r = await _data.CreateSqlBackupAsync();
+        if (!r.IsSuccess || r.Data == null) return BadRequest(r.ErrorMessage);
+
+        // SQL Server wrote the file on its own machine. When that is not this machine there
+        // is nothing to stream, so report where it landed instead of failing obscurely.
+        if (!r.Data.CanStream)
+            return Ok(new { r.Data.FilePath, r.Data.SqlMachine, r.Data.Warnings });
+
+        // DeleteOnClose: the .bak is a temporary artefact of this download. Leaving copies in
+        // SQL Server's backup folder every time somebody clicks the button fills the disk that
+        // the database itself lives on.
+        var stream = new FileStream(
+            r.Data.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read,
+            bufferSize: 81920, options: FileOptions.DeleteOnClose | FileOptions.Asynchronous);
+
+        return File(stream, "application/octet-stream", r.Data.FileName);
+    }
+
     [HttpPost("restore/preview")]
     [SessionAuthorize(Modules.Settings, Actions.Edit)]
     [DisableRequestSizeLimit]

@@ -3,6 +3,26 @@ namespace AttendanceSystem.Application.DTOs;
 /// <summary>A file produced for download: its bytes, its name and its content type.</summary>
 public record ExportFileDto(byte[] Content, string FileName, string ContentType);
 
+/// <summary>
+/// The result of a SQL Server BACKUP DATABASE.
+///
+/// Returns a path rather than bytes: a .bak of a real attendance database runs to hundreds
+/// of megabytes, and reading that into a byte[] to hand back would take the memory twice
+/// over. The controller streams it from disk instead.
+///
+/// <see cref="CanStream"/> is false when SQL Server is on another machine — the file is then
+/// written on that machine, and the only useful thing to report is where it landed.
+/// </summary>
+public class SqlBackupDto
+{
+    public string FilePath { get; set; } = string.Empty;
+    public string FileName { get; set; } = string.Empty;
+    public long SizeBytes { get; set; }
+    public bool CanStream { get; set; }
+    public string? SqlMachine { get; set; }
+    public List<string> Warnings { get; set; } = new();
+}
+
 /// <summary>What a dataset export covers. Ranged sets need dates; the others ignore them.</summary>
 public enum ExportDataset
 {
