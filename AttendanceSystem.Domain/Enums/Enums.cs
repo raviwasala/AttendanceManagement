@@ -56,3 +56,24 @@ public enum SyncOutcome
     PartialSuccess = 2,
     Failed = 3
 }
+
+/// <summary>
+/// Which kind of day an overtime rule applies to. Weekly off and holiday work usually
+/// attract a higher multiplier than extra hours on an ordinary working day.
+/// </summary>
+public enum OvertimeDayType
+{
+    /// <summary>Matches any day — the fallback rule.</summary>
+    Any = 0,
+    WorkingDay = 1,
+    WeeklyOff = 2,
+    Holiday = 3
+}
+
+public enum OvertimeStatus
+{
+    /// <summary>Claimed from attendance, awaiting a decision.</summary>
+    Pending = 1,
+    Approved = 2,
+    Rejected = 3
+}

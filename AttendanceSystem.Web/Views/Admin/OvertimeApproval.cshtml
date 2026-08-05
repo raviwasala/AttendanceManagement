@@ -1,0 +1,181 @@
+@{
+    ViewData["Title"] = "OT Approval";
+    var canApprove = ViewContext.HasPermission(AppConstants.Modules.Overtime, AppConstants.Actions.Approve);
+    var canGenerate = ViewContext.HasPermission(AppConstants.Modules.Overtime, AppConstants.Actions.Create);
+    var today = DateTime.Today;
+    var monthStart = new DateTime(today.Year, today.Month, 1);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h5 class="mb-1">Overtime Approval</h5>
+        <p class="text-muted small mb-0">Claims waiting on a decision</p>
+    </div>
+    @if (canGenerate)
+    {
+        <button class="btn btn-outline-primary btn-sm px-3" onclick="generateOt()">
+            <i class="feather icon-refresh-cw me-1"></i>Generate From Attendance
+        </button>
+    }
+</div>
+
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label small mb-1">From</label>
+                <input type="date" id="apFrom" class="form-control form-control-sm" value="@monthStart.ToString("yyyy-MM-dd")">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">To</label>
+                <input type="date" id="apTo" class="form-control form-control-sm" value="@today.ToString("yyyy-MM-dd")">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Department</label>
+                <select id="apDept" class="form-select form-select-sm">
+                    <option value="">All Departments</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Employee</label>
+                <select id="apEmployee" class="form-select form-select-sm">
+                    <option value="">All Employees</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary btn-sm w-100" onclick="loadApproval()">
+                    <i class="feather icon-search me-1"></i>Load
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-2 mb-3" id="apStats"></div>
+
+@if (canApprove)
+{
+    @* Hidden with d-none rather than an inline "display:none !important": the CSSOM setter
+       used to reveal it cannot override an !important it finds in the same inline
+       declaration, so the bar stayed on screen with nothing selected. *@
+    <div class="d-flex align-items-center gap-2 mb-2 flex-wrap d-none" id="apBulkBar">
+        <span class="small text-muted" id="apSelCount">0 selected</span>
+        <button class="btn btn-success btn-sm" onclick="decideSelected(true)">
+            <i class="feather icon-check me-1"></i>Approve Selected
+        </button>
+        <button class="btn btn-outline-danger btn-sm" onclick="decideSelected(false)">
+            <i class="feather icon-x me-1"></i>Reject Selected
+        </button>
+    </div>
+}
+
+<div class="card card-table-container">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        @if (canApprove)
+                        {
+                            <th class="ps-3" style="width:36px;">
+                                <input type="checkbox" class="form-check-input" id="apAll" onchange="toggleAll(this)">
+                            </th>
+                        }
+                        <th>Date</th>
+                        <th>Employee</th>
+                        <th>Shift</th>
+                        <th class="text-center">In / Out</th>
+                        <th class="text-center">Day</th>
+                        @* Raw minutes sit under Claimed rather than in their own column: the
+                           approve/reject buttons are the point of this screen and must not be
+                           pushed off the right edge on a laptop. *@
+                        <th class="text-center">Claimed</th>
+                        <th>Rule</th>
+                        <th class="text-end pe-3">Decision</th>
+                    </tr>
+                </thead>
+                <tbody id="apBody">
+                    <tr><td colspan="9" class="text-center py-4 text-muted">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Adjust-and-approve / reject -->
+<div class="modal fade" id="decideModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title" id="decideTitle">Approve Overtime</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="decideError" class="alert alert-danger py-2 small d-none"></div>
+                <input type="hidden" id="decideId">
+                <input type="hidden" id="decideApprove">
+
+                <p class="small text-muted mb-3" id="decideSubject"></p>
+
+                <div class="mb-3" id="decideMinutesWrap">
+                    <label class="form-label">Approved Minutes</label>
+                    <input type="number" id="decideMinutes" class="form-control" min="0" max="1440">
+                    <div class="form-text">
+                        Approve fewer than claimed if part of the overtime was not authorised.
+                        More than claimed is not accepted.
+                    </div>
+                </div>
+
+                <div class="mb-1">
+                    <label class="form-label" id="decideReasonLabel">Remarks</label>
+                    <textarea id="decideReason" class="form-control" rows="2" maxlength="500"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" id="decideConfirm" onclick="submitDecision()">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generate -->
+<div class="modal fade" id="genModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">Generate Overtime Claims</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted">
+                    Reads the attendance already recorded for this range and turns any overtime
+                    into claims using the matching rule. Claims you have already approved or
+                    rejected are left untouched, so running this again is safe.
+                </p>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label small">From</label>
+                        <input type="date" id="genFrom" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">To</label>
+                        <input type="date" id="genTo" class="form-control form-control-sm">
+                    </div>
+                </div>
+                <div id="genResult" class="alert alert-info py-2 small mt-3 d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-primary" onclick="runGenerate()">Generate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        window.otPerms = { approve: @canApprove.ToString().ToLower(), generate: @canGenerate.ToString().ToLower() };
+    </script>
+    <script src="~/js/pages/admin/overtime-approval.js" asp-append-version="true"></script>
+}

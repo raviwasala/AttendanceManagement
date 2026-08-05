@@ -180,8 +180,18 @@ function renderRows() {
                     ? '<div class="text-muted" style="font-size:.64rem;">next day</div>' : '')
               + '</td>'
 
+            // Red rather than amber once the month's allowance is used up, with the count so
+            // the reason is visible without opening a report. Reporting only — the status,
+            // hours and overtime of the day are untouched.
             + '<td class="text-center small">' + (r.IsLate
-                ? '<span class="badge bg-warning text-dark">' + r.LateMinutes + 'm</span>' : '—') + '</td>'
+                ? '<span class="badge bg-' + (r.IsOverLateAllowance ? 'danger' : 'warning text-dark') + '">'
+                  + esc(r.LateMinutes) + 'm</span>'
+                  + (r.LateAllowance
+                        ? '<div class="' + (r.IsOverLateAllowance ? 'text-danger' : 'text-muted')
+                          + '" style="font-size:.64rem;">' + esc(r.LateOccurrence) + ' of '
+                          + esc(r.LateAllowance) + '</div>'
+                        : '')
+                : '—') + '</td>'
 
             + '<td class="text-center small">' + (r.IsEarlyLeave
                 ? '<span class="badge bg-warning text-dark">' + r.EarlyLeaveMinutes + 'm</span>' : '—') + '</td>'

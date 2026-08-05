@@ -43,6 +43,8 @@ public class AttendanceDbContext : DbContext
     public DbSet<DevicePunch> DevicePunches { get; set; } = null!;
     public DbSet<DeviceUserMapping> DeviceUserMappings { get; set; } = null!;
     public DbSet<DeviceSyncLog> DeviceSyncLogs { get; set; } = null!;
+    public DbSet<OvertimeRule> OvertimeRules { get; set; } = null!;
+    public DbSet<OvertimeRecord> OvertimeRecords { get; set; } = null!;
 
     // ── Auto-timestamp & Soft-Delete interception ─────────────────────────────
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -231,6 +233,52 @@ public class AttendanceDbContext : DbContext
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.EmployeeId, x.Month, x.Year }).IsUnique();
             e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        // ── OvertimeRule ──────────────────────────────────────────────────────
+        modelBuilder.Entity<OvertimeRule>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Description).HasMaxLength(500);
+            // decimal(5,2) covers 0.00–999.99: enough for any realistic multiplier and
+            // precise enough that 1.5 and 2.25 are stored exactly.
+            e.Property(x => x.RateMultiplier).HasColumnType("decimal(5,2)");
+            e.HasIndex(x => x.Name).IsUnique();
+            // Scope references use NoAction: deleting a department must not silently take
+            // the overtime policy with it.
+            e.HasOne(x => x.Department).WithMany().HasForeignKey(x => x.DepartmentId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.Shift).WithMany().HasForeignKey(x => x.ShiftId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        // ── OvertimeRecord ────────────────────────────────────────────────────
+        modelBuilder.Entity<OvertimeRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.RuleName).HasMaxLength(100);
+            e.Property(x => x.Remarks).HasMaxLength(500);
+            e.Property(x => x.RejectionReason).HasMaxLength(500);
+            e.Property(x => x.RateMultiplier).HasColumnType("decimal(5,2)");
+            e.Ignore(x => x.WeightedHours);
+
+            // One claim per employee per day. Regenerating a range then updates the existing
+            // pending row instead of stacking duplicates on top of it.
+            e.HasIndex(x => new { x.EmployeeId, x.OvertimeDate }).IsUnique()
+                .HasFilter("[IsDeleted] = 0");
+            e.HasIndex(x => new { x.OvertimeDate, x.Status });
+
+            e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.AttendanceLog).WithMany().HasForeignKey(x => x.AttendanceLogId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.Shift).WithMany().HasForeignKey(x => x.ShiftId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.OvertimeRule).WithMany().HasForeignKey(x => x.OvertimeRuleId)
+                .OnDelete(DeleteBehavior.NoAction);
             e.HasQueryFilter(x => !x.IsDeleted);
         });
 
@@ -464,6 +512,7 @@ public class AttendanceDbContext : DbContext
         // Appended, never inserted mid-list: ids are assigned by position and existing
         // RolePermission rows point at them.
         (AppConstants.Modules.Devices,      [AppConstants.Actions.View, AppConstants.Actions.Create, AppConstants.Actions.Edit, AppConstants.Actions.Delete, AppConstants.Actions.Sync]),
+        (AppConstants.Modules.Overtime,     [AppConstants.Actions.View, AppConstants.Actions.Create, AppConstants.Actions.Edit, AppConstants.Actions.Delete, AppConstants.Actions.Approve, AppConstants.Actions.Export]),
     ];
 
     private static void SeedPermissions(ModelBuilder modelBuilder)

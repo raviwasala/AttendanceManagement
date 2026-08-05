@@ -103,7 +103,9 @@ async function loadMonthly() {
                 <td>${d.TotalDays    ?? 0}</td>
                 <td><span class="badge bg-success">${d.PresentDays ?? 0}</span></td>
                 <td><span class="badge bg-danger">${d.AbsentDays  ?? 0}</span></td>
-                <td><span class="badge bg-warning text-dark">${d.LateDays ?? 0}</span></td>
+                <td><span class="badge bg-${d.IsOverLateAllowance ? 'danger' : 'warning text-dark'}"
+                          title="Late days used against the shift's monthly allowance"
+                    >${esc(d.LateAllowanceDisplay ?? d.LateDays ?? 0)}</span></td>
                 <td><span class="badge bg-info">${d.LeaveDays ?? 0}</span></td>
                 <td><span class="badge bg-secondary">${d.HolidayDays ?? 0}</span></td>
                 <td>${d.TotalWorkingHours != null ? d.TotalWorkingHours.toFixed(1) + ' h' : '—'}</td>

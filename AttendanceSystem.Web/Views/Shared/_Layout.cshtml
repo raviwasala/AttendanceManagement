@@ -391,6 +391,39 @@
                                 </li>
                                 }
 
+                                @* ── Overtime ──────────────────────────────────────── *@
+                                @if (CanView(AppConstants.Modules.Overtime))
+                                {
+                                <li class="pcoded-hasmenu @OpenIf("OvertimeRules","OvertimeApproval","OvertimeRegister","OvertimeSummary")">
+                                    <a href="javascript:void(0)">
+                                        <span class="pcoded-micon"><i class="feather icon-clock"></i></span>
+                                        <span class="pcoded-mtext">Overtime</span>
+                                    </a>
+                                    <ul class="pcoded-submenu">
+                                        <li class="@Nav("Admin","OvertimeApproval")">
+                                            <a asp-controller="Admin" asp-action="OvertimeApproval">
+                                                <span class="pcoded-mtext">OT Approval</span>
+                                            </a>
+                                        </li>
+                                        <li class="@Nav("Admin","OvertimeRegister")">
+                                            <a asp-controller="Admin" asp-action="OvertimeRegister">
+                                                <span class="pcoded-mtext">OT Register</span>
+                                            </a>
+                                        </li>
+                                        <li class="@Nav("Admin","OvertimeSummary")">
+                                            <a asp-controller="Admin" asp-action="OvertimeSummary">
+                                                <span class="pcoded-mtext">OT Summary</span>
+                                            </a>
+                                        </li>
+                                        <li class="@Nav("Admin","OvertimeRules")">
+                                            <a asp-controller="Admin" asp-action="OvertimeRules">
+                                                <span class="pcoded-mtext">OT Rules</span>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </li>
+                                }
+
                                 @* ── Devices & Import ──────────────────────────────── *@
                                 @if (CanViewAny(AppConstants.Modules.Import, AppConstants.Modules.Devices))
                                 {

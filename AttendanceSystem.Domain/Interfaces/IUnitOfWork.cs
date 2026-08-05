@@ -28,6 +28,10 @@ public interface IUnitOfWork : IDisposable, IAsyncDisposable
     IRepository<Device> Devices { get; }
     IRepository<DeviceUserMapping> DeviceUserMappings { get; }
 
+    // Overtime
+    IRepository<OvertimeRule> OvertimeRules { get; }
+    IRepository<OvertimeRecord> OvertimeRecords { get; }
+
     /// <summary>Returns all RolePermission records for a given role (join table query).</summary>
     Task<IEnumerable<RolePermission>> GetRolePermissionsAsync(int roleId);
 

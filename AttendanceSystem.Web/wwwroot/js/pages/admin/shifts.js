@@ -30,7 +30,12 @@ function renderShifts(data) {
             + '<td class="fw-semibold">' + esc(s.Name) + '</td>'
             + '<td class="small">' + timing + '</td>'
             + '<td class="small">' + s.SpanHours + 'h</td>'
-            + '<td class="small">' + s.GraceMinutes + ' / ' + s.GraceOutMinutes + '</td>'
+            + '<td class="small">' + s.GraceMinutes + ' / ' + s.GraceOutMinutes
+              + (s.AllowedLateDaysPerMonth
+                    ? '<div class="text-muted" style="font-size:.68rem;">'
+                      + esc(s.AllowedLateDaysPerMonth) + ' late days/mth</div>'
+                    : '')
+              + '</td>'
             + '<td class="small">' + (s.BreakMinutes ? s.BreakMinutes + 'm' : '—') + '</td>'
             + '<td class="small">' + ot + '</td>'
             + '<td class="small text-muted">' + esc(s.WeeklyOffDays) + '</td>'
@@ -55,6 +60,8 @@ function openShiftModal(s) {
     $('#shiftGraceOut').val(s.GraceOutMinutes || 0);
     $('#shiftBreak').val(s.BreakMinutes || 0);
     $('#shiftStdHours').val(s.StandardWorkingHours || 0);
+    $('#shiftLateAllowance').val(s.AllowedLateDaysPerMonth || 0);
+    $('#shiftWorkingDays').val(s.WorkingDaysPerMonth || 0);
     $('#shiftOtEnabled').prop('checked', s.Id ? !!s.IsOtEnabled : true);
     $('#shiftOtAfter').val(s.OtStartAfterMinutes || 0);
     $('#shiftOtBasis').val(String(s.Id ? !!s.OtCountsFromShiftEnd : true));
@@ -122,6 +129,8 @@ function saveShift() {
         GraceOutMinutes: parseInt($('#shiftGraceOut').val()) || 0,
         BreakMinutes: parseInt($('#shiftBreak').val()) || 0,
         StandardWorkingHours: parseFloat($('#shiftStdHours').val()) || 0,
+        AllowedLateDaysPerMonth: parseInt($('#shiftLateAllowance').val(), 10) || 0,
+        WorkingDaysPerMonth: parseInt($('#shiftWorkingDays').val(), 10) || 0,
         IsOtEnabled: $('#shiftOtEnabled').is(':checked'),
         OtStartAfterMinutes: parseInt($('#shiftOtAfter').val()) || 0,
         OtCountsFromShiftEnd: $('#shiftOtBasis').val() === 'true',

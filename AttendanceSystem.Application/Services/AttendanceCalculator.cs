@@ -111,7 +111,19 @@ public static class AttendanceCalculator
         {
             double otMinutes;
 
-            if (shift.OtCountsFromShiftEnd && expectedEnd.HasValue)
+            // On a day the employee was not rostered to work at all, every hour is overtime.
+            //
+            // Measuring from the shift end would say otherwise: someone called in for four
+            // hours on their Sunday off leaves long before the shift's nominal end and earns
+            // nothing, which is the opposite of what a day off is worth. The shift's end time
+            // is meaningless on a day the shift does not run.
+            var isNonWorkingDay = isHoliday || (shift != null && IsWeeklyOff(shift, date));
+
+            if (isNonWorkingDay)
+            {
+                otMinutes = workingHours.Value * 60;
+            }
+            else if (shift.OtCountsFromShiftEnd && expectedEnd.HasValue)
             {
                 // Only time past the shift end (plus the threshold) counts. Arriving early
                 // does not earn overtime under this rule.

@@ -25,6 +25,7 @@ public static class AppConstants
         public const string Import = "Import";
         public const string Devices = "Devices";
         public const string AuditLogs = "AuditLogs";
+        public const string Overtime = "Overtime";
     }
 
     public static class Actions

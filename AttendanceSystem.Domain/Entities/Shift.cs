@@ -50,6 +50,23 @@ public class Shift : BaseEntity
     /// <summary>Overtime is only recorded for shifts that allow it.</summary>
     public bool IsOtEnabled { get; set; } = true;
 
+    /// <summary>
+    /// Late arrivals tolerated per calendar month before the day is flagged as over the
+    /// allowance. 0 means no limit.
+    ///
+    /// Reporting only: the attendance status, working hours and overtime of an over-allowance
+    /// day are untouched. Anything that changes what a person is paid should be a decision
+    /// somebody makes, not a side effect of a counter.
+    /// </summary>
+    public int AllowedLateDaysPerMonth { get; set; }
+
+    /// <summary>
+    /// Working days in a normal month for this shift — the divisor payroll uses to derive a
+    /// daily rate. 0 means the site has not set one. Not used to compute attendance; it is
+    /// recorded here so the figure lives with the shift it belongs to.
+    /// </summary>
+    public int WorkingDaysPerMonth { get; set; }
+
     public string WeeklyOffDays { get; set; } = "Saturday,Sunday";
     public bool IsActive { get; set; } = true;
 

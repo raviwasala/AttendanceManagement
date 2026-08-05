@@ -4,6 +4,7 @@ using AttendanceSystem.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AttendanceSystem.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AttendanceDbContext))]
-    partial class AttendanceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260805020640_AddOvertimeManagement")]
+    partial class AddOvertimeManagement
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2499,9 +2502,6 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AllowedLateDaysPerMonth")
-                        .HasColumnType("int");
-
                     b.Property<int>("BreakMinutes")
                         .HasColumnType("int");
 
@@ -2565,9 +2565,6 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<int>("WorkingDaysPerMonth")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.ToTable("Shifts");
@@ -2576,7 +2573,6 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                         new
                         {
                             Id = 1,
-                            AllowedLateDaysPerMonth = 0,
                             BreakMinutes = 0,
                             CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             EndTime = new TimeSpan(0, 18, 0, 0, 0),
@@ -2591,8 +2587,7 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                             OtStartAfterMinutes = 0,
                             StandardWorkingHours = 0.0,
                             StartTime = new TimeSpan(0, 9, 0, 0, 0),
-                            WeeklyOffDays = "Saturday,Sunday",
-                            WorkingDaysPerMonth = 0
+                            WeeklyOffDays = "Saturday,Sunday"
                         });
                 });
 

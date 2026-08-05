@@ -252,6 +252,22 @@ public class AttendanceService : IAttendanceService
             var logs = (await _uow.Attendance.FindAsync(a =>
                 !a.IsDeleted && a.AttendanceDate >= monthStart && a.AttendanceDate <= monthEnd)).ToList();
 
+            // The late allowance lives on the shift, so it is read from whichever assignment
+            // covers the month. The last one wins if the shift changed mid-month — the figure
+            // reported is then the allowance the employee finished the month on.
+            var shifts = (await _uow.Shifts.GetAllAsync()).ToDictionary(s => s.Id);
+            var assignments = (await _uow.EmployeeShifts.FindAsync(es => !es.IsDeleted &&
+                    es.EffectiveFrom <= monthEnd &&
+                    (es.EffectiveTo == null || es.EffectiveTo >= monthStart)))
+                .OrderBy(es => es.EffectiveFrom)
+                .ToList();
+
+            var allowanceByEmployee = assignments
+                .GroupBy(a => a.EmployeeId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => shifts.TryGetValue(g.Last().ShiftId, out var s) ? s.AllowedLateDaysPerMonth : 0);
+
             var dtos = employees
                 .OrderBy(e => e.FirstName).ThenBy(e => e.LastName)
                 .Select(emp =>
@@ -271,7 +287,8 @@ public class AttendanceService : IAttendanceService
                         LateDays = mine.Count(l => l.IsLate),
                         LeaveDays = mine.Count(l => l.Status == AttendanceStatus.OnLeave),
                         HolidayDays = mine.Count(l => l.Status is AttendanceStatus.Holiday or AttendanceStatus.WeeklyOff),
-                        TotalWorkingHours = mine.Sum(l => l.WorkingHours ?? 0)
+                        TotalWorkingHours = mine.Sum(l => l.WorkingHours ?? 0),
+                        LateAllowance = allowanceByEmployee.TryGetValue(emp.Id, out var la) ? la : 0
                     };
                 })
                 .ToList();

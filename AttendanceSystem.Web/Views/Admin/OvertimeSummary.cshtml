@@ -1,0 +1,97 @@
+@{
+    ViewData["Title"] = "OT Summary";
+    var canExport = ViewContext.HasPermission(AppConstants.Modules.Overtime, AppConstants.Actions.Export);
+    var today = DateTime.Today;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h5 class="mb-1">Overtime Summary</h5>
+        <p class="text-muted small mb-0">Totals per employee for the period — the payroll view</p>
+    </div>
+    @if (canExport)
+    {
+        <button class="btn btn-outline-primary btn-sm px-3" onclick="exportSummary()">
+            <i class="feather icon-download me-1"></i>Export CSV
+        </button>
+    }
+</div>
+
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Month</label>
+                <select id="sumMonth" class="form-select form-select-sm">
+                    @for (int m = 1; m <= 12; m++)
+                    {
+                        <option value="@m" selected="@(m == today.Month)">@(new DateTime(2000, m, 1).ToString("MMMM"))</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Year</label>
+                <input type="number" id="sumYear" class="form-control form-control-sm" value="@today.Year">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Department</label>
+                <select id="sumDept" class="form-select form-select-sm">
+                    <option value="">All Departments</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary btn-sm w-100" onclick="loadSummary()">
+                    <i class="feather icon-search me-1"></i>Load
+                </button>
+            </div>
+            @* A month picker covers the normal case; a payroll cut-off that straddles months
+               does not, so the range stays available. *@
+            <div class="col-md-3 text-md-end">
+                <button class="btn btn-link btn-sm p-0" onclick="toggleRange()" id="rangeToggle">
+                    Use a custom date range…
+                </button>
+            </div>
+        </div>
+
+        <div class="row g-2 align-items-end mt-1 d-none" id="sumRangeRow">
+            <div class="col-md-2">
+                <label class="form-label small mb-1">From</label>
+                <input type="date" id="sumFrom" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">To</label>
+                <input type="date" id="sumTo" class="form-control form-control-sm">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-2 mb-3" id="sumStats"></div>
+
+<div class="card card-table-container">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Employee</th>
+                        <th>Department</th>
+                        <th class="text-center">OT Days</th>
+                        <th class="text-center">Pending</th>
+                        <th class="text-center">Approved</th>
+                        <th class="text-center">Rejected</th>
+                        <th class="text-center">Premium <small class="text-muted">(off/holiday)</small></th>
+                        <th class="text-center pe-3">Weighted Hours</th>
+                    </tr>
+                </thead>
+                <tbody id="sumBody">
+                    <tr><td colspan="8" class="text-center py-4 text-muted">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/admin/overtime-summary.js" asp-append-version="true"></script>
+}

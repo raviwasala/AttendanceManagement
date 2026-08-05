@@ -31,6 +31,8 @@ public class UnitOfWork : IUnitOfWork
     private IRepository<CompanySettings>? _companySettings;
     private IRepository<Device>? _devices;
     private IRepository<DeviceUserMapping>? _deviceUserMappings;
+    private IRepository<OvertimeRule>? _overtimeRules;
+    private IRepository<OvertimeRecord>? _overtimeRecords;
 
     public UnitOfWork(AttendanceDbContext context) => _context = context;
 
@@ -53,6 +55,8 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<CompanySettings>  CompanySettings   => _companySettings   ??= new Repository<CompanySettings>(_context);
     public IRepository<Device>           Devices           => _devices           ??= new Repository<Device>(_context);
     public IRepository<DeviceUserMapping> DeviceUserMappings => _deviceUserMappings ??= new Repository<DeviceUserMapping>(_context);
+    public IRepository<OvertimeRule>     OvertimeRules     => _overtimeRules     ??= new Repository<OvertimeRule>(_context);
+    public IRepository<OvertimeRecord>   OvertimeRecords   => _overtimeRecords   ??= new Repository<OvertimeRecord>(_context);
 
     public async Task<IEnumerable<RolePermission>> GetRolePermissionsAsync(int roleId) =>
         await _context.RolePermissions.Where(rp => rp.RoleId == roleId).ToListAsync();

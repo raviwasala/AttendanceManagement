@@ -17,6 +17,8 @@ public class ShiftDto
     public int OtStartAfterMinutes { get; set; }
     public bool OtCountsFromShiftEnd { get; set; }
     public bool IsOtEnabled { get; set; }
+    public int AllowedLateDaysPerMonth { get; set; }
+    public int WorkingDaysPerMonth { get; set; }
     public string WeeklyOffDays { get; set; } = string.Empty;
     public bool IsActive { get; set; }
 
@@ -52,6 +54,12 @@ public class SaveShiftDto
     [Range(0, 480)] public int OtStartAfterMinutes { get; set; }
     public bool OtCountsFromShiftEnd { get; set; } = true;
     public bool IsOtEnabled { get; set; } = true;
+
+    /// <summary>0 = no limit on late arrivals.</summary>
+    [Range(0, 31)] public int AllowedLateDaysPerMonth { get; set; }
+
+    /// <summary>0 = not set. 31 is the ceiling: a month cannot hold more.</summary>
+    [Range(0, 31)] public int WorkingDaysPerMonth { get; set; }
 
     public string WeeklyOffDays { get; set; } = "Saturday,Sunday";
     public bool IsActive { get; set; } = true;

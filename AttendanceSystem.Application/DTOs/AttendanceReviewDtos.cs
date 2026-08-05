@@ -45,6 +45,22 @@ public class AttendanceReviewRowDto
 
     public bool IsLate { get; set; }
     public int? LateMinutes { get; set; }
+
+    /// <summary>
+    /// Which late arrival this is within its calendar month — 1 for the first, 2 for the
+    /// second, and so on. 0 when the day is not late.
+    /// </summary>
+    public int LateOccurrence { get; set; }
+
+    /// <summary>Late days the shift tolerates per month. 0 means no limit.</summary>
+    public int LateAllowance { get; set; }
+
+    /// <summary>
+    /// True when this late arrival is past the shift's monthly allowance. Reporting only —
+    /// status, hours and overtime are unaffected.
+    /// </summary>
+    public bool IsOverLateAllowance => LateAllowance > 0 && LateOccurrence > LateAllowance;
+
     public bool IsEarlyLeave { get; set; }
     public int? EarlyLeaveMinutes { get; set; }
 

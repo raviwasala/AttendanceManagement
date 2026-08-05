@@ -45,7 +45,8 @@ public class ReportService : IReportService
                    SUM(CASE WHEN a.IsLate = 1      THEN 1 ELSE 0 END)            AS LateDays,
                    SUM(CASE WHEN a.Status = 5      THEN 1 ELSE 0 END)            AS LeaveDays,
                    SUM(CASE WHEN a.Status IN (6,7) THEN 1 ELSE 0 END)            AS HolidayDays,
-                   ISNULL(SUM(a.WorkingHours), 0)                                AS TotalWorkingHours
+                   ISNULL(SUM(a.WorkingHours), 0)                                AS TotalWorkingHours,
+                   ISNULL(MAX(sh.AllowedLateDaysPerMonth), 0)                    AS LateAllowance
             FROM Employees e
             INNER JOIN Departments d ON d.Id = e.DepartmentId
             LEFT JOIN AttendanceLogs a
@@ -53,6 +54,17 @@ public class ReportService : IReportService
                   AND a.IsDeleted = 0
                   AND MONTH(a.AttendanceDate) = @Month
                   AND YEAR(a.AttendanceDate)  = @Year
+            -- Late allowance comes from the shift in force during the month. CROSS APPLY takes
+            -- the latest assignment covering it, matching how shifts resolve everywhere else.
+            OUTER APPLY (
+                SELECT TOP 1 s.AllowedLateDaysPerMonth
+                FROM EmployeeShifts es
+                INNER JOIN Shifts s ON s.Id = es.ShiftId
+                WHERE es.EmployeeId = e.Id AND es.IsDeleted = 0
+                  AND es.EffectiveFrom <= EOMONTH(DATEFROMPARTS(@Year, @Month, 1))
+                  AND (es.EffectiveTo IS NULL OR es.EffectiveTo >= DATEFROMPARTS(@Year, @Month, 1))
+                ORDER BY es.EffectiveFrom DESC
+            ) sh
             WHERE e.IsDeleted = 0 AND e.IsActive = 1
               AND (@DeptId IS NULL OR e.DepartmentId = @DeptId)
             GROUP BY e.Id, e.EmployeeCode, e.FirstName, e.LastName, d.Name

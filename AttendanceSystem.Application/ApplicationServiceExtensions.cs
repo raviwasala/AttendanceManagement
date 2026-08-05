@@ -28,6 +28,7 @@ public static class ApplicationServiceExtensions
         services.AddScoped<IAttendanceReviewService, AttendanceReviewService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<ISelfServiceService, SelfServiceService>();
+        services.AddScoped<IOvertimeService, OvertimeService>();
         return services;
     }
 }

@@ -96,6 +96,11 @@ public class AttendanceReviewService : IAttendanceReviewService
                 .Where(l => employeeIds.Contains(l.EmployeeId))
                 .ToList();
 
+            // "Third late day this month" has to count from the 1st, not from the start of
+            // whatever range is on screen — otherwise looking at 20–25 August would report
+            // everyone as being on their first late arrival.
+            var lateOccurrence = await BuildLateOccurrenceAsync(employeeIds, from, to);
+
             var dto = new AttendanceReviewDto
             {
                 FromDate = from,
@@ -121,7 +126,8 @@ public class AttendanceReviewService : IAttendanceReviewService
                     logs.TryGetValue((emp.Id, date), out var log);
                     var shift = ResolveShift(assignments, shifts, emp.Id, date);
 
-                    dto.Rows.Add(BuildRow(emp, date, shift, log, departments, holidays, leaves));
+                    dto.Rows.Add(BuildRow(emp, date, shift, log, departments, holidays, leaves,
+                        lateOccurrence));
                 }
                 if (dto.Truncated) break;
             }
@@ -255,10 +261,38 @@ public class AttendanceReviewService : IAttendanceReviewService
             : $"{from:dd MMM yyyy} – {to:dd MMM yyyy} ({dayCount} days)"
     };
 
+    /// <summary>
+    /// Numbers each late arrival within its calendar month: 1 for the first, 2 for the second.
+    ///
+    /// Deliberately widened to the start of the month containing <paramref name="from"/>, since
+    /// the allowance is a monthly one and the range on screen is usually only part of a month.
+    /// </summary>
+    private async Task<Dictionary<(int, DateTime), int>> BuildLateOccurrenceAsync(
+        HashSet<int> employeeIds, DateTime from, DateTime to)
+    {
+        var monthStart = new DateTime(from.Year, from.Month, 1);
+
+        var lateLogs = (await _uow.Attendance.FindAsync(a =>
+                !a.IsDeleted && a.IsLate &&
+                a.AttendanceDate >= monthStart && a.AttendanceDate <= to))
+            .Where(a => employeeIds.Contains(a.EmployeeId))
+            .ToList();
+
+        var map = new Dictionary<(int, DateTime), int>();
+        foreach (var group in lateLogs.GroupBy(a => (a.EmployeeId, a.AttendanceDate.Year, a.AttendanceDate.Month)))
+        {
+            var n = 0;
+            foreach (var log in group.OrderBy(a => a.AttendanceDate).ThenBy(a => a.CheckIn))
+                map[(log.EmployeeId, log.AttendanceDate.Date)] = ++n;
+        }
+
+        return map;
+    }
+
     private static AttendanceReviewRowDto BuildRow(
         Employee emp, DateTime date, Shift? shift, AttendanceLog? log,
         Dictionary<int, string> departments, Dictionary<DateTime, string> holidays,
-        List<LeaveRequest> leaves)
+        List<LeaveRequest> leaves, Dictionary<(int, DateTime), int> lateOccurrence)
     {
         var row = new AttendanceReviewRowDto
         {
@@ -279,6 +313,7 @@ public class AttendanceReviewService : IAttendanceReviewService
             row.ExpectedIn = Fmt(shift.StartTime);
             row.ExpectedOut = Fmt(shift.EndTime);
             row.GraceMinutes = shift.GraceMinutes;
+            row.LateAllowance = shift.AllowedLateDaysPerMonth;
             row.IsNightShift = AttendanceCalculator.CrossesMidnight(shift);
             row.BreakMinutes = shift.BreakMinutes;
             row.IsWeeklyOff = IsWeeklyOff(shift, date);
@@ -297,6 +332,8 @@ public class AttendanceReviewService : IAttendanceReviewService
             row.CheckOutTime = log.CheckOut?.ToString("HH:mm");
             row.IsLate = log.IsLate;
             row.LateMinutes = log.LateMinutes;
+            if (log.IsLate && lateOccurrence.TryGetValue((emp.Id, date), out var occurrence))
+                row.LateOccurrence = occurrence;
             row.IsEarlyLeave = log.IsEarlyLeave;
             row.EarlyLeaveMinutes = log.EarlyLeaveMinutes;
             row.WorkingHours = log.WorkingHours;

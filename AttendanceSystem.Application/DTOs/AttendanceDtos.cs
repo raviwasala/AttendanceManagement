@@ -64,6 +64,16 @@ public class AttendanceSummaryDto
     public int LeaveDays { get; set; }
     public int HolidayDays { get; set; }
     public double TotalWorkingHours { get; set; }
+
+    /// <summary>Late days the shift tolerates in a month. 0 means no limit was configured.</summary>
+    public int LateAllowance { get; set; }
+
+    /// <summary>True when LateDays has gone past the allowance. Reporting only.</summary>
+    public bool IsOverLateAllowance => LateAllowance > 0 && LateDays > LateAllowance;
+
+    public string LateAllowanceDisplay =>
+        LateAllowance > 0 ? $"{LateDays} of {LateAllowance}" : LateDays.ToString();
+
     public double AttendancePercentage =>
         TotalDays > 0 ? Math.Round((double)PresentDays / TotalDays * 100, 2) : 0;
 }

@@ -1,0 +1,164 @@
+@{
+    ViewData["Title"] = "OT Rules";
+    var canEdit = ViewContext.HasPermission(AppConstants.Modules.Overtime, AppConstants.Actions.Edit);
+    var canDelete = ViewContext.HasPermission(AppConstants.Modules.Overtime, AppConstants.Actions.Delete);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h5 class="mb-1">Overtime Rules</h5>
+        <p class="text-muted small mb-0">What extra hours are worth, and how few are worth claiming</p>
+    </div>
+    @if (canEdit)
+    {
+        <button class="btn btn-primary btn-sm px-3" onclick="openRule()">
+            <i class="feather icon-plus me-1"></i>Add Rule
+        </button>
+    }
+</div>
+
+@* The split between shift settings and rules is the first thing people ask about. *@
+<div class="alert alert-light border py-2 small" role="status">
+    <i class="feather icon-info me-1 text-primary"></i>
+    The <a asp-controller="Admin" asp-action="Shifts">shift</a> decides whether time past the end
+    counts as overtime and from when. A rule decides what those minutes are <strong>worth</strong>
+    and how many are allowed. When several rules match a day, the lowest priority wins; ties go to
+    the more specific rule.
+</div>
+
+<div class="card card-table-container">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3" style="width:60px;">Priority</th>
+                        <th>Rule</th>
+                        <th>Applies To</th>
+                        <th class="text-center">Rate</th>
+                        <th class="text-center">Minimum</th>
+                        <th class="text-center">Daily Max</th>
+                        <th class="text-center">Rounding</th>
+                        <th class="text-center">Approval</th>
+                        <th>Status</th>
+                        <th class="text-end pe-3">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="ruleBody">
+                    <tr><td colspan="10" class="text-center py-4 text-muted">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Rule editor -->
+<div class="modal fade" id="ruleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title" id="ruleModalTitle">Add Overtime Rule</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="ruleError" class="alert alert-danger py-2 small d-none"></div>
+                <input type="hidden" id="ruleId" value="0">
+
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label">Rule Name <span class="text-danger">*</span></label>
+                        <input type="text" id="ruleName" class="form-control" maxlength="100"
+                               placeholder="e.g. Holiday overtime — double time">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Priority</label>
+                        <input type="number" id="rulePriority" class="form-control" min="1" max="9999" value="100">
+                        <div class="form-text">Lower wins when several rules match.</div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Description</label>
+                        <input type="text" id="ruleDesc" class="form-control" maxlength="500">
+                    </div>
+
+                    <div class="col-12"><hr class="my-1"><small class="text-muted fw-semibold">Applies to</small></div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Department</label>
+                        <select id="ruleDept" class="form-select">
+                            <option value="">All departments</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Shift</label>
+                        <select id="ruleShift" class="form-select">
+                            <option value="">All shifts</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Day Type</label>
+                        <select id="ruleDayType" class="form-select">
+                            <option value="0">Any day</option>
+                            <option value="1">Working day</option>
+                            <option value="2">Weekly off</option>
+                            <option value="3">Holiday</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12"><hr class="my-1"><small class="text-muted fw-semibold">Entitlement</small></div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Rate Multiplier</label>
+                        <input type="number" id="ruleRate" class="form-control" step="0.25" min="0.5" max="10" value="1.5">
+                        <div class="form-text">1.5 = time and a half</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Minimum Minutes</label>
+                        <input type="number" id="ruleMin" class="form-control" min="0" max="480" value="30">
+                        <div class="form-text">Below this earns nothing</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Max Minutes / Day</label>
+                        <input type="number" id="ruleMax" class="form-control" min="0" max="1440" placeholder="No cap">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Round Down To</label>
+                        <select id="ruleRound" class="form-select">
+                            <option value="0">No rounding</option>
+                            <option value="5">5 minutes</option>
+                            <option value="10">10 minutes</option>
+                            <option value="15" selected>15 minutes</option>
+                            <option value="30">30 minutes</option>
+                            <option value="60">1 hour</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="ruleApproval" checked>
+                            <label class="form-check-label" for="ruleApproval">Requires approval</label>
+                        </div>
+                        <div class="form-text">Off means claims are approved as they are generated.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="ruleActive" checked>
+                            <label class="form-check-label" for="ruleActive">Active</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" onclick="saveRule()">Save Rule</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        window.otPerms = { edit: @canEdit.ToString().ToLower(), delete: @canDelete.ToString().ToLower() };
+    </script>
+    <script src="~/js/pages/admin/overtime-rules.js" asp-append-version="true"></script>
+}

@@ -124,6 +124,19 @@
                         <div class="form-text small">Leave 0 to use span minus break.</div>
                     </div>
 
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label small fw-semibold">Allowed Late Days / Month</label>
+                        <input type="number" id="shiftLateAllowance" class="form-control" value="0" min="0" max="31">
+                        <div class="form-text small">
+                            Beyond this, the day is flagged on reports. 0 = no limit.
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label small fw-semibold">Working Days / Month</label>
+                        <input type="number" id="shiftWorkingDays" class="form-control" value="0" min="0" max="31">
+                        <div class="form-text small">Payroll divisor for a daily rate. 0 = not set.</div>
+                    </div>
+
                     <div class="col-12"><hr class="my-2"></div>
 
                     <div class="col-12 mb-2">

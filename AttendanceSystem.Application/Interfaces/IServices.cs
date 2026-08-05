@@ -1,5 +1,6 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Common.Models;
+using AttendanceSystem.Domain.Enums;
 
 namespace AttendanceSystem.Application.Interfaces;
 
@@ -209,6 +210,41 @@ public interface IShiftRosterService
 
     /// <summary>Applies one shift across a date range, committed as a single unit.</summary>
     Task<Result> SetRangeAsync(SetRosterRangeDto dto);
+}
+
+/// <summary>
+/// Overtime management: the policy that values extra hours, the queue that approves them,
+/// and the register and summary that report on them.
+///
+/// Claims are *derived* from attendance rather than entered against it. AttendanceLog already
+/// carries OvertimeMinutes computed by <see cref="Services.AttendanceCalculator"/>; generation
+/// turns those minutes into claims by applying the matching rule. That keeps one calculation of
+/// how long somebody worked, and makes regenerating a corrected day safe.
+/// </summary>
+public interface IOvertimeService
+{
+    // ── Rules ────────────────────────────────────────────────────────────────
+    Task<Result<IEnumerable<OvertimeRuleDto>>> GetRulesAsync();
+    Task<Result<OvertimeRuleDto>> GetRuleByIdAsync(int id);
+    Task<Result<OvertimeRuleDto>> SaveRuleAsync(SaveOvertimeRuleDto dto);
+    Task<Result> DeleteRuleAsync(int id);
+
+    // ── Claims ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Builds or refreshes claims for a date range from the attendance already recorded.
+    /// Rows already approved or rejected are left alone, so re-running is safe.
+    /// </summary>
+    Task<Result<GenerateOvertimeResultDto>> GenerateAsync(GenerateOvertimeDto dto);
+
+    Task<Result<OvertimeRegisterDto>> GetRegisterAsync(DateTime from, DateTime to,
+        int? employeeId = null, int? departmentId = null, OvertimeStatus? status = null);
+
+    /// <summary>Approves or rejects one or many claims in a single transaction.</summary>
+    Task<Result<int>> DecideAsync(OvertimeDecisionDto dto);
+
+    Task<Result<OvertimeSummaryDto>> GetSummaryAsync(DateTime from, DateTime to,
+        int? departmentId = null, int? employeeId = null);
 }
 
 /// <summary>

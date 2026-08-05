@@ -88,6 +88,8 @@ public class ShiftService : IShiftService
                     StandardWorkingHours = dto.StandardWorkingHours,
                     OtStartAfterMinutes = dto.OtStartAfterMinutes,
                     OtCountsFromShiftEnd = dto.OtCountsFromShiftEnd, IsOtEnabled = dto.IsOtEnabled,
+                    AllowedLateDaysPerMonth = dto.AllowedLateDaysPerMonth,
+                    WorkingDaysPerMonth = dto.WorkingDaysPerMonth,
                     WeeklyOffDays = dto.WeeklyOffDays,
                     IsActive = dto.IsActive, CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now
                 };
@@ -109,6 +111,8 @@ public class ShiftService : IShiftService
                 entity.OtStartAfterMinutes = dto.OtStartAfterMinutes;
                 entity.OtCountsFromShiftEnd = dto.OtCountsFromShiftEnd;
                 entity.IsOtEnabled = dto.IsOtEnabled;
+                entity.AllowedLateDaysPerMonth = dto.AllowedLateDaysPerMonth;
+                entity.WorkingDaysPerMonth = dto.WorkingDaysPerMonth;
                 entity.WeeklyOffDays = dto.WeeklyOffDays; entity.IsActive = dto.IsActive;
                 entity.ModifiedBy = _currentUser.UserId; entity.ModifiedAt = DateTime.Now;
 
@@ -198,6 +202,8 @@ public class ShiftService : IShiftService
         StandardWorkingHours = s.StandardWorkingHours,
         OtStartAfterMinutes = s.OtStartAfterMinutes,
         OtCountsFromShiftEnd = s.OtCountsFromShiftEnd, IsOtEnabled = s.IsOtEnabled,
+        AllowedLateDaysPerMonth = s.AllowedLateDaysPerMonth,
+        WorkingDaysPerMonth = s.WorkingDaysPerMonth,
         WeeklyOffDays = s.WeeklyOffDays, IsActive = s.IsActive
     };
 }

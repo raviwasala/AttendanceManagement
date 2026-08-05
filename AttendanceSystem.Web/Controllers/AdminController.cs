@@ -62,6 +62,24 @@ public class AdminController : BaseController
     [SessionAuthorize(Modules.Employees, Actions.View)]
     public IActionResult AttendanceReview() => View();
 
+    // Overtime rules are policy: viewing the screen needs Overtime.View like the rest, but
+    // every write on it is guarded by Overtime.Edit on the API.
+    [HttpGet("OvertimeRules")]
+    [SessionAuthorize(Modules.Overtime, Actions.View)]
+    public IActionResult OvertimeRules() => View();
+
+    [HttpGet("OvertimeApproval")]
+    [SessionAuthorize(Modules.Overtime, Actions.View)]
+    public IActionResult OvertimeApproval() => View();
+
+    [HttpGet("OvertimeRegister")]
+    [SessionAuthorize(Modules.Overtime, Actions.View)]
+    public IActionResult OvertimeRegister() => View();
+
+    [HttpGet("OvertimeSummary")]
+    [SessionAuthorize(Modules.Overtime, Actions.View)]
+    public IActionResult OvertimeSummary() => View();
+
     [HttpGet("Leave")]
     [SessionAuthorize(Modules.Leave, Actions.View)]
     public IActionResult Leave() => View();

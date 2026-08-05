@@ -25,7 +25,9 @@ function loadMonthly() {
                 + '<td class="text-muted">' + esc(r.Department) + '</td>'
                 + '<td class="text-success">' + esc(r.PresentDays) + '</td>'
                 + '<td class="text-danger">' + esc(r.AbsentDays) + '</td>'
-                + '<td class="text-warning">' + esc(r.LateDays) + '</td>'
+                // "3 of 3" once an allowance is set, red past it — reporting only.
+                + '<td class="' + (r.IsOverLateAllowance ? 'text-danger fw-semibold' : 'text-warning') + '">'
+                + esc(r.LateAllowanceDisplay) + '</td>'
                 + '<td class="text-info">' + esc(r.LeaveDays) + '</td>'
                 + '<td>' + esc(r.HolidayDays) + '</td>'
                 + '<td>' + (r.TotalWorkingHours || 0).toFixed(1) + '</td>'
