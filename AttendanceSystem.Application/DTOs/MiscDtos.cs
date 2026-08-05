@@ -7,11 +7,25 @@ public class HolidayDto
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>The date this holiday falls on in the year being viewed.</summary>
     public DateTime HolidayDate { get; set; }
+
     public HolidayType HolidayType { get; set; }
     public string HolidayTypeDisplay => HolidayType.ToString();
     public string? Description { get; set; }
     public bool IsRecurring { get; set; }
+
+    /// <summary>
+    /// True when this entry is a recurring holiday shown in a later year than the one it was
+    /// declared in. It has no row of its own for that year, so editing or deleting it acts on
+    /// the original — which the UI has to say plainly rather than let somebody discover.
+    /// </summary>
+    public bool IsProjected { get; set; }
+
+    /// <summary>The year the holiday was originally declared. Only interesting when projected.</summary>
+    public int DeclaredYear { get; set; }
+
     public string DateDisplay => HolidayDate.ToString("dd-MMM-yyyy");
     public string DayName => HolidayDate.ToString("dddd");
 }

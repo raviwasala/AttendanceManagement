@@ -21,8 +21,20 @@ public enum LeaveStatus
 
 public enum HolidayType
 {
+    /// <summary>Gazetted public holiday — applies to everyone.</summary>
     Public = 1,
-    Company = 2
+
+    /// <summary>Declared by the company: a shutdown day, an anniversary.</summary>
+    Company = 2,
+
+    /// <summary>
+    /// A one-off: a declared day of mourning, an election, a local event.
+    ///
+    /// Treated identically to the others by every calculation — the distinction is for
+    /// reporting and for knowing which entries not to carry into next year. Stored as an
+    /// int, so adding it needs no migration.
+    /// </summary>
+    Special = 3
 }
 
 public enum Gender

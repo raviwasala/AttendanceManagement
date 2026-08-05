@@ -32,7 +32,17 @@ public class HolidayService : IHolidayService
         try
         {
             var list = await _uow.Holidays.GetByYearAsync(year);
-            return Result<IEnumerable<HolidayDto>>.Success(list.Select(Map));
+
+            // A recurring holiday could also have been entered explicitly for this year —
+            // a Poya that moved, say. The explicit row wins, so the same day is not listed
+            // twice with different names.
+            var mapped = list.Select(h => MapForYear(h, year))
+                             .GroupBy(d => d.HolidayDate.Date)
+                             .Select(g => g.OrderBy(d => d.IsProjected).First())
+                             .OrderBy(d => d.HolidayDate)
+                             .ToList();
+
+            return Result<IEnumerable<HolidayDto>>.Success(mapped);
         }
         catch (Exception ex) { return Result<IEnumerable<HolidayDto>>.Failure(ex.Message); }
     }
@@ -87,8 +97,29 @@ public class HolidayService : IHolidayService
     private static HolidayDto Map(Holiday h) => new()
     {
         Id = h.Id, Name = h.Name, HolidayDate = h.HolidayDate,
-        HolidayType = h.HolidayType, Description = h.Description, IsRecurring = h.IsRecurring
+        HolidayType = h.HolidayType, Description = h.Description, IsRecurring = h.IsRecurring,
+        DeclaredYear = h.HolidayDate.Year
     };
+
+    /// <summary>
+    /// Maps a holiday as it falls in <paramref name="year"/>. A recurring holiday declared
+    /// earlier is moved to the same month and day of that year and marked projected, so the
+    /// list agrees with what <c>IsHolidayAsync</c> will decide — the two disagreeing is what
+    /// made the recurring flag look like it worked while attendance ignored it.
+    /// </summary>
+    private static HolidayDto MapForYear(Holiday h, int year)
+    {
+        var dto = Map(h);
+        if (h.HolidayDate.Year == year) return dto;
+
+        // 29 February in a non-leap year has no counterpart; fall back to the 28th rather
+        // than throwing and losing the whole list.
+        var day = Math.Min(h.HolidayDate.Day, DateTime.DaysInMonth(year, h.HolidayDate.Month));
+
+        dto.HolidayDate = new DateTime(year, h.HolidayDate.Month, day);
+        dto.IsProjected = true;
+        return dto;
+    }
 }
 
 /// <summary>Company settings read/write service.</summary>
