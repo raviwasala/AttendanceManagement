@@ -108,6 +108,19 @@ public class AdminController : BaseController
     [SessionAuthorize(Modules.Devices, Actions.View)]
     public IActionResult Devices() => View();
 
+    /// <summary>
+    /// One employee's full record: details, service, history, documents and this month's
+    /// attendance. The edit modal was previously the only way to look at a person, which
+    /// meant opening a form to read a phone number.
+    /// </summary>
+    [HttpGet("EmployeeProfile/{id:int}")]
+    [SessionAuthorize(Modules.Employees, Actions.View)]
+    public IActionResult EmployeeProfile(int id)
+    {
+        ViewBag.EmployeeId = id;
+        return View();
+    }
+
     [HttpGet("Settings")]
     [SessionAuthorize(Modules.Settings, Actions.View)]
     public IActionResult Settings() => View();

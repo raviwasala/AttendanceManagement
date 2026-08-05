@@ -1,3 +1,5 @@
+using AttendanceSystem.Domain.Enums;
+
 namespace AttendanceSystem.Domain.Entities;
 
 /// <summary>Employee record.</summary>
@@ -40,8 +42,32 @@ public class Employee : BaseEntity
     public Designation Designation { get; set; } = null!;
     public int BranchId { get; set; }
     public Branch Branch { get; set; } = null!;
+    /// <summary>
+    /// Shorthand for "currently employed and working". Every existing list and report filters
+    /// on this, so it stays — but it is now derived from <see cref="Status"/> rather than set
+    /// on its own, so the two cannot disagree.
+    /// </summary>
     public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Why the employee is or is not working. IsActive could only say "not working"; this says
+    /// whether they resigned, were suspended, or are on long leave — which decides whether the
+    /// record is expected back and whether a punch arriving for them is an error.
+    /// </summary>
+    public EmployeeStatus Status { get; set; } = EmployeeStatus.Active;
+
+    /// <summary>
+    /// Last working day. Attendance after this date is not expected, and a biometric import
+    /// carrying punches past it is importing somebody else's finger on a shared enrol id.
+    /// </summary>
+    public DateTime? ResignationDate { get; set; }
+
+    public string? ResignationReason { get; set; }
+
     public int? BiometricEnrollId { get; set; }
+
+    public ICollection<EmployeeHistory> History { get; set; } = new List<EmployeeHistory>();
+    public ICollection<EmployeeDocument> Documents { get; set; } = new List<EmployeeDocument>();
 
     public ICollection<EmployeeShift> EmployeeShifts { get; set; } = new List<EmployeeShift>();
     public ICollection<AttendanceLog> AttendanceLogs { get; set; } = new List<AttendanceLog>();

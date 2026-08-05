@@ -134,10 +134,28 @@ public class BiometricImportService : IBiometricImportService
         }
 
         // ── Lookups, loaded once ────────────────────────────────────────────
+        // Inactive employees are included deliberately.
+        //
+        // Filtering on IsActive dropped a leaver's final month into UnmatchedPunches, where it
+        // was indistinguishable from an enrol id belonging to nobody — the last weeks of
+        // somebody's employment quietly vanished from payroll. Their punches up to the last
+        // working day are legitimate and are imported; punches after it are reported below,
+        // because they usually mean somebody else is using that finger.
         var employees = await _context.Employees
-            .Where(e => e.IsActive && !e.IsDeleted && e.BiometricEnrollId != null)
-            .Select(e => new { e.Id, EnrollId = e.BiometricEnrollId!.Value, e.EmployeeCode, e.FirstName })
+            .Where(e => !e.IsDeleted && e.BiometricEnrollId != null)
+            .Select(e => new
+            {
+                e.Id, EnrollId = e.BiometricEnrollId!.Value, e.EmployeeCode, e.FirstName,
+                e.ResignationDate, e.IsActive
+            })
             .ToListAsync();
+
+        // Last working day per employee, for the check further down.
+        var resignedOn = employees
+            .Where(e => e.ResignationDate.HasValue)
+            .GroupBy(e => e.Id)
+            .ToDictionary(g => g.Key, g => (Date: g.First().ResignationDate!.Value.Date,
+                                            Code: g.First().EmployeeCode));
 
         // Grouped rather than ToDictionary: two employees sharing an enrolment id is a data
         // error, not a reason to abort the whole import with a duplicate-key exception. The
@@ -176,6 +194,8 @@ public class BiometricImportService : IBiometricImportService
 
         // ── Attribute each punch to the day whose shift it belongs to ───────
         var attributed = new List<(int EmployeeId, DateTime Date, DateTime PunchTime)>();
+        var afterLeaving = new Dictionary<string, int>();
+
         foreach (var p in punches)
         {
             if (!enrollMap.TryGetValue(p.EnrollId, out var employeeId))
@@ -183,7 +203,27 @@ public class BiometricImportService : IBiometricImportService
                 result.UnmatchedPunches++;
                 continue;
             }
+
+            // A punch dated after somebody's last working day is not their attendance. It is
+            // almost always a colleague using an enrol id that was never removed from the
+            // device — so it is counted and reported, never written. Importing it would put
+            // one person's hours on another person's payroll record.
+            if (resignedOn.TryGetValue(employeeId, out var left) && p.PunchTime.Date > left.Date)
+            {
+                var key = $"{left.Code}|{left.Date:yyyy-MM-dd}";
+                afterLeaving[key] = afterLeaving.GetValueOrDefault(key) + 1;
+                continue;
+            }
+
             attributed.Add((employeeId, AttendanceDateFor(employeeId, p.PunchTime), p.PunchTime));
+        }
+
+        foreach (var (key, count) in afterLeaving)
+        {
+            var parts = key.Split('|');
+            result.Warnings.Add(
+                $"{count} punch(es) dated after {parts[0]} left on {parts[1]} were skipped. " +
+                "Check whether their enrolment is still active on the device.");
         }
 
         foreach (var id in punches.Select(p => p.EnrollId).Distinct()

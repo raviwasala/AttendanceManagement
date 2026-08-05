@@ -57,7 +57,11 @@ function renderTable() {
 
     amsPage('#empBody', data.Items, function (e) {
         return '<tr>'
-            + '<td class="fw-semibold text-primary">' + esc(e.EmployeeCode)
+            // The code was already styled as a link but was not one. Making it open the
+            // profile is what people try first — the row button is the second guess.
+            + '<td class="fw-semibold">'
+              + '<a class="ams-emp-link" href="/Admin/EmployeeProfile/' + e.Id + '"'
+              + ' title="Open profile">' + esc(e.EmployeeCode) + '</a>'
               + (e.UserCode
                     ? '<div class="text-muted fw-normal" style="font-size:.7rem;">' + esc(e.UserCode) + '</div>'
                     : '') + '</td>'
@@ -78,6 +82,8 @@ function renderTable() {
                 : '<span class="badge bg-warning text-dark" title="Biometric imports cannot match this employee">not set</span>') + '</td>'
             + '<td>' + (e.IsActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>') + '</td>'
             + '<td>'
+            + '<a class="btn btn-sm btn-outline-secondary me-1" title="Open profile"'
+            + ' href="/Admin/EmployeeProfile/' + e.Id + '"><i class="fa fa-user"></i></a>'
             + '<button class="btn btn-sm btn-outline-primary me-1" onclick="editEmp(' + e.Id + ')" title="Edit"><i class="fa fa-pencil"></i></button>'
             + '<button class="btn btn-sm btn-outline-' + (e.IsActive ? 'warning' : 'success') + ' me-1" title="' + (e.IsActive ? 'Deactivate' : 'Activate') + '" onclick="toggleEmp(' + e.Id + ')"><i class="fa fa-' + (e.IsActive ? 'toggle-on' : 'toggle-off') + '"></i></button>'
             + '<button class="btn btn-sm btn-outline-danger" onclick="deleteEmp(' + e.Id + ')" title="Delete"><i class="fa fa-trash"></i></button>'

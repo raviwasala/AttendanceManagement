@@ -45,6 +45,8 @@ public class AttendanceDbContext : DbContext
     public DbSet<DeviceSyncLog> DeviceSyncLogs { get; set; } = null!;
     public DbSet<OvertimeRule> OvertimeRules { get; set; } = null!;
     public DbSet<OvertimeRecord> OvertimeRecords { get; set; } = null!;
+    public DbSet<EmployeeHistory> EmployeeHistories { get; set; } = null!;
+    public DbSet<EmployeeDocument> EmployeeDocuments { get; set; } = null!;
 
     // ── Auto-timestamp & Soft-Delete interception ─────────────────────────────
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -183,6 +185,7 @@ public class AttendanceDbContext : DbContext
             e.Property(x => x.UserCode).HasMaxLength(50);
             e.Property(x => x.NameWithInitials).HasMaxLength(200);
             e.Property(x => x.Nic).HasMaxLength(20);
+            e.Property(x => x.ResignationReason).HasMaxLength(500);
             e.HasIndex(x => x.EmployeeCode).IsUnique();
 
             // UserCode and NIC are indexed for lookup but NOT unique: the supplied data has the
@@ -193,6 +196,41 @@ public class AttendanceDbContext : DbContext
             e.HasOne(x => x.Department).WithMany(x => x.Employees).HasForeignKey(x => x.DepartmentId);
             e.HasOne(x => x.Designation).WithMany(x => x.Employees).HasForeignKey(x => x.DesignationId);
             e.HasOne(x => x.Branch).WithMany(x => x.Employees).HasForeignKey(x => x.BranchId);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        // ── EmployeeHistory ───────────────────────────────────────────────────
+        modelBuilder.Entity<EmployeeHistory>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Reason).HasMaxLength(500);
+            e.Property(x => x.Notes).HasMaxLength(1000);
+            e.Property(x => x.FromLabel).HasMaxLength(300);
+            e.Property(x => x.ToLabel).HasMaxLength(300);
+
+            // Restrict, not Cascade: history is the record of what happened, and deleting an
+            // employee must not erase why they left. Employees are soft-deleted anyway.
+            e.HasOne(x => x.Employee).WithMany(x => x.History)
+             .HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+
+            // The profile reads one employee's history newest-first; this is that query.
+            e.HasIndex(x => new { x.EmployeeId, x.EffectiveDate });
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        // ── EmployeeDocument ──────────────────────────────────────────────────
+        modelBuilder.Entity<EmployeeDocument>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Title).IsRequired().HasMaxLength(200);
+            e.Property(x => x.FileName).IsRequired().HasMaxLength(255);
+            e.Property(x => x.ContentType).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Notes).HasMaxLength(500);
+
+            e.HasOne(x => x.Employee).WithMany(x => x.Documents)
+             .HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
+
+            e.HasIndex(x => x.EmployeeId);
             e.HasQueryFilter(x => !x.IsDeleted);
         });
 

@@ -399,6 +399,45 @@ public interface IDataTransferService
     Task<Result<RestoreResultDto>> RestoreAsync(byte[] archive, IEnumerable<string>? tables = null);
 }
 
+/// <summary>
+/// An employee's life beyond their current details: transfers, status changes, resignation,
+/// documents, and the profile that shows them together.
+///
+/// Separate from <c>IEmployeeService</c>, which edits the row as it stands now. These
+/// operations are the ones that must leave a trace — the employee row is a snapshot, and
+/// overwriting a department silently rewrites every past report that groups by it.
+/// </summary>
+public interface IEmployeeLifecycleService
+{
+    Task<Result<EmployeeProfileDto>> GetProfileAsync(int employeeId);
+    Task<Result<IEnumerable<EmployeeHistoryDto>>> GetHistoryAsync(int employeeId);
+
+    /// <summary>Moves an employee and records where they came from.</summary>
+    Task<Result> TransferAsync(TransferEmployeeDto dto);
+
+    /// <summary>Changes status with a reason and an effective date, and records both.</summary>
+    Task<Result> ChangeStatusAsync(ChangeEmployeeStatusDto dto);
+
+    /// <summary>Records a resignation or termination and sets the last working day.</summary>
+    Task<Result> ResignAsync(ResignEmployeeDto dto);
+
+    /// <summary>Undoes a resignation for someone who came back, keeping the original record.</summary>
+    Task<Result> RejoinAsync(int employeeId, DateTime effectiveDate, string reason);
+
+    // ── Documents ─────────────────────────────────────────────────────────────
+
+    Task<Result<IEnumerable<EmployeeDocumentDto>>> GetDocumentsAsync(int employeeId);
+
+    Task<Result<EmployeeDocumentDto>> UploadDocumentAsync(
+        int employeeId, EmployeeDocumentType type, string title, string fileName,
+        string contentType, byte[] content, DateTime? expiryDate, string? notes);
+
+    /// <summary>The bytes, for a download. Separate from the list so listing stays cheap.</summary>
+    Task<Result<ExportFileDto>> DownloadDocumentAsync(int documentId);
+
+    Task<Result> DeleteDocumentAsync(int documentId);
+}
+
 /// <summary>Bulk creation and update of employee records from a CSV or Excel file.</summary>
 public interface IEmployeeImportService
 {

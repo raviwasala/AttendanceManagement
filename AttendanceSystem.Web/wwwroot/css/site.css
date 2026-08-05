@@ -704,3 +704,17 @@ a:hover { color: var(--ams-primary-d); }
   .ams-pager { justify-content: center; }
   .ams-pager-info { width: 100%; text-align: center; }
 }
+
+/* Employee code as a drill-down to the profile.
+   No underline at all — it adds visual noise down a column of 200 rows. The colour
+   shift on hover, plus the pointer cursor, is enough of a cue. */
+.ams-emp-link {
+  color: #01a9ac;
+  text-decoration: none;
+}
+
+.ams-emp-link:hover,
+.ams-emp-link:focus {
+  color: #018f92;
+  text-decoration: none;
+}

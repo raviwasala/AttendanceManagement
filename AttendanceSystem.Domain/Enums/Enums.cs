@@ -44,6 +44,54 @@ public enum Gender
     Other = 3
 }
 
+/// <summary>
+/// Where an employee stands with the company.
+///
+/// Replaces the bare <c>IsActive</c> flag as the *reason* someone is not working, which that
+/// boolean could not express: resigned, suspended and on long-term absence were all "inactive"
+/// and indistinguishable. IsActive stays as the derived shorthand every existing query uses.
+/// </summary>
+public enum EmployeeStatus
+{
+    Active = 1,
+    Resigned = 2,
+    Terminated = 3,
+
+    /// <summary>Temporarily not working, but still employed — the record is expected back.</summary>
+    Suspended = 4,
+
+    /// <summary>Long-term absence: extended medical leave, sabbatical.</summary>
+    OnLongLeave = 5
+}
+
+/// <summary>What an <c>EmployeeHistory</c> entry records.</summary>
+public enum EmployeeChangeType
+{
+    /// <summary>Moved department, designation or branch.</summary>
+    Transfer = 1,
+
+    /// <summary>Promotion or change of job title, without moving department.</summary>
+    Promotion = 2,
+
+    StatusChange = 3,
+    Resignation = 4,
+
+    /// <summary>Came back after leaving — keeps the original record rather than duplicating the person.</summary>
+    Rejoin = 5
+}
+
+public enum EmployeeDocumentType
+{
+    Nic = 1,
+    Passport = 2,
+    Certificate = 3,
+    Contract = 4,
+    Resume = 5,
+    MedicalRecord = 6,
+    Photo = 7,
+    Other = 99
+}
+
 /// <summary>Reachability of a fingerprint device, derived from the last contact attempt.</summary>
 public enum DeviceStatus
 {
