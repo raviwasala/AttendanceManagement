@@ -37,12 +37,16 @@ public class AttendanceReviewService : IAttendanceReviewService
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
     private readonly ICurrentUserContext _currentUser;
+    private readonly IAttendanceLockService _locks;
 
-    public AttendanceReviewService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser)
+    public AttendanceReviewService(
+        IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser,
+        IAttendanceLockService locks)
     {
         _uow = uow;
         _audit = audit;
         _currentUser = currentUser;
+        _locks = locks;
     }
 
     public Task<Result<AttendanceReviewDto>> GetDailyReviewAsync(DateTime date, int? departmentId = null) =>
@@ -202,6 +206,15 @@ public class AttendanceReviewService : IAttendanceReviewService
 
             var employee = await _uow.Employees.GetByIdAsync(dto.EmployeeId);
             if (employee == null) return Result<AttendanceReviewRowDto>.Failure("Employee not found.");
+
+            // Checked before anything is parsed or written: a closed period is closed, and the
+            // point of closing it is that a month already paid cannot quietly change.
+            var periodLock = await _locks.GetLockForAsync(day, employee.BranchId);
+            if (periodLock != null)
+                return Result<AttendanceReviewRowDto>.Failure(
+                    $"{day:dd-MMM-yyyy} is in a locked period " +
+                    $"({periodLock.FromDate:dd-MMM-yyyy} – {periodLock.ToDate:dd-MMM-yyyy}: {periodLock.Reason}). " +
+                    "Unlock it first if this really needs changing.");
 
             if (!TryParseTime(dto.CheckInTime, day, out var checkIn))
                 return Result<AttendanceReviewRowDto>.Failure("Check-in time is not valid. Use HH:mm.");

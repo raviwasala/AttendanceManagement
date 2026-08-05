@@ -319,3 +319,145 @@ function recount() {
     review.TotalWorkingHours = Math.round(review.Rows.reduce(function (a, r) { return a + (r.WorkingHours || 0); }, 0) * 10) / 10;
     review.TotalOvertimeMinutes = review.Rows.reduce(function (a, r) { return a + (r.OvertimeMinutes || 0); }, 0);
 }
+
+/* ── Reprocess ────────────────────────────────────────────────────────────────
+   Recalculates the loaded range from the times already stored, against the shift
+   settings in force now. Correcting a shift changes nothing on its own — every
+   day keeps the figures derived from the settings that were current when it was
+   imported, until something recomputes them. */
+function openReprocess() {
+    var from = $('#arFrom').val(), to = $('#arTo').val();
+    if (!from || !to) { notifyError('Choose a date range first.'); return; }
+
+    $('#rpRange').text(from + ' to ' + to);
+    $('#rpIncludeManual').prop('checked', false);
+    $('#rpResult').html('');
+    new bootstrap.Modal('#reprocessModal').show();
+}
+
+function submitReprocess() {
+    var payload = {
+        FromDate: $('#arFrom').val(),
+        ToDate: $('#arTo').val(),
+        DepartmentId: $('#arDept').val() ? parseInt($('#arDept').val()) : null,
+        EmployeeId: $('#arEmployee').val() ? parseInt($('#arEmployee').val()) : null,
+        IncludeManual: $('#rpIncludeManual').is(':checked')
+    };
+
+    $('#rpResult').html('<div class="text-muted small"><i class="fa fa-spinner fa-spin me-2"></i>Recalculating…</div>');
+
+    $.ajax({
+        url: '/api/attendance-lock/reprocess', type: 'POST',
+        contentType: 'application/json', data: JSON.stringify(payload),
+        success: function (r) {
+            var row = function (label, value, cls) {
+                return '<tr><td>' + esc(label) + '</td><td class="text-end fw-bold ' + (cls || '') + '">'
+                     + esc(value) + '</td></tr>';
+            };
+            var html = '<table class="table table-sm border mb-2">'
+                     + row('Records examined', r.Examined)
+                     + row('Recalculated', r.Updated, 'text-success')
+                     + row('Already correct', r.Unchanged, 'text-muted')
+                     + row('Left as manually corrected', r.SkippedManual, r.SkippedManual ? 'text-warning' : 'text-muted')
+                     + row('In a locked period', r.SkippedLocked, r.SkippedLocked ? 'text-danger' : 'text-muted')
+                     + row('No shift assigned', r.SkippedNoShift, r.SkippedNoShift ? 'text-danger' : 'text-muted')
+                     + '</table>';
+
+            if (r.Warnings && r.Warnings.length) {
+                html += '<div class="alert alert-warning py-2 mb-0 small">'
+                      + r.Warnings.map(esc).join('<br>') + '</div>';
+            }
+            $('#rpResult').html(html);
+
+            notifySuccess('Recalculated ' + r.Updated + ' record(s).');
+            if (r.Updated > 0) loadReview(arPage);
+        },
+        error: function (xhr) {
+            $('#rpResult').html('<div class="alert alert-danger py-2 mb-0 small">'
+                + esc(xhr.responseText || 'Reprocessing failed.') + '</div>');
+        }
+    });
+}
+
+/* ── Locked periods ───────────────────────────────────────────────────────── */
+
+function openLocks() {
+    // Prefilled from the loaded range: closing the month you have just checked is
+    // the reason anybody opens this.
+    $('#lkFrom').val($('#arFrom').val());
+    $('#lkTo').val($('#arTo').val());
+    $('#lkReason').val('');
+
+    $.getJSON('/api/branches', function (d) {
+        var o = '<option value="">All branches</option>';
+        (d || []).filter(function (b) { return b.IsActive; }).forEach(function (b) {
+            o += '<option value="' + esc(b.Id) + '">' + esc(b.Name) + '</option>';
+        });
+        $('#lkBranch').html(o);
+    });
+
+    loadLocks();
+    new bootstrap.Modal('#lockModal').show();
+}
+
+function loadLocks() {
+    $.getJSON('/api/attendance-lock', function (rows) {
+        if (!rows || !rows.length) {
+            $('#lockBody').html('<tr><td colspan="5" class="text-center py-3 text-muted">No locked periods.</td></tr>');
+            return;
+        }
+        $('#lockBody').html(rows.map(function (l) {
+            return '<tr>'
+                + '<td class="ps-3 small">' + esc(l.RangeDisplay) + '</td>'
+                + '<td class="small text-muted">' + esc(l.BranchName) + '</td>'
+                // What the lock is protecting — the weight of unlocking it.
+                + '<td class="text-end small">' + esc(l.RecordCount) + '</td>'
+                + '<td class="small text-muted">' + esc(l.Reason)
+                + (l.LockedByName ? '<div style="font-size:.72rem;">by ' + esc(l.LockedByName) + '</div>' : '')
+                + '</td>'
+                + '<td class="pe-3 text-center">'
+                + '<button class="btn btn-sm btn-outline-danger py-0 px-2" title="Unlock"'
+                + ' onclick="unlockPeriod(' + l.Id + ', ' + l.RecordCount + ')"><i class="fa fa-unlock"></i></button>'
+                + '</td></tr>';
+        }).join(''));
+    }).fail(function () {
+        $('#lockBody').html('<tr><td colspan="5" class="text-danger text-center py-3">Failed to load.</td></tr>');
+    });
+}
+
+function submitLock() {
+    var reason = $('#lkReason').val().trim();
+    if (!$('#lkFrom').val() || !$('#lkTo').val()) { notifyError('Choose both dates.'); return; }
+    if (!reason) { notifyError('A reason is required — it is what explains the lock later.'); return; }
+
+    $.ajax({
+        url: '/api/attendance-lock', type: 'POST', contentType: 'application/json',
+        data: JSON.stringify({
+            FromDate: $('#lkFrom').val(), ToDate: $('#lkTo').val(),
+            BranchId: $('#lkBranch').val() ? parseInt($('#lkBranch').val()) : null,
+            Reason: reason
+        }),
+        success: function () { notifySuccess('Period locked.'); $('#lkReason').val(''); loadLocks(); },
+        error: function (xhr) { notifyError(xhr.responseText || 'Could not lock that period.'); }
+    });
+}
+
+function unlockPeriod(id, count) {
+    notifyConfirm({
+        title: 'Unlock this period?',
+        text: count + ' attendance record(s) become editable again, and a biometric import '
+            + 'will overwrite them. Only do this if the period genuinely needs correcting.',
+        confirmText: 'Unlock', icon: 'warning'
+    }, function () {
+        var reason = window.prompt('Why is this period being reopened?', '');
+        if (reason === null) return;
+        if (!reason.trim()) { notifyError('A reason is required to unlock.'); return; }
+
+        $.ajax({
+            url: '/api/attendance-lock/unlock', type: 'POST', contentType: 'application/json',
+            data: JSON.stringify({ Id: id, Reason: reason.trim() }),
+            success: function () { notifySuccess('Period unlocked.'); loadLocks(); },
+            error: function (xhr) { notifyError(xhr.responseText || 'Could not unlock.'); }
+        });
+    });
+}

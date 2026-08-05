@@ -39,6 +39,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<IDataTransferService, DataTransferService>();
         services.AddScoped<IEmployeeImportService, EmployeeImportService>();
         services.AddScoped<IEmployeeLifecycleService, EmployeeLifecycleService>();
+        services.AddScoped<IAttendanceLockService, AttendanceLockService>();
 
         // Device protocol client. Swapping in a full ZKTeco implementation (phase 2) is a
         // one-line change here — nothing outside Infrastructure names the concrete type.

@@ -21,10 +21,12 @@ namespace AttendanceSystem.Infrastructure.Services;
 public class BiometricImportService : IBiometricImportService
 {
     private readonly AttendanceDbContext _context;
+    private readonly IAttendanceLockService _locks;
 
-    public BiometricImportService(AttendanceDbContext context)
+    public BiometricImportService(AttendanceDbContext context, IAttendanceLockService locks)
     {
         _context = context;
+        _locks = locks;
     }
 
     public async Task<BiometricImportResultDto> ImportFromAccessFileAsync(
@@ -249,6 +251,13 @@ public class BiometricImportService : IBiometricImportService
                 .ToListAsync())
             .ToDictionary(a => (a.EmployeeId, a.AttendanceDate.Date));
 
+        // Branch per employee, for the lock check — a lock can be company-wide or per branch.
+        var employeeBranch = await _context.Employees
+            .Where(e => employeeIds.Contains(e.Id))
+            .ToDictionaryAsync(e => e.Id, e => (int?)e.BranchId);
+
+        var lockedDays = new HashSet<DateTime>();
+
         foreach (var group in attributed.GroupBy(a => new { a.EmployeeId, a.Date }))
         {
             try
@@ -259,6 +268,15 @@ public class BiometricImportService : IBiometricImportService
                 var ordered = group.OrderBy(g => g.PunchTime).ToList();
                 var checkIn = ordered.First().PunchTime;
                 var checkOut = ordered.Count > 1 ? ordered.Last().PunchTime : (DateTime?)null;
+
+                // A closed period is not rewritten, even by an import that would otherwise
+                // "refresh" the day. Re-running an old export over a month already paid is
+                // exactly the accident locking exists to stop.
+                if (await _locks.IsLockedAsync(date, employeeBranch.GetValueOrDefault(employeeId)))
+                {
+                    lockedDays.Add(date);
+                    continue;
+                }
 
                 existing.TryGetValue((employeeId, date), out var log);
 
@@ -315,6 +333,14 @@ public class BiometricImportService : IBiometricImportService
                 result.Failed++;
                 result.Errors.Add($"Employee {group.Key.EmployeeId} on {group.Key.Date:d}: {ex.Message}");
             }
+        }
+
+        if (lockedDays.Count > 0)
+        {
+            result.Warnings.Add(
+                $"{lockedDays.Count} day(s) between {lockedDays.Min():dd-MMM-yyyy} and " +
+                $"{lockedDays.Max():dd-MMM-yyyy} fall in a locked period and were not imported. " +
+                "Unlock the period first if these really need to change.");
         }
 
         await _context.SaveChangesAsync();

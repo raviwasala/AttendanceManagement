@@ -438,6 +438,40 @@ public interface IEmployeeLifecycleService
     Task<Result> DeleteDocumentAsync(int documentId);
 }
 
+/// <summary>
+/// Closing an attendance period, and recalculating one.
+///
+/// These belong together because they are the two halves of keeping attendance trustworthy
+/// after the fact: a lock stops a paid month from changing, and reprocessing fixes an unpaid
+/// one when the shift settings it was calculated against turn out to be wrong.
+/// </summary>
+public interface IAttendanceLockService
+{
+    Task<Result<IEnumerable<AttendancePeriodLockDto>>> GetLocksAsync();
+
+    Task<Result> LockPeriodAsync(LockPeriodDto dto);
+    Task<Result> UnlockPeriodAsync(UnlockPeriodDto dto);
+
+    /// <summary>
+    /// Whether a date is closed for a branch. Called on every attendance save and once per
+    /// imported day, so implementations should cache rather than query per call.
+    /// </summary>
+    Task<bool> IsLockedAsync(DateTime date, int? branchId = null);
+
+    /// <summary>The lock covering a date, for an error message that says which period and why.</summary>
+    Task<AttendancePeriodLockDto?> GetLockForAsync(DateTime date, int? branchId = null);
+
+    /// <summary>
+    /// Recalculates stored attendance from the times already recorded against the shift
+    /// settings in force now.
+    ///
+    /// This is what makes a corrected shift take effect. Fixing grace minutes or a break
+    /// after a month has been imported changes nothing on its own — every row keeps the
+    /// figures derived from the old settings until each is re-saved by hand.
+    /// </summary>
+    Task<Result<ReprocessResultDto>> ReprocessAsync(ReprocessRequestDto dto);
+}
+
 /// <summary>Bulk creation and update of employee records from a CSV or Excel file.</summary>
 public interface IEmployeeImportService
 {

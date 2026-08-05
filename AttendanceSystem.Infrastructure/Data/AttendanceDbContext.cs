@@ -47,6 +47,7 @@ public class AttendanceDbContext : DbContext
     public DbSet<OvertimeRecord> OvertimeRecords { get; set; } = null!;
     public DbSet<EmployeeHistory> EmployeeHistories { get; set; } = null!;
     public DbSet<EmployeeDocument> EmployeeDocuments { get; set; } = null!;
+    public DbSet<AttendancePeriodLock> AttendancePeriodLocks { get; set; } = null!;
 
     // ── Auto-timestamp & Soft-Delete interception ─────────────────────────────
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -231,6 +232,23 @@ public class AttendanceDbContext : DbContext
              .HasForeignKey(x => x.EmployeeId).OnDelete(DeleteBehavior.Restrict);
 
             e.HasIndex(x => x.EmployeeId);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        // ── AttendancePeriodLock ──────────────────────────────────────────────
+        modelBuilder.Entity<AttendancePeriodLock>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Reason).IsRequired().HasMaxLength(300);
+            e.Property(x => x.UnlockReason).HasMaxLength(300);
+
+            // Optional: a null BranchId locks every branch.
+            e.HasOne(x => x.Branch).WithMany()
+             .HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.Restrict);
+
+            // Every save and every imported punch asks "is this date locked?", so the range
+            // is indexed rather than scanned.
+            e.HasIndex(x => new { x.FromDate, x.ToDate });
             e.HasQueryFilter(x => !x.IsDeleted);
         });
 
