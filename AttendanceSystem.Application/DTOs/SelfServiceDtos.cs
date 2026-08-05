@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using AttendanceSystem.Domain.Enums;
 
 namespace AttendanceSystem.Application.DTOs;
@@ -67,6 +68,21 @@ public class MyLeaveBalanceDto
     public int Used { get; set; }
     public int Remaining { get; set; }
     public bool IsPaid { get; set; }
+}
+
+/// <summary>
+/// An employee applying for their own leave.
+///
+/// Deliberately has no EmployeeId. The admin <c>ApplyLeaveDto</c> carries one because an
+/// administrator legitimately applies on someone else's behalf; here the employee is taken
+/// from the session, so the field cannot be supplied and therefore cannot be forged.
+/// </summary>
+public class ApplyMyLeaveDto
+{
+    [Required] public int LeaveTypeId { get; set; }
+    [Required] public DateTime FromDate { get; set; }
+    [Required] public DateTime ToDate { get; set; }
+    [Required, MaxLength(1000)] public string Reason { get; set; } = string.Empty;
 }
 
 public class MyLeaveRequestDto

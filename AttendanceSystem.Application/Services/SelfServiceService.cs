@@ -24,11 +24,13 @@ public class SelfServiceService : ISelfServiceService
 {
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _currentUser;
+    private readonly ILeaveService _leave;
 
-    public SelfServiceService(IUnitOfWork uow, ICurrentUserContext currentUser)
+    public SelfServiceService(IUnitOfWork uow, ICurrentUserContext currentUser, ILeaveService leave)
     {
         _uow = uow;
         _currentUser = currentUser;
+        _leave = leave;
     }
 
     public async Task<Result<MyProfileDto>> GetMyProfileAsync()
@@ -238,6 +240,62 @@ public class SelfServiceService : ISelfServiceService
         {
             AppLogger.Error("SelfServiceService.GetMyLeaveAsync", ex);
             return Result<MyLeaveDto>.Failure("Failed to load your leave.");
+        }
+    }
+
+    // ── Applying and cancelling ───────────────────────────────────────────────
+
+    public async Task<Result<LeaveRequestDto>> ApplyForMyLeaveAsync(ApplyMyLeaveDto dto)
+    {
+        try
+        {
+            var employee = await ResolveEmployeeAsync();
+            if (employee == null) return Result<LeaveRequestDto>.Failure(NotLinkedMessage);
+
+            // Hands off to the same service the admin screen uses, so the entitlement check,
+            // the inclusive day count and the overlap rules are applied once and cannot drift
+            // between the two ways of applying. The employee id is supplied here, from the
+            // session — it is the one field the caller never gets to set.
+            return await _leave.ApplyLeaveAsync(new ApplyLeaveDto
+            {
+                EmployeeId  = employee.Id,
+                LeaveTypeId = dto.LeaveTypeId,
+                FromDate    = dto.FromDate,
+                ToDate      = dto.ToDate,
+                Reason      = dto.Reason
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("SelfServiceService.ApplyForMyLeaveAsync", ex);
+            return Result<LeaveRequestDto>.Failure("Could not submit your leave request.");
+        }
+    }
+
+    public async Task<Result> CancelMyLeaveAsync(int leaveRequestId)
+    {
+        try
+        {
+            var employee = await ResolveEmployeeAsync();
+            if (employee == null) return Result.Failure(NotLinkedMessage);
+
+            var request = await _uow.Leaves.GetByIdAsync(leaveRequestId);
+
+            // Ownership is checked before anything else, and a request belonging to someone
+            // else is reported exactly as one that does not exist — confirming that a given
+            // id is real would leak the shape of other people's leave.
+            if (request == null || request.EmployeeId != employee.Id || request.IsDeleted)
+                return Result.Failure("That leave request was not found.");
+
+            if (request.Status == LeaveStatus.Rejected || request.Status == LeaveStatus.Cancelled)
+                return Result.Failure($"This request is already {request.Status.ToString().ToLowerInvariant()}.");
+
+            return await _leave.CancelAsync(leaveRequestId, _currentUser.UserId ?? 0);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("SelfServiceService.CancelMyLeaveAsync", ex);
+            return Result.Failure("Could not cancel that leave request.");
         }
     }
 

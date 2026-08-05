@@ -176,6 +176,22 @@ public interface ISelfServiceService
     Task<Result<MyProfileDto>> GetMyProfileAsync();
     Task<Result<MyAttendanceDto>> GetMyAttendanceAsync(int year, int month);
     Task<Result<MyLeaveDto>> GetMyLeaveAsync();
+
+    /// <summary>
+    /// Applies for leave as the signed-in employee.
+    ///
+    /// Takes no employee id. <see cref="ApplyLeaveDto"/> carries one, and the Employee role
+    /// holds Leave.Create — so an employee posting to the admin endpoint could book leave in a
+    /// colleague's name. Self-service resolves the employee from the session instead, which is
+    /// the only value the caller cannot influence.
+    /// </summary>
+    Task<Result<LeaveRequestDto>> ApplyForMyLeaveAsync(ApplyMyLeaveDto dto);
+
+    /// <summary>
+    /// Cancels one of the signed-in employee's own requests. Refuses a request belonging to
+    /// anyone else, so an id guessed from another user's page achieves nothing.
+    /// </summary>
+    Task<Result> CancelMyLeaveAsync(int leaveRequestId);
 }
 
 /// <summary>

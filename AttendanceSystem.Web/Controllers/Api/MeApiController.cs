@@ -1,3 +1,4 @@
+using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Web.Filters;
 using Microsoft.AspNetCore.Mvc;
@@ -37,5 +38,29 @@ public class MeApiController : ApiControllerBase
     {
         var r = await _self.GetMyLeaveAsync();
         return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
+    }
+
+    /// <summary>
+    /// Applies for leave as the signed-in employee.
+    ///
+    /// Not routed through /api/leave/requests, which takes an EmployeeId in the body: the
+    /// Employee role holds Leave.Create, so posting there would let anyone book leave in a
+    /// colleague's name. Here the employee comes from the session and cannot be supplied.
+    /// </summary>
+    [HttpPost("leave")]
+    public async Task<IActionResult> ApplyLeave([FromBody] ApplyMyLeaveDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var r = await _self.ApplyForMyLeaveAsync(dto);
+        return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
+    }
+
+    /// <summary>Cancels one of the signed-in employee's own requests; refuses anyone else's.</summary>
+    [HttpPost("leave/{id:int}/cancel")]
+    public async Task<IActionResult> CancelLeave(int id)
+    {
+        var r = await _self.CancelMyLeaveAsync(id);
+        return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 }
