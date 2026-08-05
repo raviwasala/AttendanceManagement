@@ -1,0 +1,256 @@
+@{
+    ViewData["Title"] = "Data Management";
+    var canEditSettings = ViewContext.HasPermission(AppConstants.Modules.Settings, AppConstants.Actions.Edit);
+    var canCreateEmployees = ViewContext.HasPermission(AppConstants.Modules.Employees, AppConstants.Actions.Create);
+    var today = DateTime.Today;
+    var monthStart = new DateTime(today.Year, today.Month, 1);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h5 class="mb-1">Data Management</h5>
+        <p class="text-muted small mb-0">Export datasets, take a backup, restore one, or import employees in bulk</p>
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-3" role="tablist">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-export" role="tab">
+        <i class="feather icon-download me-1"></i>Export</a></li>
+    @if (canCreateEmployees)
+    {
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-import" role="tab">
+            <i class="feather icon-users me-1"></i>Import Employees</a></li>
+    }
+    @if (canEditSettings)
+    {
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-backup" role="tab">
+            <i class="feather icon-save me-1"></i>Backup &amp; Restore</a></li>
+    }
+</ul>
+
+<div class="tab-content">
+
+    @* ── Export ─────────────────────────────────────────────────────────────── *@
+    <div class="tab-pane fade show active" id="tab-export" role="tabpanel">
+        <div class="card">
+            <div class="card-body">
+                <div class="row g-2 align-items-end mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">From</label>
+                        <input type="date" id="exFrom" class="form-control form-control-sm"
+                               value="@monthStart.ToString("yyyy-MM-dd")">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">To</label>
+                        <input type="date" id="exTo" class="form-control form-control-sm"
+                               value="@today.ToString("yyyy-MM-dd")">
+                    </div>
+                    <div class="col-md-6">
+                        @* Not .form-text: this theme renders that as validation help, so a
+                           neutral note reads as an error the user has to resolve. *@
+                        <div class="small text-muted pb-1">
+                            The date range applies to attendance, leave and overtime.
+                            The employee list ignores it.
+                        </div>
+                    </div>
+                </div>
+
+                @* h-100 alone left the buttons at different heights, because the descriptions
+                   differ in length. flex-column + mt-auto pins them to a common baseline. *@
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100 d-flex flex-column">
+                            <h6 class="mb-1">Employees</h6>
+                            <p class="small text-muted">The full staff list, in the same column
+                               order as the import template — so an export can be corrected and
+                               fed back in.</p>
+                            <button class="btn btn-outline-primary btn-sm w-100 mt-auto" onclick="exportData('employees')">
+                                <i class="feather icon-download me-1"></i>Export CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100 d-flex flex-column">
+                            <h6 class="mb-1">Attendance</h6>
+                            <p class="small text-muted">Daily records with lateness, hours and
+                               overtime, for the range above.</p>
+                            <button class="btn btn-outline-primary btn-sm w-100 mt-auto" onclick="exportData('attendance')">
+                                <i class="feather icon-download me-1"></i>Export CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100 d-flex flex-column">
+                            <h6 class="mb-1">Leave</h6>
+                            <p class="small text-muted">Leave requests overlapping the range,
+                               with type, days and status.</p>
+                            <button class="btn btn-outline-primary btn-sm w-100 mt-auto" onclick="exportData('leave')">
+                                <i class="feather icon-download me-1"></i>Export CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3 h-100 d-flex flex-column">
+                            <h6 class="mb-1">Overtime</h6>
+                            <p class="small text-muted">Overtime records with claimed and
+                               approved minutes, rate and status.</p>
+                            <button class="btn btn-outline-primary btn-sm w-100 mt-auto" onclick="exportData('overtime')">
+                                <i class="feather icon-download me-1"></i>Export CSV
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-light border mt-3 mb-0 small text-muted">
+                    <i class="feather icon-info me-1"></i>
+                    Files are UTF-8 with a byte-order mark so Excel reads Sinhala and Tamil
+                    names correctly, and a cell starting with an equals, plus, minus or at sign
+                    is escaped so a spreadsheet cannot treat a name as a formula.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ── Import employees ───────────────────────────────────────────────────── *@
+    @if (canCreateEmployees)
+    {
+        <div class="tab-pane fade" id="tab-import" role="tabpanel">
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="mb-2">1. Choose a file</h6>
+                            <input type="file" id="impFile" class="form-control mb-2"
+                                   accept=".csv,.txt,.xlsx,.xls">
+                            <div class="form-text small mb-3">
+                                CSV or Excel. Department, Designation and Branch are matched
+                                <strong>by name</strong> and must already exist.
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-secondary btn-sm px-3" onclick="downloadTemplate()">
+                                    <i class="feather icon-file-text me-1"></i>Template
+                                </button>
+                                <button class="btn btn-primary btn-sm px-3" onclick="previewImport()">
+                                    <i class="feather icon-eye me-1"></i>Preview
+                                </button>
+                            </div>
+
+                            <hr>
+                            <div id="impSummary" class="small text-muted">
+                                Preview first — nothing is written until you import.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-7">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <span class="fw-semibold">Preview</span>
+                            <button id="impApply" class="btn btn-sm btn-primary px-3 d-none" onclick="applyImport()">
+                                <i class="feather icon-check-circle me-1"></i>Import valid rows
+                            </button>
+                        </div>
+                        <div class="card-body p-0" style="max-height:460px;overflow-y:auto">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th class="ps-3" style="width:52px;">Row</th>
+                                            <th style="width:86px;">Action</th>
+                                            <th>Employee</th>
+                                            <th>Department</th>
+                                            <th style="width:76px;">Enroll</th>
+                                            <th>Problem</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="impBody">
+                                        <tr><td colspan="6" class="text-center py-4 text-muted">No file previewed yet.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* ── Backup & restore ───────────────────────────────────────────────────── *@
+    @if (canEditSettings)
+    {
+        <div class="tab-pane fade" id="tab-backup" role="tabpanel">
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="mb-2"><i class="feather icon-save me-1"></i>Backup</h6>
+                            <p class="text-muted small">
+                                Downloads every table as a ZIP of CSV files with a manifest.
+                                Take one before a restore, before an upgrade, and on a schedule.
+                            </p>
+                            <button class="btn btn-primary btn-sm px-3" onclick="downloadBackup()">
+                                <i class="feather icon-download me-1"></i>Download backup
+                            </button>
+
+                            @* Being straight about what this is worth: a logical archive is not
+                               a substitute for SQL Server's own backups. *@
+                            <div class="alert alert-light border small mt-3 mb-0">
+                                This is a <strong>logical</strong> archive — it can be restored
+                                onto a different server, but it is not a point-in-time SQL
+                                <code>.bak</code>. For a production system, keep a SQL Server
+                                maintenance plan running as well.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-7">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="mb-2"><i class="feather icon-upload me-1"></i>Restore</h6>
+
+                            <div class="alert alert-warning py-2 small">
+                                <i class="feather icon-alert-triangle me-1"></i>
+                                Restoring <strong>replaces</strong> the contents of the tables in
+                                the archive. It runs in one transaction, so a failure changes
+                                nothing — but a success cannot be undone. Take a backup first.
+                            </div>
+
+                            <input type="file" id="resFile" class="form-control mb-2" accept=".zip">
+                            <button class="btn btn-outline-secondary btn-sm px-3" onclick="previewRestore()">
+                                <i class="feather icon-eye me-1"></i>Check archive
+                            </button>
+
+                            <div id="resPreview" class="mt-3"></div>
+
+                            <div id="resConfirmBox" class="d-none mt-3">
+                                <label class="form-label small fw-semibold mb-1">
+                                    Type <code>RESTORE</code> to confirm
+                                </label>
+                                <div class="d-flex gap-2">
+                                    <input type="text" id="resConfirm" class="form-control form-control-sm"
+                                           style="max-width:200px" autocomplete="off" placeholder="RESTORE">
+                                    <button class="btn btn-danger btn-sm px-3" onclick="doRestore()">
+                                        <i class="feather icon-rotate-ccw me-1"></i>Restore now
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        window.dataPerms = {
+            editSettings: @(canEditSettings ? "true" : "false"),
+            createEmployees: @(canCreateEmployees ? "true" : "false")
+        };
+    </script>
+    <script src="~/js/pages/admin/data-management.js" asp-append-version="true"></script>
+}

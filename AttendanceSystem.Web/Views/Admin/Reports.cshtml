@@ -1,5 +1,9 @@
 @{
     ViewData["Title"] = "Reports";
+
+    @* The Reports.Export permission already existed in the catalogue but nothing used it,
+       so every report was on screen with no way to get it out. *@
+    var canExport = ViewContext.HasPermission(AppConstants.Modules.Reports, AppConstants.Actions.Export);
 }
 
 <ul class="nav nav-tabs mb-3">
@@ -24,7 +28,15 @@
                     </div>
                     <div class="col-md-2"><label class="form-label small mb-1">Year</label><input type="number" id="mYear" class="form-control form-control-sm" value="@DateTime.Now.Year"></div>
                     <div class="col-md-3"><label class="form-label small mb-1">Department</label><select id="mDept" class="form-select form-select-sm"><option value="">All Departments</option></select></div>
-                    <div class="col-md-2"><button class="btn btn-primary btn-sm" onclick="loadMonthly()">Generate</button></div>
+                    <div class="col-md-2 d-flex gap-1">
+                        <button class="btn btn-primary btn-sm" onclick="loadMonthly()">Generate</button>
+                        @if (canExport)
+                        {
+                            <button class="btn btn-outline-primary btn-sm" onclick="rptExport('monthly','monthly-attendance')" title="Export CSV">
+                                <i class="feather icon-download"></i>
+                            </button>
+                        }
+                    </div>
                 </div>
             </div>
         </div>
@@ -40,7 +52,15 @@
         <div class="card mb-2"><div class="card-body py-2">
             <div class="row g-2 align-items-end">
                 <div class="col-md-3"><label class="form-label small mb-1">Date</label><input type="date" id="dDate" class="form-control form-control-sm" value="@DateTime.Now.ToString("yyyy-MM-dd")"></div>
-                <div class="col-md-2"><button class="btn btn-primary btn-sm" onclick="loadDaily()">Generate</button></div>
+                <div class="col-md-2 d-flex gap-1">
+                    <button class="btn btn-primary btn-sm" onclick="loadDaily()">Generate</button>
+                    @if (canExport)
+                    {
+                        <button class="btn btn-outline-primary btn-sm" onclick="rptExport('daily','daily-attendance')" title="Export CSV">
+                            <i class="feather icon-download"></i>
+                        </button>
+                    }
+                </div>
             </div>
         </div></div>
         <div class="card"><div class="card-body p-0">
@@ -57,7 +77,15 @@
                 <div class="col-md-2"><label class="form-label small mb-1">From</label><input type="date" id="lFrom" class="form-control form-control-sm"></div>
                 <div class="col-md-2"><label class="form-label small mb-1">To</label><input type="date" id="lTo" class="form-control form-control-sm"></div>
                 <div class="col-md-3"><label class="form-label small mb-1">Department</label><select id="lDept" class="form-select form-select-sm"><option value="">All</option></select></div>
-                <div class="col-md-2"><button class="btn btn-primary btn-sm" onclick="loadLate()">Generate</button></div>
+                <div class="col-md-2 d-flex gap-1">
+                    <button class="btn btn-primary btn-sm" onclick="loadLate()">Generate</button>
+                    @if (canExport)
+                    {
+                        <button class="btn btn-outline-primary btn-sm" onclick="rptExport('late','late-arrivals')" title="Export CSV">
+                            <i class="feather icon-download"></i>
+                        </button>
+                    }
+                </div>
             </div>
         </div></div>
         <div class="card"><div class="card-body p-0">
@@ -74,7 +102,15 @@
                 <div class="col-md-2"><label class="form-label small mb-1">From</label><input type="date" id="lvFrom" class="form-control form-control-sm"></div>
                 <div class="col-md-2"><label class="form-label small mb-1">To</label><input type="date" id="lvTo" class="form-control form-control-sm"></div>
                 <div class="col-md-3"><label class="form-label small mb-1">Department</label><select id="lvDept" class="form-select form-select-sm"><option value="">All</option></select></div>
-                <div class="col-md-2"><button class="btn btn-primary btn-sm" onclick="loadLeaveRpt()">Generate</button></div>
+                <div class="col-md-2 d-flex gap-1">
+                    <button class="btn btn-primary btn-sm" onclick="loadLeaveRpt()">Generate</button>
+                    @if (canExport)
+                    {
+                        <button class="btn btn-outline-primary btn-sm" onclick="rptExport('leave','leave-report')" title="Export CSV">
+                            <i class="feather icon-download"></i>
+                        </button>
+                    }
+                </div>
             </div>
         </div></div>
         <div class="card"><div class="card-body p-0">
@@ -89,7 +125,15 @@
         <div class="card mb-2"><div class="card-body py-2">
             <div class="row g-2 align-items-end">
                 <div class="col-md-3"><label class="form-label small mb-1">Department</label><select id="eDept" class="form-select form-select-sm"><option value="">All</option></select></div>
-                <div class="col-md-2"><button class="btn btn-primary btn-sm" onclick="loadEmpList()">Generate</button></div>
+                <div class="col-md-2 d-flex gap-1">
+                    <button class="btn btn-primary btn-sm" onclick="loadEmpList()">Generate</button>
+                    @if (canExport)
+                    {
+                        <button class="btn btn-outline-primary btn-sm" onclick="rptExport('employees','employee-list')" title="Export CSV">
+                            <i class="feather icon-download"></i>
+                        </button>
+                    }
+                </div>
             </div>
         </div></div>
         <div class="card"><div class="card-body p-0">

@@ -343,3 +343,45 @@ public interface IBiometricImportService
     /// <summary>Process and import user-edited biometric punches into attendance logs.</summary>
     Task<BiometricImportResultDto> ProcessEditedPunchesAsync(List<BiometricPunchDto> punches);
 }
+
+/// <summary>
+/// Getting data out of the system and back in: dataset exports, a whole-database backup
+/// archive, and restoring from one.
+///
+/// The backup is a ZIP of CSVs rather than a SQL .bak on purpose. A .bak is exact, but
+/// RESTORE DATABASE needs exclusive access — it would have to terminate the very connection
+/// serving the request, so the application would take itself down mid-restore and a failure
+/// would leave no running app and an unusable database. A logical archive restores inside a
+/// transaction, can be moved to a different server, and cannot destroy a live database.
+/// </summary>
+public interface IDataTransferService
+{
+    /// <summary>One dataset as CSV. <paramref name="from"/>/<paramref name="to"/> are
+    /// ignored by datasets that are not date-ranged.</summary>
+    Task<Result<ExportFileDto>> ExportAsync(ExportDataset dataset, DateTime? from = null, DateTime? to = null);
+
+    /// <summary>Every table as a ZIP of CSVs, with a manifest.</summary>
+    Task<Result<ExportFileDto>> CreateBackupAsync();
+
+    /// <summary>Reads an archive and reports what restoring it would change. Writes nothing.</summary>
+    Task<Result<RestorePreviewDto>> PreviewRestoreAsync(byte[] archive);
+
+    /// <summary>
+    /// Replaces the contents of the listed tables from the archive, in one transaction.
+    /// <paramref name="tables"/> null or empty means every recognised table in the archive.
+    /// </summary>
+    Task<Result<RestoreResultDto>> RestoreAsync(byte[] archive, IEnumerable<string>? tables = null);
+}
+
+/// <summary>Bulk creation and update of employee records from a CSV or Excel file.</summary>
+public interface IEmployeeImportService
+{
+    /// <summary>A blank file with the expected header row, for someone starting from nothing.</summary>
+    Result<ExportFileDto> GetTemplate();
+
+    /// <summary>Parses and validates without writing, so problems are visible first.</summary>
+    Task<Result<EmployeeImportPreviewDto>> PreviewAsync(Stream file, string fileName);
+
+    /// <summary>Applies rows the operator accepted. Invalid rows are never written.</summary>
+    Task<Result<EmployeeImportResultDto>> ImportAsync(List<EmployeeImportRowDto> rows);
+}

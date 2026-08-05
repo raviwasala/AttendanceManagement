@@ -15,9 +15,53 @@ $(function () {
 
 function dt(v) { return v ? new Date(v).toLocaleDateString() : '—'; }
 
+/* ── CSV export ───────────────────────────────────────────────────────────────
+   Each report renders straight from its response, so the rows are held here as
+   they are drawn. Exporting the cached array rather than scraping the table
+   matters because the table shows one page: scraping would export 25 rows of a
+   400-row report and look like it had worked. */
+var rptCache = {};
+
+function rptHold(key, rows, header, project) {
+    rptCache[key] = { rows: rows || [], header: header, project: project };
+}
+
+function rptExport(key, fileName) {
+    var c = rptCache[key];
+    if (!c || !c.rows.length) { notifyError('Generate the report first.'); return; }
+
+    // Same escaping as the overtime exports: a leading = + - or @ would otherwise
+    // be read as a formula by Excel.
+    var cell = function (v) {
+        var s = (v === null || v === undefined) ? '' : String(v);
+        if (/^[=+\-@]/.test(s)) s = "'" + s;
+        return '"' + s.replace(/"/g, '""') + '"';
+    };
+
+    var csv = [c.header].concat(c.rows.map(c.project))
+        .map(function (r) { return r.map(cell).join(','); }).join('\r\n');
+
+    // BOM, or Excel reads the file as the local code page and mangles the names.
+    var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName + '-' + new Date().toISOString().split('T')[0] + '.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+}
+
 function loadMonthly() {
     var m = $('#mMonth').val(), y = $('#mYear').val(), d = $('#mDept').val();
     $.getJSON('/api/reports/monthly?month=' + m + '&year=' + y + (d ? '&departmentId=' + d : ''), function (data) {
+        rptHold('monthly', data,
+            ['Employee Code', 'Employee', 'Department', 'Present Days', 'Absent Days',
+             'Late Allowance', 'Leave Days', 'Holiday Days', 'Working Hours', 'Attendance %'],
+            function (r) {
+                return [r.EmployeeCode, r.EmployeeName, r.Department, r.PresentDays, r.AbsentDays,
+                        r.LateAllowanceDisplay, r.LeaveDays, r.HolidayDays,
+                        (r.TotalWorkingHours || 0).toFixed(1), (r.AttendancePercentage || 0).toFixed(1)];
+            });
+
         amsPage('#mBody', data, function (r) {
             var pct = r.AttendancePercentage || 0;
             return '<tr><td class="text-muted small">' + esc(r.EmployeeCode) + '</td>'
@@ -41,6 +85,15 @@ function loadDaily() {
     var d = $('#dDate').val();
     if (!d) { notifyError('Select a date first.'); return; }
     $.getJSON('/api/reports/daily?date=' + d, function (data) {
+        rptHold('daily', data,
+            ['Employee Code', 'Employee', 'Department', 'Check In', 'Check Out',
+             'Working Hours', 'Status', 'Late Minutes'],
+            function (r) {
+                return [r.EmployeeCode, r.EmployeeName, r.Department, r.CheckInDisplay,
+                        r.CheckOutDisplay, r.WorkingHours, r.StatusDisplay,
+                        r.IsLate ? r.LateMinutes : ''];
+            });
+
         amsPage('#dBody', data, function (r) {
             var b = r.StatusDisplay === 'Present' ? 'success'
                   : r.StatusDisplay === 'Absent'  ? 'danger'
@@ -62,6 +115,13 @@ function loadLate() {
     var f = $('#lFrom').val(), t = $('#lTo').val(), d = $('#lDept').val();
     if (!f || !t) { notifyError('Select a date range first.'); return; }
     $.getJSON('/api/reports/late?from=' + f + '&to=' + t + (d ? '&departmentId=' + d : ''), function (data) {
+        rptHold('late', data,
+            ['Date', 'Employee Code', 'Employee', 'Department', 'Check In', 'Late Minutes'],
+            function (r) {
+                return [dt(r.AttendanceDate), r.EmployeeCode, r.EmployeeName,
+                        r.Department, r.CheckInDisplay, r.LateMinutes];
+            });
+
         amsPage('#lBody', data, function (r) {
             return '<tr><td>' + dt(r.AttendanceDate) + '</td>'
                 + '<td class="text-muted small">' + esc(r.EmployeeCode) + '</td>'
@@ -77,6 +137,13 @@ function loadLeaveRpt() {
     var f = $('#lvFrom').val(), t = $('#lvTo').val(), d = $('#lvDept').val();
     if (!f || !t) { notifyError('Select a date range first.'); return; }
     $.getJSON('/api/reports/leave?from=' + f + '&to=' + t + (d ? '&departmentId=' + d : ''), function (data) {
+        rptHold('leave', data,
+            ['Employee', 'Department', 'Leave Type', 'From', 'To', 'Days', 'Status'],
+            function (r) {
+                return [r.EmployeeName, r.Department, r.LeaveTypeName,
+                        dt(r.FromDate), dt(r.ToDate), r.TotalDays, r.StatusDisplay];
+            });
+
         amsPage('#lvBody', data, function (r) {
             var b = r.StatusDisplay === 'Approved' ? 'success'
                   : r.StatusDisplay === 'Rejected' ? 'danger'
@@ -95,6 +162,14 @@ function loadLeaveRpt() {
 function loadEmpList() {
     var d = $('#eDept').val();
     $.getJSON('/api/reports/employees' + (d ? '?departmentId=' + d : ''), function (data) {
+        rptHold('employees', data,
+            ['Employee Code', 'Employee', 'Department', 'Designation', 'Branch',
+             'Phone', 'Email', 'Active'],
+            function (e) {
+                return [e.EmployeeCode, e.FullName, e.Department, e.Designation,
+                        e.Branch, e.Phone, e.Email, e.IsActive ? 'Yes' : 'No'];
+            });
+
         amsPage('#eBody', data, function (e) {
             return '<tr><td class="fw-semibold text-primary">' + esc(e.EmployeeCode) + '</td>'
                 + '<td>' + esc(e.FullName) + '</td>'

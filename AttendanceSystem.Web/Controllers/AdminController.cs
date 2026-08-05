@@ -112,6 +112,19 @@ public class AdminController : BaseController
     [SessionAuthorize(Modules.Settings, Actions.View)]
     public IActionResult Settings() => View();
 
+    /// <summary>
+    /// Exports, backup, restore and bulk employee import.
+    ///
+    /// Gated on Settings.View to reach the page; each action on it carries its own permission
+    /// server-side. Settings deliberately, rather than a new Data module: adding a module to
+    /// PermissionCatalogue only seeds into a new database, so on an existing one the rows
+    /// would not exist and the page would 403 for everybody — which is what happened when the
+    /// Import module was added.
+    /// </summary>
+    [HttpGet("DataManagement")]
+    [SessionAuthorize(Modules.Settings, Actions.View)]
+    public IActionResult DataManagement() => View();
+
     [HttpGet("AuditLogs")]
     [SessionAuthorize(Modules.AuditLogs, Actions.View)]
     public IActionResult AuditLogs() => View();

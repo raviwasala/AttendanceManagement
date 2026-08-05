@@ -513,6 +513,14 @@
                                         <span class="pcoded-mtext">Settings</span>
                                     </a>
                                 </li>
+                                @* icon-server, not icon-database: this theme's feather build
+                                   has no icon-database glyph, so it renders as blank space. *@
+                                <li class="@Nav("Admin","DataManagement")">
+                                    <a asp-controller="Admin" asp-action="DataManagement">
+                                        <span class="pcoded-micon"><i class="feather icon-server"></i></span>
+                                        <span class="pcoded-mtext">Data Management</span>
+                                    </a>
+                                </li>
                                 }
 
                                 @if (CanView(AppConstants.Modules.AuditLogs))
