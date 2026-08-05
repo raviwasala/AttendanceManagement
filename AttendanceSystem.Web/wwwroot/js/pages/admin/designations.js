@@ -5,29 +5,27 @@ var allItems = [];
 $(function () { loadItems(); });
 
 function loadItems() {
+    // filterTable, not renderTable: a reload after save/delete must keep the active filters.
     $.getJSON('/api/designations', function (data) {
-        allItems = data;
-        renderTable(data);
+        allItems = data || [];
+        filterTable();
     }).fail(function () {
         $('#tbody').html('<tr><td colspan="5" class="text-danger text-center py-3">Failed to load.</td></tr>');
     });
 }
 
 function renderTable(data) {
-    if (!data.length) { $('#tbody').html('<tr><td colspan="5" class="text-center text-muted py-3">No records found.</td></tr>'); return; }
-    var html = '';
-    data.forEach(function (d, i) {
-        html += '<tr>'
+    amsPage('#tbody', data, function (d, i) {
+        return '<tr>'
             + '<td class="text-muted">' + (i+1) + '</td>'
-            + '<td class="fw-semibold">' + d.Name + '</td>'
-            + '<td class="text-muted small">' + (d.Description || '—') + '</td>'
+            + '<td class="fw-semibold">' + esc(d.Name) + '</td>'
+            + '<td class="text-muted small">' + (d.Description ? esc(d.Description) : '—') + '</td>'
             + '<td>' + (d.IsActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-danger">Inactive</span>') + '</td>'
             + '<td>'
             + '<button class="btn btn-sm btn-outline-primary me-1" onclick="editItem(' + d.Id + ')" title="Edit"><i class="fa fa-pencil"></i></button>'
             + '<button class="btn btn-sm btn-outline-danger" onclick="deleteItem(' + d.Id + ')" title="Delete"><i class="fa fa-trash"></i></button>'
             + '</td></tr>';
-    });
-    $('#tbody').html(html);
+    }, { colspan: 5, empty: 'No designations found.', label: 'designation' });
 }
 
 function filterTable() {

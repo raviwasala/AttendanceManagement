@@ -26,6 +26,8 @@ public static class ApplicationServiceExtensions
         services.AddScoped<IDeviceService, DeviceService>();
         services.AddScoped<IShiftRosterService, ShiftRosterService>();
         services.AddScoped<IAttendanceReviewService, AttendanceReviewService>();
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<ISelfServiceService, SelfServiceService>();
         return services;
     }
 }

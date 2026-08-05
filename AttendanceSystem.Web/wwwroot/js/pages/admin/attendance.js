@@ -41,12 +41,7 @@ async function loadToday() {
 }
 
 function renderToday(rows) {
-    const tbody = document.getElementById('todayBody');
-    if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="9" class="text-center py-3 text-muted">No records for today.</td></tr>';
-        return;
-    }
-    tbody.innerHTML = rows.map(r => {
+    amsPage('#todayBody', rows, r => {
         // Id === 0 means the row was derived (no attendance record exists yet), so there is
         // nothing to check out, edit or delete — offer a check-in instead.
         const hasRecord = (r.Id ?? 0) > 0;
@@ -68,7 +63,7 @@ function renderToday(rows) {
             <td>${r.IsLate ? `<span class="badge bg-warning text-dark">${r.LateMinutes} min</span>` : '—'}</td>
             <td>${actions}</td>
         </tr>`;
-    }).join('');
+    }, { colspan: 9, empty: 'No records for today.', label: 'employee' });
 }
 
 function filterToday() {
@@ -100,15 +95,11 @@ async function loadMonthly() {
     try {
         const r = await fetch(`/api/attendance/monthly?month=${m}&year=${y}`);
         const data = r.ok ? await r.json() : [];
-        if (!data.length) {
-            tbody.innerHTML = '<tr><td colspan="11" class="text-center py-3 text-muted">No data found.</td></tr>';
-            return;
-        }
-        tbody.innerHTML = data.map(d => `
+        amsPage('#monthlyBody', data, d => `
             <tr>
-                <td>${d.EmployeeCode ?? '—'}</td>
-                <td>${d.EmployeeName ?? '—'}</td>
-                <td>${d.Department   ?? '—'}</td>
+                <td>${esc(d.EmployeeCode) || '—'}</td>
+                <td>${esc(d.EmployeeName) || '—'}</td>
+                <td>${esc(d.Department)   || '—'}</td>
                 <td>${d.TotalDays    ?? 0}</td>
                 <td><span class="badge bg-success">${d.PresentDays ?? 0}</span></td>
                 <td><span class="badge bg-danger">${d.AbsentDays  ?? 0}</span></td>
@@ -124,7 +115,7 @@ async function loadMonthly() {
                         </div>
                     </div>
                 </td>
-            </tr>`).join('');
+            </tr>`, { colspan: 11, empty: 'No data found.', label: 'employee' });
     } catch { tbody.innerHTML = '<tr><td colspan="11" class="text-danger text-center py-3">Failed to load.</td></tr>'; }
 }
 

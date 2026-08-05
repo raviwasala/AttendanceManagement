@@ -27,9 +27,7 @@ function filterTable() {
 }
 
 function renderTable(data) {
-    if (!data || !data.length) { $('#tbody').html('<tr><td colspan="8" class="text-center text-muted py-3">No users found.</td></tr>'); return; }
-    var html = '';
-    data.forEach(function (u) {
+    amsPage('#tbody', data, function (u) {
         var id = u.Id !== undefined ? u.Id : u.id;
         var username = u.Username || u.username || '';
         var fullName = u.FullName || u.fullName || '';
@@ -41,12 +39,12 @@ function renderTable(data) {
         var lastLogin = u.LastLoginAt || u.lastLoginAt;
 
         var status = isLocked ? '<span class="badge bg-danger">Locked</span>' : isActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>';
-        html += '<tr>'
-            + '<td class="fw-semibold">' + username + '</td>'
-            + '<td>' + fullName + '</td>'
-            + '<td class="text-muted small">' + email + '</td>'
-            + '<td><span class="badge bg-primary">' + roleName + '</span></td>'
-            + '<td class="text-muted small">' + employeeName + '</td>'
+        return '<tr>'
+            + '<td class="fw-semibold">' + esc(username) + '</td>'
+            + '<td>' + esc(fullName) + '</td>'
+            + '<td class="text-muted small">' + esc(email) + '</td>'
+            + '<td><span class="badge bg-primary">' + esc(roleName) + '</span></td>'
+            + '<td class="text-muted small">' + esc(employeeName) + '</td>'
             + '<td class="text-muted small">' + (lastLogin ? new Date(lastLogin).toLocaleString() : 'Never') + '</td>'
             + '<td>' + status + '</td>'
             + '<td>'
@@ -55,8 +53,7 @@ function renderTable(data) {
             + (isLocked ? '<button class="btn btn-sm btn-outline-success me-1" onclick="unlock(' + id + ')" title="Unlock"><i class="fa fa-unlock"></i></button>' : '')
             + '<button class="btn btn-sm btn-outline-danger" onclick="deleteUser(' + id + ')" title="Delete"><i class="fa fa-trash"></i></button>'
             + '</td></tr>';
-    });
-    $('#tbody').html(html);
+    }, { colspan: 8, empty: 'No users found.', label: 'user' });
 }
 
 function buildDropdowns() {

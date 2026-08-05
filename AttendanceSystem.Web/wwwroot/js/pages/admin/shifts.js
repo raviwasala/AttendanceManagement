@@ -10,60 +10,135 @@ function loadShifts() {
 }
 
 function renderShifts(data) {
-    if (!data.length) { $('#shiftBody').html('<tr><td colspan="8" class="text-center text-muted py-3">No shifts defined.</td></tr>'); return; }
-    var html = '';
-    data.forEach(function (s, i) {
-        html += '<tr>'
-            + '<td class="text-muted">' + (i+1) + '</td>'
-            + '<td class="fw-semibold">' + s.Name + '</td>'
-            + '<td>' + s.StartTimeDisplay + '</td>'
-            + '<td>' + s.EndTimeDisplay + '</td>'
-            + '<td>' + s.GraceMinutes + '</td>'
-            + '<td class="small text-muted">' + s.WeeklyOffDays + '</td>'
+    amsPage('#shiftBody', data, function (s) {
+        var timing = esc(s.StartTimeDisplay) + ' – ' + esc(s.EndTimeDisplay);
+        if (s.IsNightShift) {
+            timing += ' <span class="badge bg-dark" title="Ends the following day">night</span>';
+        }
+
+        var ot = s.IsOtEnabled
+            ? '<span class="badge bg-success">On</span>'
+              + '<div class="text-muted" style="font-size:.68rem;">'
+              + (s.OtCountsFromShiftEnd
+                    ? 'after end' + (s.OtStartAfterMinutes ? ' +' + s.OtStartAfterMinutes + 'm' : '')
+                    : 'over ' + s.EffectiveStandardHours + 'h')
+              + '</div>'
+            : '<span class="badge bg-light text-muted">Off</span>';
+
+        return '<tr>'
+            + '<td>' + (s.ShiftCode ? '<code>' + esc(s.ShiftCode) + '</code>' : '<span class="text-muted">—</span>') + '</td>'
+            + '<td class="fw-semibold">' + esc(s.Name) + '</td>'
+            + '<td class="small">' + timing + '</td>'
+            + '<td class="small">' + s.SpanHours + 'h</td>'
+            + '<td class="small">' + s.GraceMinutes + ' / ' + s.GraceOutMinutes + '</td>'
+            + '<td class="small">' + (s.BreakMinutes ? s.BreakMinutes + 'm' : '—') + '</td>'
+            + '<td class="small">' + ot + '</td>'
+            + '<td class="small text-muted">' + esc(s.WeeklyOffDays) + '</td>'
             + '<td>' + (s.IsActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-danger">Inactive</span>') + '</td>'
             + '<td>'
             + '<button class="btn btn-sm btn-outline-primary me-1" onclick="editShift(' + s.Id + ')" title="Edit"><i class="fa fa-pencil"></i></button>'
             + '<button class="btn btn-sm btn-outline-danger" onclick="deleteShift(' + s.Id + ')" title="Delete"><i class="fa fa-trash"></i></button>'
             + '</td></tr>';
-    });
-    $('#shiftBody').html(html);
+    }, { colspan: 10, empty: 'No shifts defined.', label: 'shift' });
 }
 
-function openShiftModal(id, name, start, end, grace, weekoff, active) {
-    $('#shiftId').val(id || 0); $('#shiftName').val(name || '');
-    $('#shiftStart').val(start || '09:00'); $('#shiftEnd').val(end || '18:00');
-    $('#shiftGrace').val(grace || 0); $('#shiftWeeklyOff').val(weekoff || 'Saturday,Sunday');
-    $('#shiftActive').prop('checked', active !== false);
-    $('#shiftModalTitle').text(id ? 'Edit Shift' : 'Add Shift');
+function openShiftModal(s) {
+    s = s || {};
+    $('#shiftError').addClass('d-none').text('');
+    $('#shiftId').val(s.Id || 0);
+    $('#shiftCode').val(s.ShiftCode || '');
+    $('#shiftName').val(s.Name || '');
+    $('#shiftStart').val(s.StartTime ? s.StartTime.substring(0, 5) : '09:00');
+    $('#shiftEnd').val(s.EndTime ? s.EndTime.substring(0, 5) : '18:00');
+    $('#shiftNight').prop('checked', !!s.IsNightShift);
+    $('#shiftGrace').val(s.GraceMinutes || 0);
+    $('#shiftGraceOut').val(s.GraceOutMinutes || 0);
+    $('#shiftBreak').val(s.BreakMinutes || 0);
+    $('#shiftStdHours').val(s.StandardWorkingHours || 0);
+    $('#shiftOtEnabled').prop('checked', s.Id ? !!s.IsOtEnabled : true);
+    $('#shiftOtAfter').val(s.OtStartAfterMinutes || 0);
+    $('#shiftOtBasis').val(String(s.Id ? !!s.OtCountsFromShiftEnd : true));
+    $('#shiftWeeklyOff').val(s.WeeklyOffDays || 'Saturday,Sunday');
+    $('#shiftActive').prop('checked', s.Id ? !!s.IsActive : true);
+
+    $('#shiftModalTitle').text(s.Id ? 'Edit Shift' : 'Add Shift');
+    toggleOtFields();
+    updateShiftSummary();
     new bootstrap.Modal('#shiftModal').show();
 }
 
 function editShift(id) {
     var s = allShifts.find(function (x) { return x.Id === id; });
-    if (!s) return;
-    var st = (s.StartTime || '').substring(0, 5);
-    var et = (s.EndTime || '').substring(0, 5);
-    openShiftModal(s.Id, s.Name, st, et, s.GraceMinutes, s.WeeklyOffDays, s.IsActive);
+    if (s) openShiftModal(s);
+}
+
+/* Keeps the night-shift flag honest: the server rejects a mismatch between the flag and the
+   times, so set it from the times rather than making the user work it out. */
+function onShiftTimeChange() {
+    var st = $('#shiftStart').val(), et = $('#shiftEnd').val();
+    if (st && et) $('#shiftNight').prop('checked', et <= st);
+    updateShiftSummary();
+}
+
+function toggleOtFields() {
+    $('.ot-field').toggle($('#shiftOtEnabled').is(':checked'));
+    updateShiftSummary();
+}
+
+/* Shows the arithmetic the shift implies, so a night shift or a long break is obvious
+   before saving rather than surfacing later as odd attendance. */
+function updateShiftSummary() {
+    var st = $('#shiftStart').val(), et = $('#shiftEnd').val();
+    if (!st || !et) { $('#shiftSummary').text(''); return; }
+
+    var toMin = function (t) { var p = t.split(':'); return (+p[0]) * 60 + (+p[1]); };
+    var s = toMin(st), e = toMin(et);
+    var span = e > s ? e - s : (e + 1440) - s;
+    var brk = parseInt($('#shiftBreak').val()) || 0;
+    var paid = Math.max(0, span - brk);
+
+    var txt = 'Span ' + (span / 60).toFixed(2) + ' h';
+    if (brk) txt += ' · break ' + brk + 'm · paid ' + (paid / 60).toFixed(2) + ' h';
+    if (e <= s) txt += ' · crosses midnight, ends the next day';
+    if (!$('#shiftOtEnabled').is(':checked')) txt += ' · overtime not recorded';
+
+    $('#shiftSummary').text(txt);
 }
 
 function saveShift() {
     var name = $('#shiftName').val().trim();
-    if (!name || !$('#shiftStart').val() || !$('#shiftEnd').val()) { notifyError('Name, Start Time and End Time are required.', 'Validation Error'); return; }
+    if (!name || !$('#shiftStart').val() || !$('#shiftEnd').val()) {
+        showShiftError('Name, Start Time and End Time are required.');
+        return;
+    }
     var dto = {
-        Id: parseInt($('#shiftId').val()) || 0, Name: name,
-        StartTime: $('#shiftStart').val() + ':00', EndTime: $('#shiftEnd').val() + ':00',
+        Id: parseInt($('#shiftId').val()) || 0,
+        ShiftCode: $('#shiftCode').val().trim() || null,
+        Name: name,
+        StartTime: $('#shiftStart').val() + ':00',
+        EndTime: $('#shiftEnd').val() + ':00',
+        IsNightShift: $('#shiftNight').is(':checked'),
         GraceMinutes: parseInt($('#shiftGrace').val()) || 0,
-        WeeklyOffDays: $('#shiftWeeklyOff').val(), IsActive: $('#shiftActive').is(':checked')
+        GraceOutMinutes: parseInt($('#shiftGraceOut').val()) || 0,
+        BreakMinutes: parseInt($('#shiftBreak').val()) || 0,
+        StandardWorkingHours: parseFloat($('#shiftStdHours').val()) || 0,
+        IsOtEnabled: $('#shiftOtEnabled').is(':checked'),
+        OtStartAfterMinutes: parseInt($('#shiftOtAfter').val()) || 0,
+        OtCountsFromShiftEnd: $('#shiftOtBasis').val() === 'true',
+        WeeklyOffDays: $('#shiftWeeklyOff').val(),
+        IsActive: $('#shiftActive').is(':checked')
     };
     $.ajax({ url: '/api/shifts', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
-        success: function () { 
-            bootstrap.Modal.getInstance('#shiftModal').hide(); 
+        success: function () {
+            bootstrap.Modal.getInstance('#shiftModal').hide();
             notifySuccess('Shift saved successfully.');
-            loadShifts(); 
+            loadShifts();
         },
-        error: function (xhr) { notifyError(xhr.responseText || 'Save failed.'); }
+        error: function (xhr) { showShiftError(xhr.responseText || 'Save failed.'); }
     });
 }
+
+function showShiftError(msg) { $('#shiftError').removeClass('d-none').text(msg); }
 
 function deleteShift(id) {
     notifyConfirm({ title: 'Delete Shift', text: 'Are you sure you want to delete this shift schedule?', confirmText: 'Delete', icon: 'warning' }, function () {
@@ -79,7 +154,8 @@ function deleteShift(id) {
 
 // ── Assignments ───────────────────────────────────────────────────────────────
 function loadAssign() {
-    $.getJSON('/api/shifts/assignments', function (d) { allAssign = d; renderAssign(d); })
+    // filterAssign, not renderAssign: reloading after an assignment must keep the search.
+    $.getJSON('/api/shifts/assignments', function (d) { allAssign = d || []; filterAssign(); })
      .fail(function () { $('#assignBody').html('<tr><td colspan="8" class="text-danger text-center py-3">Failed to load assignments.</td></tr>'); });
 }
 
@@ -89,20 +165,17 @@ function filterAssign() {
 }
 
 function renderAssign(data) {
-    if (!data.length) { $('#assignBody').html('<tr><td colspan="8" class="text-center text-muted py-3">No assignments.</td></tr>'); return; }
-    var html = '';
-    data.forEach(function (a) {
-        html += '<tr>'
-            + '<td class="text-muted small">' + a.EmployeeCode + '</td>'
-            + '<td>' + a.EmployeeName + '</td>'
-            + '<td class="fw-semibold">' + a.ShiftName + '</td>'
-            + '<td class="text-muted">' + a.StartTimeDisplay + '</td>'
-            + '<td class="text-muted">' + a.EndTimeDisplay + '</td>'
+    amsPage('#assignBody', data, function (a) {
+        return '<tr>'
+            + '<td class="text-muted small">' + esc(a.EmployeeCode) + '</td>'
+            + '<td>' + esc(a.EmployeeName) + '</td>'
+            + '<td class="fw-semibold">' + esc(a.ShiftName) + '</td>'
+            + '<td class="text-muted">' + esc(a.StartTimeDisplay) + '</td>'
+            + '<td class="text-muted">' + esc(a.EndTimeDisplay) + '</td>'
             + '<td>' + new Date(a.EffectiveFrom).toLocaleDateString() + '</td>'
             + '<td>' + (a.EffectiveTo ? new Date(a.EffectiveTo).toLocaleDateString() : '—') + '</td>'
             + '<td></td></tr>';
-    });
-    $('#assignBody').html(html);
+    }, { colspan: 8, empty: 'No shift assignments.', label: 'assignment' });
 }
 
 function loadEmployees() {

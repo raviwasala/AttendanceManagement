@@ -35,7 +35,8 @@ public class ShiftRosterService : IShiftRosterService
         _currentUser = currentUser;
     }
 
-    public async Task<Result<ShiftRosterDto>> GetMonthlyRosterAsync(int year, int month, int? departmentId = null)
+    public async Task<Result<ShiftRosterDto>> GetMonthlyRosterAsync(int year, int month, int? departmentId = null,
+        string? search = null, int? employeeId = null, int? shiftId = null)
     {
         try
         {
@@ -50,7 +51,20 @@ public class ShiftRosterService : IShiftRosterService
             // per employee per day against the database would be 11 x 31 round trips.
             var employees = (await _uow.Employees.FindAsync(e =>
                 e.IsActive && !e.IsDeleted &&
-                (departmentId == null || e.DepartmentId == departmentId))).ToList();
+                (departmentId == null || e.DepartmentId == departmentId) &&
+                (employeeId == null || e.Id == employeeId))).ToList();
+
+            // Free-text filter is applied in memory: it has to match the code or either name
+            // part or the two joined, and the joined form does not translate to SQL.
+            var term = search?.Trim();
+            if (!string.IsNullOrEmpty(term))
+            {
+                employees = employees.Where(e =>
+                    Contains(e.EmployeeCode, term) ||
+                    Contains(e.FirstName, term) ||
+                    Contains(e.LastName, term) ||
+                    Contains($"{e.FirstName} {e.LastName}", term)).ToList();
+            }
 
             var employeeIds = employees.Select(e => e.Id).ToHashSet();
             var departments = (await _uow.Departments.GetAllAsync()).ToDictionary(d => d.Id, d => d.Name);
@@ -138,7 +152,11 @@ public class ShiftRosterService : IShiftRosterService
                     row.Days.Add(cell);
                 }
 
-                dto.Employees.Add(row);
+                // Shift filter keeps anyone who works that shift on at least one day of the
+                // month, so a one-day override is not missed the way a base-shift-only test
+                // would miss it.
+                if (shiftId == null || row.Days.Any(d => d.ShiftId == shiftId))
+                    dto.Employees.Add(row);
             }
 
             dto.EmployeesWithoutAssignment = dto.Employees.Count(e => e.HasNoAssignment);
@@ -276,6 +294,9 @@ public class ShiftRosterService : IShiftRosterService
             .Contains(date.DayOfWeek.ToString(), StringComparer.OrdinalIgnoreCase);
 
     private static string Fmt(TimeSpan t) => DateTime.Today.Add(t).ToString("HH:mm");
+
+    private static bool Contains(string? value, string term) =>
+        !string.IsNullOrEmpty(value) && value.Contains(term, StringComparison.OrdinalIgnoreCase);
 
     private static ShiftDto MapShift(Shift s) => new()
     {

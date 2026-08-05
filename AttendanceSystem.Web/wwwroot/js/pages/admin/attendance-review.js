@@ -4,6 +4,13 @@ var review = null;
 
 function iso(d) { return d.toISOString().split('T')[0]; }
 
+/** 95 -> "1h 35m"; overtime is easier to sanity-check in hours than in raw minutes. */
+function fmtMins(m) {
+    if (!m) return '—';
+    var h = Math.floor(m / 60), r = m % 60;
+    return h ? h + 'h ' + (r ? r + 'm' : '') : r + 'm';
+}
+
 $(function () {
     preset('today');
 
@@ -93,7 +100,8 @@ function renderSummary() {
 
     if (review.IsRange) {
         html += tile('Late mins', review.TotalLateMinutes, 'bg-c-purple')
-              + tile('Hours', review.TotalWorkingHours, 'bg-c-grey');
+              + tile('Hours', review.TotalWorkingHours, 'bg-c-grey')
+              + tile('Overtime', fmtMins(review.TotalOvertimeMinutes), 'bg-c-blue');
     }
     $('#arSummary').html(html);
 
@@ -138,18 +146,12 @@ function renderRows() {
     $('.ar-date-col').toggle(!single);
     $('.ar-emp-col').toggle(!oneEmployee);
 
-    if (!rows.length) {
-        $('#arBody').html('<tr><td colspan="11" class="text-center py-4 text-muted">Nothing matches this filter.</td></tr>');
-        return;
-    }
-
     var canEdit = window.reviewPerms.edit;
-    var html = '';
 
-    rows.forEach(function (r) {
+    amsPage('#arBody', rows, function (r) {
         var rowCls = r.HasNoShift ? ' class="ar-row-noshift"' : '';
 
-        html += '<tr' + rowCls + ' data-employee="' + r.EmployeeId + '" data-date="' + r.Date.split('T')[0] + '">'
+        return '<tr' + rowCls + ' data-employee="' + r.EmployeeId + '" data-date="' + r.Date.split('T')[0] + '">'
 
             + '<td class="ps-3 small ar-date-col"' + (single ? ' style="display:none"' : '') + '>'
               + esc(r.DateDisplay)
@@ -172,7 +174,11 @@ function renderRows() {
               + ' value="' + esc(r.CheckInTime || '') + '"' + (canEdit ? '' : ' disabled') + '></td>'
 
             + '<td class="text-center"><input type="time" class="form-control form-control-sm ar-time ar-out"'
-              + ' value="' + esc(r.CheckOutTime || '') + '"' + (canEdit ? '' : ' disabled') + '></td>'
+              + ' value="' + esc(r.CheckOutTime || '') + '"' + (canEdit ? '' : ' disabled') + '>'
+              // Without this a 07:30 out time against a 22:00 shift looks like a mistake.
+              + (r.IsNightShift && r.CheckOutTime
+                    ? '<div class="text-muted" style="font-size:.64rem;">next day</div>' : '')
+              + '</td>'
 
             + '<td class="text-center small">' + (r.IsLate
                 ? '<span class="badge bg-warning text-dark">' + r.LateMinutes + 'm</span>' : '—') + '</td>'
@@ -180,7 +186,17 @@ function renderRows() {
             + '<td class="text-center small">' + (r.IsEarlyLeave
                 ? '<span class="badge bg-warning text-dark">' + r.EarlyLeaveMinutes + 'm</span>' : '—') + '</td>'
 
-            + '<td class="text-center small">' + (r.WorkingHours != null ? r.WorkingHours.toFixed(1) : '—') + '</td>'
+            + '<td class="text-center small">'
+              + (r.WorkingHours != null ? r.WorkingHours.toFixed(2) : '—')
+              // Show the pre-break figure too, so a deduction is visible rather than looking
+              // like the clock is wrong.
+              + (r.BreakMinutes && r.GrossHours != null
+                    ? '<div class="text-muted" style="font-size:.66rem;">gross ' + r.GrossHours.toFixed(2) + '</div>'
+                    : '')
+              + '</td>'
+
+            + '<td class="text-center small">' + (r.OvertimeMinutes
+                ? '<span class="badge bg-info">' + fmtMins(r.OvertimeMinutes) + '</span>' : '—') + '</td>'
 
             + '<td>' + badge(r.StatusDisplay)
               + (r.IsManual ? ' <span class="badge bg-light text-muted" title="Entered or corrected by a person">manual</span>' : '')
@@ -190,9 +206,7 @@ function renderRows() {
                 ? '<button class="btn btn-sm btn-outline-primary ar-save" disabled>Save</button>'
                 : '') + '</td>'
             + '</tr>';
-    });
-
-    $('#arBody').html(html);
+    }, { colspan: 11, empty: 'Nothing matches this filter.', label: 'row' });
 
     $('#arBody').off('input.ar').on('input.ar', '.ar-time', function () {
         var tr = $(this).closest('tr');
@@ -252,4 +266,5 @@ function recount() {
     review.MissingCheckOut = review.Rows.filter(function (r) { return r.CheckIn && !r.CheckOut; }).length;
     review.TotalLateMinutes = review.Rows.reduce(function (a, r) { return a + (r.LateMinutes || 0); }, 0);
     review.TotalWorkingHours = Math.round(review.Rows.reduce(function (a, r) { return a + (r.WorkingHours || 0); }, 0) * 10) / 10;
+    review.TotalOvertimeMinutes = review.Rows.reduce(function (a, r) { return a + (r.OvertimeMinutes || 0); }, 0);
 }

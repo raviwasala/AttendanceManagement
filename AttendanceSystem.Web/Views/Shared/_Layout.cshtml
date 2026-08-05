@@ -1,4 +1,12 @@
+@inject AttendanceSystem.Application.Interfaces.ISettingsService AmsSettings
 @{
+    // Read once per render and handed to the browser below. Settings is a single row, and
+    // reading it here keeps the page-size config synchronous — the alternative is every list
+    // screen firing an extra request and rendering an unpaged flash first.
+    var amsSettingsResult = await AmsSettings.GetAsync();
+    var amsPageSize = amsSettingsResult.IsSuccess ? amsSettingsResult.Data!.DefaultPageSize : 25;
+    var amsConfirmDelete = !amsSettingsResult.IsSuccess || amsSettingsResult.Data!.ConfirmBeforeDelete;
+
     var controller = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
     var action     = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
 
@@ -120,39 +128,29 @@
                         </ul>
 
                         <ul class="nav-right">
-                            <!-- Notifications -->
+                            @* Notifications — populated from /api/notifications by site.js.
+                               This markup previously carried a hardcoded "5" and two invented
+                               messages, which read as a working feature while telling nobody
+                               anything true. *@
                             <li class="header-notification">
                                 <div class="dropdown-primary dropdown">
                                     <div class="dropdown-toggle" data-bs-toggle="dropdown" data-toggle="dropdown" style="cursor:pointer;">
                                         <i class="feather icon-bell"></i>
-                                        <span class="badge bg-c-pink">5</span>
+                                        @* Hidden via inline style rather than .d-none: the theme
+                                           positions this badge absolutely and its rules win over
+                                           a utility class, leaving a stray "0" on screen. *@
+                                        <span class="badge bg-c-pink" id="notifBadge" style="display:none;">0</span>
                                     </div>
-                                    <ul class="show-notification notification-view dropdown-menu"
-                                        data-dropdown-in="fadeIn" data-dropdown-out="fadeOut">
-                                        <li>
-                                            <h6>Notifications</h6>
-                                            <label class="label label-danger">New</label>
+                                    <ul class="show-notification notification-view dropdown-menu ams-notif"
+                                        data-dropdown-in="fadeIn" data-dropdown-out="fadeOut"
+                                        id="notifMenu">
+                                        <li class="ams-notif-head">
+                                            <span class="ams-notif-title">Notifications</span>
+                                            <span class="ams-notif-count" id="notifCount"></span>
                                         </li>
-                                        <li>
-                                            <div class="media">
-                                                <img class="d-flex align-self-center img-radius"
-                                                     src="~/assets/images/avatar-4.jpg" alt="User">
-                                                <div class="media-body">
-                                                    <h5 class="notification-user">System Alert</h5>
-                                                    <p class="notification-msg">5 employees are late today.</p>
-                                                    <span class="notification-time">Just now</span>
-                                                </div>
-                                            </div>
-                                        </li>
-                                        <li>
-                                            <div class="media">
-                                                <img class="d-flex align-self-center img-radius"
-                                                     src="~/assets/images/avatar-3.jpg" alt="User">
-                                                <div class="media-body">
-                                                    <h5 class="notification-user">Biometric Sync</h5>
-                                                    <p class="notification-msg">Last import completed successfully.</p>
-                                                    <span class="notification-time">30 minutes ago</span>
-                                                </div>
+                                        <li class="ams-notif-body" id="notifItems">
+                                            <div class="ams-notif-empty">
+                                                <div class="spinner-border spinner-border-sm text-muted"></div>
                                             </div>
                                         </li>
                                     </ul>
@@ -249,6 +247,24 @@
                                 its children, so nobody lands on a page whose menu entry is collapsed
                                 out of sight.
                             *@
+
+                            @* Self-service first: it needs no permission beyond being signed
+                               in, and for an employee it is the only section that matters. *@
+                            <div class="pcoded-navigatio-lavel">My Space</div>
+                            <ul class="pcoded-item pcoded-left-item">
+                                <li class="@Nav("Me","Attendance")">
+                                    <a asp-controller="Me" asp-action="Attendance">
+                                        <span class="pcoded-micon"><i class="feather icon-user-check"></i></span>
+                                        <span class="pcoded-mtext">My Attendance</span>
+                                    </a>
+                                </li>
+                                <li class="@Nav("Me","Leave")">
+                                    <a asp-controller="Me" asp-action="Leave">
+                                        <span class="pcoded-micon"><i class="feather icon-calendar"></i></span>
+                                        <span class="pcoded-mtext">My Leave</span>
+                                    </a>
+                                </li>
+                            </ul>
 
                             <div class="pcoded-navigatio-lavel">Navigation</div>
                             <ul class="pcoded-item pcoded-left-item">
@@ -420,7 +436,7 @@
                             @* Administration is kept in its own section: it is a different audience
                                and most roles never see any of it. *@
                             @if (CanViewAny(AppConstants.Modules.Users, AppConstants.Modules.Roles,
-                                            AppConstants.Modules.Settings))
+                                            AppConstants.Modules.Settings, AppConstants.Modules.AuditLogs))
                             {
                             <div class="pcoded-navigatio-lavel">Administration</div>
                             <ul class="pcoded-item pcoded-left-item">
@@ -459,6 +475,16 @@
                                     <a asp-controller="Admin" asp-action="Settings">
                                         <span class="pcoded-micon"><i class="feather icon-settings"></i></span>
                                         <span class="pcoded-mtext">Settings</span>
+                                    </a>
+                                </li>
+                                }
+
+                                @if (CanView(AppConstants.Modules.AuditLogs))
+                                {
+                                <li class="@Nav("Admin","AuditLogs")">
+                                    <a asp-controller="Admin" asp-action="AuditLogs">
+                                        <span class="pcoded-micon"><i class="feather icon-file-text"></i></span>
+                                        <span class="pcoded-mtext">Audit Log</span>
                                     </a>
                                 </li>
                                 }
@@ -528,6 +554,14 @@
     <script src="~/assets/js/script.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    @* System configuration, emitted before site.js so the pagination helper and the delete
+       confirmations can read it synchronously instead of racing an extra request. *@
+    <script>
+        window.amsConfig = {
+            pageSize: @amsPageSize,
+            confirmDelete: @(amsConfirmDelete ? "true" : "false")
+        };
+    </script>
     <script src="~/js/site.js" asp-append-version="true"></script>
 
     @RenderSection("Scripts", required: false)

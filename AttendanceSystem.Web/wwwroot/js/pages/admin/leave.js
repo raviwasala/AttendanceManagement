@@ -42,26 +42,23 @@ function filterRequests() {
 }
 
 function renderRequests(data) {
-    if (!data.length) { $('#reqBody').html('<tr><td colspan="9" class="text-center text-muted py-3">No requests found.</td></tr>'); return; }
-    var html = '';
-    data.forEach(function (r) {
+    amsPage('#reqBody', data, function (r) {
         var badge = r.StatusDisplay==='Approved'?'success':r.StatusDisplay==='Rejected'?'danger':r.StatusDisplay==='Pending'?'warning':'secondary';
-        html += '<tr>'
-            + '<td>' + r.EmployeeName + '<br><small class="text-muted">' + r.EmployeeCode + '</small></td>'
-            + '<td class="text-muted small">' + r.Department + '</td>'
-            + '<td>' + r.LeaveTypeName + '</td>'
+        return '<tr>'
+            + '<td>' + esc(r.EmployeeName) + '<br><small class="text-muted">' + esc(r.EmployeeCode) + '</small></td>'
+            + '<td class="text-muted small">' + esc(r.Department) + '</td>'
+            + '<td>' + esc(r.LeaveTypeName) + '</td>'
             + '<td>' + new Date(r.FromDate).toLocaleDateString() + '</td>'
             + '<td>' + new Date(r.ToDate).toLocaleDateString() + '</td>'
-            + '<td class="text-center">' + r.TotalDays + '</td>'
-            + '<td class="text-muted small" style="max-width:120px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">' + r.Reason + '</td>'
-            + '<td><span class="badge bg-' + badge + '">' + r.StatusDisplay + '</span></td>'
+            + '<td class="text-center">' + esc(r.TotalDays) + '</td>'
+            + '<td class="text-muted small" style="max-width:120px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">' + esc(r.Reason) + '</td>'
+            + '<td><span class="badge bg-' + badge + '">' + esc(r.StatusDisplay) + '</span></td>'
             + '<td>'
             + (r.StatusDisplay==='Pending' ? '<button class="btn btn-sm btn-success me-1" onclick="approveReject(' + r.Id + ',true)" title="Approve"><i class="fa fa-check"></i></button>'
                + '<button class="btn btn-sm btn-danger me-1" onclick="approveReject(' + r.Id + ',false)" title="Reject"><i class="fa fa-times"></i></button>' : '')
             + (r.StatusDisplay==='Pending'||r.StatusDisplay==='Approved' ? '<button class="btn btn-sm btn-outline-secondary" onclick="cancel(' + r.Id + ')" title="Cancel"><i class="fa fa-ban"></i></button>' : '')
             + '</td></tr>';
-    });
-    $('#reqBody').html(html);
+    }, { colspan: 9, empty: 'No leave requests found.', label: 'request' });
 }
 
 function loadTypes() {
@@ -75,17 +72,14 @@ function loadTypes() {
 }
 
 function renderTypes(data) {
-    if (!data.length) { $('#typeBody').html('<tr><td colspan="6" class="text-center text-muted py-3">No leave types defined.</td></tr>'); return; }
-    var html = '';
-    data.forEach(function (t, i) {
-        html += '<tr><td class="text-muted">' + (i+1) + '</td><td class="fw-semibold">' + t.Name + '</td>'
-            + '<td>' + t.TotalDays + '</td>'
+    amsPage('#typeBody', data, function (t, i) {
+        return '<tr><td class="text-muted">' + (i+1) + '</td><td class="fw-semibold">' + esc(t.Name) + '</td>'
+            + '<td>' + esc(t.TotalDays) + '</td>'
             + '<td>' + (t.IsPaid ? '<span class="badge bg-success">Paid</span>' : '<span class="badge bg-secondary">Unpaid</span>') + '</td>'
             + '<td>' + (t.IsActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-danger">Inactive</span>') + '</td>'
             + '<td><button class="btn btn-sm btn-outline-primary me-1" onclick="editType(' + t.Id + ')" title="Edit"><i class="fa fa-pencil"></i></button>'
             + '<button class="btn btn-sm btn-outline-danger" onclick="deleteType(' + t.Id + ')" title="Delete"><i class="fa fa-trash"></i></button></td></tr>';
-    });
-    $('#typeBody').html(html);
+    }, { colspan: 6, empty: 'No leave types defined.', label: 'leave type' });
 }
 
 function openApplyModal() { $('#applyModal').find('select,input,textarea').val(''); new bootstrap.Modal('#applyModal').show(); }

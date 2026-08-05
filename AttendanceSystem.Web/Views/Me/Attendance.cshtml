@@ -1,0 +1,57 @@
+@{
+    ViewData["Title"] = "My Attendance";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h5 class="mb-1">My Attendance</h5>
+        <p class="text-muted small mb-0" id="myProfileLine">&nbsp;</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <select id="myMonth" class="form-select form-select-sm" style="width:auto;"></select>
+        <select id="myYear" class="form-select form-select-sm" style="width:auto;"></select>
+        <button class="btn btn-primary btn-sm px-3" onclick="loadMyAttendance()">
+            <i class="feather icon-refresh-cw me-1"></i>Show
+        </button>
+    </div>
+</div>
+
+<div id="myNotLinked" class="alert alert-warning d-none" role="status"></div>
+
+<div class="row g-2 mb-3" id="mySummary"></div>
+
+<div class="card card-table-container">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Date</th>
+                        <th>Shift</th>
+                        <th class="text-center">Expected</th>
+                        <th class="text-center">In</th>
+                        <th class="text-center">Out</th>
+                        <th class="text-center">Late</th>
+                        <th class="text-center">Hours</th>
+                        <th class="text-center">OT</th>
+                        <th class="pe-3">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="myBody">
+                    <tr><td colspan="9" class="text-center py-4 text-muted">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@* These pages are read-only on purpose: an employee seeing their own record is useful,
+   an employee editing it is not. Corrections go through a supervisor. *@
+<div class="small text-muted mt-2">
+    If something here looks wrong, contact your supervisor or HR — attendance records can only
+    be corrected by them.
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/me/my-attendance.js" asp-append-version="true"></script>
+}

@@ -11,6 +11,14 @@ $(function () {
         $('#workEnd').val(d.WorkEndTime ? d.WorkEndTime.substring(0,5) : '');
         $('#maxLate').val(d.MaxLateMinutes);
         $('#weekendDays').val(d.WeekendDays);
+        // A saved size that is not one of the presets (set by an earlier build or by hand)
+        // would otherwise leave the select blank; add it so the real value is shown.
+        var ps = String(d.DefaultPageSize);
+        if (!$('#pageSize option[value="' + ps + '"]').length) {
+            $('#pageSize').append('<option value="' + esc(ps) + '">' + esc(ps) + '</option>');
+        }
+        $('#pageSize').val(ps);
+        $('#confirmDelete').prop('checked', d.ConfirmBeforeDelete !== false);
     }).fail(function () {
         $('#settingsAlert').html('<div class="alert alert-danger">Failed to load settings.</div>');
     });
@@ -54,7 +62,9 @@ function saveSettings() {
         WorkStartTime: $('#workStart').val() ? $('#workStart').val() + ':00' : '00:00:00',
         WorkEndTime: $('#workEnd').val() ? $('#workEnd').val() + ':00' : '00:00:00',
         MaxLateMinutes: parseInt($('#maxLate').val()) || 0,
-        WeekendDays: $('#weekendDays').val()
+        WeekendDays: $('#weekendDays').val(),
+        DefaultPageSize: parseInt($('#pageSize').val(), 10) || 0,
+        ConfirmBeforeDelete: $('#confirmDelete').is(':checked')
     };
     // No modifiedBy on the wire: the server attributes the change to the session user.
     $.ajax({ url: '/api/settings', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),

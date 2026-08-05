@@ -20,15 +20,15 @@ $(function () {
 });
 
 function loadEmps() {
-    $.getJSON('/api/employees', function (d) { allEmps = d; renderTable(d); })
+    // filterTable rather than renderTable: after a save, delete or activate the table must
+    // still honour the search and filters the user has set, not silently reset to everything.
+    $.getJSON('/api/employees', function (d) { allEmps = d || []; filterTable(); })
      .fail(function () { $('#empBody').html('<tr><td colspan="8" class="text-danger text-center py-3">Failed to load.</td></tr>'); });
 }
 
 function renderTable(data) {
-    if (!data.length) { $('#empBody').html('<tr><td colspan="8" class="text-center text-muted py-3">No employees found.</td></tr>'); return; }
-    var html = '';
-    data.forEach(function (e) {
-        html += '<tr>'
+    amsPage('#empBody', data, function (e) {
+        return '<tr>'
             + '<td class="fw-semibold text-primary">' + esc(e.EmployeeCode) + '</td>'
             + '<td>' + esc(e.FullName) + '</td>'
             + '<td class="text-muted">' + esc(e.Department) + '</td>'
@@ -45,8 +45,7 @@ function renderTable(data) {
             + '<button class="btn btn-sm btn-outline-' + (e.IsActive ? 'warning' : 'success') + ' me-1" title="' + (e.IsActive ? 'Deactivate' : 'Activate') + '" onclick="toggleEmp(' + e.Id + ')"><i class="fa fa-' + (e.IsActive ? 'toggle-on' : 'toggle-off') + '"></i></button>'
             + '<button class="btn btn-sm btn-outline-danger" onclick="deleteEmp(' + e.Id + ')" title="Delete"><i class="fa fa-trash"></i></button>'
             + '</td></tr>';
-    });
-    $('#empBody').html(html);
+    }, { colspan: 8, empty: 'No employees found.', label: 'employee' });
 }
 
 function filterTable() {

@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Dashboard &#x2013; Attendance Management System</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimal-ui">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link rel="icon" href="/assets/images/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,600" rel="stylesheet">
+    <!-- Bootstrap (local) -->
+    <link rel="stylesheet" type="text/css" href="/lib/bootstrap/dist/css/bootstrap.min.css">
+    <!-- Feather icons (local assets) -->
+    <link rel="stylesheet" type="text/css" href="/assets/icon/feather/css/feather.css">
+    <!-- Icofont -->
+    <link rel="stylesheet" type="text/css" href="/assets/icon/icofont/css/icofont.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" type="text/css" href="/assets/icon/font-awesome/css/font-awesome.min.css">
+    <!-- Theme style (local assets) -->
+    <link rel="stylesheet" type="text/css" href="/assets/css/style.css">
+    <link rel="stylesheet" type="text/css" href="/assets/css/jquery.mCustomScrollbar.css">
+    <!-- Adminty teal colour overrides (must come after template CSS) -->
+    <link rel="stylesheet" type="text/css" href="/css/site.css">
+    <!-- Toastr & SweetAlert2 UI Framework Alerts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    
+</head>
+
+<body>
+    <!-- Pre-loader start -->
+    <div b-di77xgpwam class="theme-loader">
+        <div b-di77xgpwam class="ball-scale">
+            <div b-di77xgpwam class='contain'>
+                <div b-di77xgpwam class="ring"><div b-di77xgpwam class="frame"></div></div>
+                <div b-di77xgpwam class="ring"><div b-di77xgpwam class="frame"></div></div>
+                <div b-di77xgpwam class="ring"><div b-di77xgpwam class="frame"></div></div>
+                <div b-di77xgpwam class="ring"><div b-di77xgpwam class="frame"></div></div>
+                <div b-di77xgpwam class="ring"><div b-di77xgpwam class="frame"></div></div>
+            </div>
+        </div>
+    </div>
+    <!-- Pre-loader end -->
+
+    <div b-di77xgpwam id="pcoded" class="pcoded">
+        <div b-di77xgpwam class="pcoded-overlay-box"></div>
+        <div b-di77xgpwam class="pcoded-container navbar-wrapper">
+
+            <!-- =========================================================
+                 TOP NAVBAR
+            ========================================================== -->
+            <nav b-di77xgpwam class="navbar header-navbar pcoded-header">
+                <div b-di77xgpwam class="navbar-wrapper">
+
+                    <!-- Logo -->
+                    <div b-di77xgpwam class="navbar-logo">
+                        <a b-di77xgpwam class="mobile-menu" id="mobile-collapse" href="#!">
+                            <i b-di77xgpwam class="feather icon-menu"></i>
+                        </a>
+                        <a href="/Admin/Index">
+                            <img class="img-fluid header-brand-logo" src="/assets/images/samanmal_logo.png" alt="Samanmal Life Style Store" onerror="this.src='/assets/images/logo.png'" />
+                        </a>
+                        <a b-di77xgpwam class="mobile-options">
+                            <i b-di77xgpwam class="feather icon-more-horizontal"></i>
+                        </a>
+                    </div>
+                    <!-- /Logo -->
+
+                    <div b-di77xgpwam class="navbar-container container-fluid">
+                        <ul b-di77xgpwam class="nav-left">
+                            <li b-di77xgpwam class="header-search">
+                                <div b-di77xgpwam class="main-search morphsearch-search">
+                                    <div b-di77xgpwam class="input-group">
+                                        <span b-di77xgpwam class="input-group-addon search-close"><i b-di77xgpwam class="feather icon-x"></i></span>
+                                        <input b-di77xgpwam type="text" class="form-control" placeholder="Search...">
+                                        <span b-di77xgpwam class="input-group-addon search-btn"><i b-di77xgpwam class="feather icon-search"></i></span>
+                                    </div>
+                                </div>
+                            </li>
+                            <li b-di77xgpwam>
+                                <a b-di77xgpwam href="#!" onclick="javascript:toggleFullScreen()">
+                                    <i b-di77xgpwam class="feather icon-maximize full-screen"></i>
+                                </a>
+                            </li>
+                        </ul>
+
+                        <ul b-di77xgpwam class="nav-right">
+                            <li b-di77xgpwam class="header-notification">
+                                <div b-di77xgpwam class="dropdown-primary dropdown">
+                                    <div b-di77xgpwam class="dropdown-toggle" data-bs-toggle="dropdown" data-toggle="dropdown" style="cursor:pointer;">
+                                        <i b-di77xgpwam class="feather icon-bell"></i>
+                                        <span b-di77xgpwam class="badge bg-c-pink d-none" id="notifBadge">0</span>
+                                    </div>
+                                    <ul b-di77xgpwam class="show-notification notification-view dropdown-menu"
+                                        data-dropdown-in="fadeIn" data-dropdown-out="fadeOut"
+                                        id="notifMenu" style="min-width:320px;">
+                                        <li b-di77xgpwam>
+                                            <h6 b-di77xgpwam class="mb-0">Notifications</h6>
+                                        </li>
+                                        <li b-di77xgpwam id="notifItems">
+                                            <div b-di77xgpwam class="px-3 py-3 text-muted small">Loading…</div>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </li>
+
+                            <!-- User Profile -->
+                            <li b-di77xgpwam class="user-profile header-notification">
+                                <div b-di77xgpwam class="dropdown-primary dropdown">
+                                    <div b-di77xgpwam class="dropdown-toggle" data-bs-toggle="dropdown" data-toggle="dropdown" style="cursor:pointer;">
+                                        <!-- Avatar initials instead of a missing image -->
+                                        <span b-di77xgpwam class="d-inline-flex align-items-center justify-content-center img-radius"
+                                              style="width:40px;height:40px;background:#01a9ac;color:#fff;font-weight:700;font-size:1rem;flex-shrink:0;">
+                                            S
+                                        </span>
+                                        <span b-di77xgpwam class="ms-1">System Administrator</span>
+                                        <i b-di77xgpwam class="feather icon-chevron-down"></i>
+                                    </div>
+                                    <ul b-di77xgpwam class="show-notification profile-notification dropdown-menu"
+                                        data-dropdown-in="fadeIn" data-dropdown-out="fadeOut">
+
+                                        <!-- User info header -->
+                                        <li b-di77xgpwam class="profile-header px-3 pt-2 pb-1" style="pointer-events:none;">
+                                            <div b-di77xgpwam class="d-flex align-items-center gap-2">
+                                                <span b-di77xgpwam class="d-inline-flex align-items-center justify-content-center rounded-circle"
+                                                      style="width:44px;height:44px;background:#01a9ac;color:#fff;font-weight:700;font-size:1.1rem;flex-shrink:0;">
+                                                    S
+                                                </span>
+                                                <div b-di77xgpwam>
+                                                    <div b-di77xgpwam class="fw-semibold" style="font-size:.9rem;line-height:1.2;">System Administrator</div>
+                                                        <small b-di77xgpwam class="text-muted">Administrator</small>
+                                                </div>
+                                            </div>
+                                        </li>
+
+                                        <li b-di77xgpwam>
+                                            <a href="/Auth/Profile">
+                                                <i b-di77xgpwam class="feather icon-user"></i> My Profile
+                                            </a>
+                                        </li>
+                                            <li b-di77xgpwam>
+                                                <a href="/Admin/Settings">
+                                                    <i b-di77xgpwam class="feather icon-settings"></i> Settings
+                                                </a>
+                                            </li>
+                                        <li b-di77xgpwam>
+                                            <a b-di77xgpwam href="#" id="logoutTrigger" class="logout-link">
+                                                <i b-di77xgpwam class="feather icon-log-out"></i> Logout
+                                            </a>
+                                            <form id="logoutForm" method="post" style="display:none;" action="/Auth/Logout">
+                                                
+                                            <input name="__RequestVerificationToken" type="hidden" value="CfDJ8KwT9TbyFqlAiktTBlyRyFw-dt9EojSR3GTnJ59pF-VtiyHdBFhWc4xQrAzVHL5z72ra4QWr8m7EUybsQPehrV231BaQkGI62LW6IN4KucQBpvaTiUTjAZ6C5kWZZc2toT0LpcyBvyvmDVIAUxW9tfc" /></form>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+            <!-- /TOP NAVBAR -->
+
+            <!-- =========================================================
+                 MAIN CONTAINER
+            ========================================================== -->
+            <div b-di77xgpwam class="pcoded-main-container">
+                <div b-di77xgpwam class="pcoded-wrapper">
+
+                    <!-- =========================================================
+                         LEFT SIDEBAR NAVIGATION
+                    ========================================================== -->
+                    <nav b-di77xgpwam class="pcoded-navbar">
+                        <div b-di77xgpwam class="pcoded-inner-navbar main-menu">
+
+
+                            <div b-di77xgpwam class="pcoded-navigatio-lavel">My Space</div>
+                            <ul b-di77xgpwam class="pcoded-item pcoded-left-item">
+                                <li b-di77xgpwam class="">
+                                    <a href="/Me/Attendance">
+                                        <span b-di77xgpwam class="pcoded-micon"><i b-di77xgpwam class="feather icon-user-check"></i></span>
+                                        <span b-di77xgpwam class="pcoded-mtext">My Attendance</span>
+                                    </a>
+                                </li>
+                                <li b-di77xgpwam class="">
+                                    <a href="/Me/Leave">
+                                        <span b-di77xgpwam class="pcoded-micon"><i b-di77xgpwam class="feather icon-calendar"></i></span>
+                                        <span b-di77xgpwam class="pcoded-mtext">My Leave</span>
+                                    </a>
+                                </li>
+                            </ul>
+
+                            <div b-di77xgpwam class="pcoded-navigatio-lavel">Navigation</div>
+                            <ul b-di77xgpwam class="pcoded-item pcoded-left-item">
+
+                                <li b-di77xgpwam class="active">
+                                    <a href="/Admin/Index">
+                                        <span b-di77xgpwam class="pcoded-micon"><i b-di77xgpwam class="feather icon-home"></i></span>
+                                        <span b-di77xgpwam class="pcoded-mtext">Dashboard</span>
+                                    </a>
+                                </li>
+                                <li b-di77xgpwam class="pcoded-hasmenu ">
+                                    <a b-di77xgpwam href="javascript:void(0)">
+                                        <span b-di77xgpwam class="pcoded-micon"><i b-di77xgpwam class="feather icon-users"></i></span>
+                                        <span b-di77xgpwam class="pcoded-mtext">Employee Management</span>
+                                    </a>
+                                    <ul b-di77xgpwam class="pcoded-submenu">
+                                            <li b-di77xgpwam class="">
+                                                <a href="/Admin/Employees">
+                                                    <span b-di77xgpwam class="pcoded-mtext">Employees</span>
+                                                </a>
+                                            </li>
+                                            <li b-di77xgpwam class="">
+                                                <a href="/Admin/Departments">
+                                                    <span b-di77xgpwam class="pcoded-mtext">Departments</span>
+                                                </a>
+                                            </li>
+                                            <li b-di77xgpwam class="">
+                                                <a href="/Admin/Designations">
+                                                    <span b-di77xgpwam class="pcoded-mtext">Designations</span>
+                                                </a>
+                                            </li>
+                                            <li b-di77xgpwam class="">
+                                                <a href="/Admin/Branches">
+                                                    <span b-di77xgpwam class="pcoded-mtext">Branches</span>
+                                                </a>
+                                            </li>
+                                    </ul>
+                                </li>
+                                <li b-di77xgpwam class="pcoded-hasmenu ">
+                                    <a b-di77xgpwam href="javascript:void(0)">
+                                        <span b-di77xgpwam class="pcoded-micon"><i b-di77xgpwam class="feather icon-clock"></i></span>
+                                        <span b-di77xgpwam class="pcoded-mtext">Shift Management</span>
+                                    </a>
+                                    <ul b-di77xgpwam class="pcoded-submenu">
+                                        <li b-di77xgpwam class="">
+                                            <a href="/Admin/Shifts">
+                                                <span b-di77xgpwam class="pcoded-mtext">Shifts &amp; Assignment</span>
+                                            </a>
+                                        </li>
+                                        <li b-di77xgpwam class="">
+                                            <a href="/Admin/ShiftRoster">
+                                                <span b-di77xgpwam class="pcoded-mtext">Shift Roster</span>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li b-di77xgpwam class="pcoded-hasmenu ">
+                                    <a b-di77xgpwam href="javascript:void(0)">
+                                        <span b-di77xgpwam class="pcoded-micon"><i b-di77xgpwam class="feather icon-check-circle"></i></span>
+                                        <span b-di77xgpwam class="pcoded-mtext">Attendance &amp; Leave</span>
+                                    </a>
+                                    <ul b-di77xgpwam class="pcoded-submenu">
+                                            <li b-di77xgpwam class="">
+                                                <a href="/Admin/Attendance">
+                                                    <span b-di77xgpwam class="pcoded-mtext">Attendance Records</span>
+                                                </a>
+                                            </li>
+                                            <li b-di77xgpwam class="">
+                                                <a href="/Admin/AttendanceReview">
+                                                    <span b-di77xgpwam class="pcoded-mtext">Attendance Review</span>
+                                                </a>
+                                            </li>
+                                            <li b-di77xgpwam class="">
+                                                <a href="/Admin/Leave">
+                                                    <span b-di77xgpwam class="pcoded-mtext">Leave Management</span>
+                                                </a>
+                                            </li>
+                                            <li b-di77xgpwam class="">
+                                                <a href="/Admin/Holidays">
+                                                    <span b-di77xgpwam class="pcoded-mtext">Holidays</span>
+                                                </a>
+                                            </li>
+                                    </ul>
+                                </li>
+                                <li b-di77xgpwam class="pcoded-hasmenu ">
+                                    <a b-di77xgpwam href="javascript:void(0)">
+                                        <span b-di77xgpwam class="pcoded-micon"><i b-di77xgpwam class="feather icon-cpu"></i></span>
+                                        <span b-di77xgpwam class="pcoded-mtext">Biometric Devices</span>
+                                    </a>
+                                    <ul b-di77xgpwam class="pcoded-submenu">
+                                            <li b-di77xgpwam class="">
+                                                <a href="/Admin/Devices">
+                                                    <span b-di77xgpwam class="pcoded-mtext">Fingerprint Devices</span>
+                                                </a>
+                                            </li>
+                                            <li b-di77xgpwam class="">
+                                                <a href="/Admin/Import">
+                                                    <span b-di77xgpwam class="pcoded-mtext">Biometric Import</span>
+                                                </a>
+                                            </li>
+                                    </ul>
+                                </li>
+                                <li b-di77xgpwam class="">
+                                    <a href="/Admin/Reports">
+                                        <span b-di77xgpwam class="pcoded-micon"><i b-di77xgpwam class="feather icon-bar-chart-2"></i></span>
+                                        <span b-di77xgpwam class="pcoded-mtext">Reports</span>
+                                    </a>
+                                </li>
+
+                            </ul>
+
+                            <div b-di77xgpwam class="pcoded-navigatio-lavel">Administration</div>
+                            <ul b-di77xgpwam class="pcoded-item pcoded-left-item">
+
+                                <li b-di77xgpwam class="pcoded-hasmenu ">
+                                    <a b-di77xgpwam href="javascript:void(0)">
+                                        <span b-di77xgpwam class="pcoded-micon"><i b-di77xgpwam class="feather icon-shield"></i></span>
+                                        <span b-di77xgpwam class="pcoded-mtext">User Access</span>
+                                    </a>
+                                    <ul b-di77xgpwam class="pcoded-submenu">
+                                            <li b-di77xgpwam class="">
+                                                <a href="/Admin/Users">
+                                                    <span b-di77xgpwam class="pcoded-mtext">System Users</span>
+                                                </a>
+                                            </li>
+                                            <li b-di77xgpwam class="">
+                                                <a href="/Admin/Roles">
+                                                    <span b-di77xgpwam class="pcoded-mtext">Role &amp; Access Control</span>
+                                                </a>
+                                            </li>
+                                    </ul>
+                                </li>
+
+                                <li b-di77xgpwam class="">
+                                    <a href="/Admin/Settings">
+                                        <span b-di77xgpwam class="pcoded-micon"><i b-di77xgpwam class="feather icon-settings"></i></span>
+                                        <span b-di77xgpwam class="pcoded-mtext">Settings</span>
+                                    </a>
+                                </li>
+
+                                <li b-di77xgpwam class="">
+                                    <a href="/Admin/AuditLogs">
+                                        <span b-di77xgpwam class="pcoded-micon"><i b-di77xgpwam class="feather icon-file-text"></i></span>
+                                        <span b-di77xgpwam class="pcoded-mtext">Audit Log</span>
+                                    </a>
+                                </li>
+
+                            </ul>
+
+                        </div>
+                    </nav>
+                    <!-- /LEFT SIDEBAR -->
+
+                    <!-- =========================================================
+                         PAGE CONTENT
+                    ========================================================== -->
+                    <div b-di77xgpwam class="pcoded-content">
+                        <div b-di77xgpwam class="pcoded-inner-content">
+
+                            <!-- Breadcrumb -->
+                            <div b-di77xgpwam class="main-body">
+                                <div b-di77xgpwam class="page-wrapper">
+
+                                    
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Dashboard</h5>
+    <span class="text-muted small">Wednesday, 05 August 2026</span>
+</div>
+
+<!-- Stat Cards -->
+<div class="row g-3 mb-4" id="statCards">
+        <div class="col-xl-3 col-md-6">
+                <a href="/Admin/Employees" class="stat-card-link" title="View all employees" aria-label="Total Employees — View all employees">
+                    <div class="card stat-card bg-c-yellow">
+                        <div class="card-body stat-card-body">
+                            <div class="stat-card-text">
+                                <p class="stat-card-label">Total Employees</p>
+                                <h3 class="stat-card-value" id="statTotal">—</h3>
+                            </div>
+                            <i class="feather icon-users stat-card-icon" aria-hidden="true"></i>
+                        </div>
+                    </div>
+                </a>
+        </div>
+        <div class="col-xl-3 col-md-6">
+                <a href="/Admin/Attendance?status=CheckedIn" class="stat-card-link" title="View everyone who checked in today" aria-label="Present Today — View everyone who checked in today">
+                    <div class="card stat-card bg-c-green">
+                        <div class="card-body stat-card-body">
+                            <div class="stat-card-text">
+                                <p class="stat-card-label">Present Today</p>
+                                <h3 class="stat-card-value" id="statPresent">—</h3>
+                            </div>
+                            <i class="feather icon-user-check stat-card-icon" aria-hidden="true"></i>
+                        </div>
+                    </div>
+                </a>
+        </div>
+        <div class="col-xl-3 col-md-6">
+                <a href="/Admin/Attendance?status=Absent" class="stat-card-link" title="View today&#x27;s absent records" aria-label="Absent Today — View today&#x27;s absent records">
+                    <div class="card stat-card bg-c-pink">
+                        <div class="card-body stat-card-body">
+                            <div class="stat-card-text">
+                                <p class="stat-card-label">Absent Today</p>
+                                <h3 class="stat-card-value" id="statAbsent">—</h3>
+                            </div>
+                            <i class="feather icon-user-x stat-card-icon" aria-hidden="true"></i>
+                        </div>
+                    </div>
+                </a>
+        </div>
+        <div class="col-xl-3 col-md-6">
+                <a href="/Admin/Leave?status=Approved" class="stat-card-link" title="View approved leave requests" aria-label="On Leave Today — View approved leave requests">
+                    <div class="card stat-card bg-c-blue">
+                        <div class="card-body stat-card-body">
+                            <div class="stat-card-text">
+                                <p class="stat-card-label">On Leave Today</p>
+                                <h3 class="stat-card-value" id="statLeave">—</h3>
+                            </div>
+                            <i class="feather icon-calendar stat-card-icon" aria-hidden="true"></i>
+                        </div>
+                    </div>
+                </a>
+        </div>
+</div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <strong>Attendance Trend</strong>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="small text-muted" id="trendAvg"></span>
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Trend range">
+                            <button type="button" class="btn btn-outline-primary active" id="trendBtn7"
+                                    onclick="loadTrend(7)">7 days</button>
+                            <button type="button" class="btn btn-outline-primary" id="trendBtn30"
+                                    onclick="loadTrend(30)">30 days</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="trendWarning" class="alert alert-warning py-2 small d-none" role="status"></div>
+                    <div style="position:relative;height:260px;">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row g-3 mb-3">
+        <div class="col-xl-5">
+            <div class="card h-100">
+                <div class="card-header"><strong>Punctuality</strong>
+                    <span class="text-muted small ms-1">last 30 days</span>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center g-2 mb-3">
+                        <div class="col-4">
+                            <div class="fw-bold fs-5" id="punLatePct">—</div>
+                            <div class="text-muted small">Late arrivals</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="fw-bold fs-5" id="punAvgMins">—</div>
+                            <div class="text-muted small">Avg late</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="fw-bold fs-5" id="punEarly">—</div>
+                            <div class="text-muted small">Early leave</div>
+                        </div>
+                    </div>
+                    <div style="position:relative;height:170px;">
+                        <canvas id="weekdayChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-7">
+            <div class="card h-100">
+                <div class="card-header"><strong>Most Late Arrivals</strong>
+                    <span class="text-muted small ms-1">last 30 days</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Employee</th>
+                                    <th>Department</th>
+                                    <th class="text-end">Times late</th>
+                                    <th class="text-end">Avg mins</th>
+                                    <th class="text-end pe-3">Total mins</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topLateBody">
+                                <tr><td colspan="5" class="text-center py-3 text-muted">Loading…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row g-3 mb-3">
+        <div class="col-xl-7">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Pending Leave Approvals</strong>
+                    <a class="btn btn-sm btn-outline-primary" href="/Admin/Leave">Open Leave</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Employee</th>
+                                    <th>Type</th>
+                                    <th>Dates</th>
+                                    <th class="text-end pe-3">Days</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pendingLeaveBody">
+                                <tr><td colspan="4" class="text-center py-3 text-muted">Loading…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-5">
+            <div class="card h-100">
+                <div class="card-header"><strong>Leave Utilisation</strong>
+                    <span class="text-muted small ms-1">this year</span>
+                </div>
+                <div class="card-body" id="leaveUtilBody">
+                    <div class="text-muted small">Loading…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row g-3 mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header"><strong>Data Health</strong>
+                    <span class="text-muted small ms-1">issues that silently distort attendance</span>
+                </div>
+                <div class="card-body" id="opsBody">
+                    <div class="text-muted small">Loading…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<div class="row g-3">
+    <!-- Attendance % card -->
+    <div class="col-xl-4 col-md-6">
+        <div class="card h-100">
+            <div class="card-header"><strong>Today's Attendance</strong></div>
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                <div style="position:relative;width:160px;height:160px;">
+                    <canvas id="attendancePie"></canvas>
+                    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">
+                        <span class="fw-bold fs-4" id="pctLabel">—</span>
+                        <div class="text-muted small">Attendance</div>
+                    </div>
+                </div>
+                <div class="mt-3 w-100">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span><span class="badge bg-success me-1">&nbsp;</span>Present</span>
+                        <span id="lblPresent">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span><span class="badge bg-danger me-1">&nbsp;</span>Absent</span>
+                        <span id="lblAbsent">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span><span class="badge bg-warning me-1">&nbsp;</span>Late</span>
+                        <span id="lblLate">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between small">
+                        <span><span class="badge bg-info me-1">&nbsp;</span>On Leave</span>
+                        <span id="lblLeave">—</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent attendance table -->
+    <div class="col-xl-8 col-md-6">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Recent Attendance</strong>
+                <a class="btn btn-sm btn-outline-primary" href="/Admin/Attendance">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Employee</th>
+                                <th>Date</th>
+                                <th>Check In</th>
+                                <th>Check Out</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentBody">
+                            <tr><td colspan="5" class="text-center py-3 text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Links -->
+<div class="row g-3 mt-1">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header"><strong>Quick Links</strong></div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-outline-primary btn-sm" href="/Admin/Employees"><i class="feather icon-users me-1"></i>Employees</a>
+                    <a class="btn btn-outline-success btn-sm" href="/Admin/Attendance"><i class="feather icon-clock me-1"></i>Attendance</a>
+                    <a class="btn btn-outline-warning btn-sm" href="/Admin/Leave"><i class="feather icon-calendar me-1"></i>Leave</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/Admin/Departments"><i class="feather icon-grid me-1"></i>Departments</a>
+                    <a class="btn btn-outline-info btn-sm" href="/Admin/Shifts"><i class="feather icon-watch me-1"></i>Shifts</a>
+                    <a class="btn btn-outline-dark btn-sm" href="/Admin/Reports"><i class="feather icon-bar-chart-2 me-1"></i>Reports</a>
+                    <a class="btn btn-outline-danger btn-sm" href="/Admin/Users"><i class="feather icon-user me-1"></i>Users</a>
+                    <a class="btn btn-outline-secondary btn-sm" href="/Admin/Settings"><i class="feather icon-settings me-1"></i>Settings</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+                                    <!-- Footer -->
+                                    <div b-di77xgpwam class="page-footer">
+                                        <div b-di77xgpwam class="row align-items-center">
+                                            <div b-di77xgpwam class="col-sm-8">
+                                                <p b-di77xgpwam class="m-b-0">
+                                                    Attendance Management System &copy; 2026
+                                                    &nbsp;|&nbsp; Built with .NET 10
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- /Footer -->
+
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                    <!-- /PAGE CONTENT -->
+
+                </div>
+            </div>
+            <!-- /MAIN CONTAINER -->
+
+        </div>
+    </div>
+
+    <!-- =========================================================
+         SCRIPTS
+    ========================================================== -->
+    <!-- jQuery (local) -->
+    <script src="/lib/jquery/dist/jquery.min.js"></script>
+    <!-- Bootstrap (local) -->
+    <script src="/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Smooth scroll & custom scrollbar (local assets) -->
+    <script src="/assets/js/jquery.mCustomScrollbar.concat.min.js"></script>
+    <script src="/assets/js/SmoothScroll.js"></script>
+    <!-- Pcoded sidebar engine (local assets) -->
+    <script src="/assets/js/pcoded.min.js"></script>
+    <script src="/assets/js/vartical-layout.min.js"></script>
+    <!-- Dashboard chart helpers (local assets) -->
+    <script src="/assets/pages/dashboard/custom-dashboard.js"></script>
+    <!-- App script (local assets) -->
+    <script src="/assets/js/script.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script src="/js/site.js?v=luU6u5nHFe_Pxa-m4U2WFeyIfBccwUeW5iSGxWOCXa8"></script>
+
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="/js/pages/admin/dashboard.js?v=0vMPmO2aoSE_t85mAEJBUaT2ubN6DVpRzsc0om8nkSM"></script>
+
+<script>
+window.addEventListener('load', function () {
+  var data = {"TotalCount":17,"Items":[{"Key":"employees.noenroll","Title":"Employees without a biometric ID","Message":"11 employee(s) cannot be matched by any device import","Icon":"icon-user-x","Severity":"Warning","Url":"/Admin/Employees","Count":11},{"Key":"attendance.nocheckout","Title":"Missing check-out","Message":"4 record(s) have no check-out — working hours cannot be calculated","Icon":"icon-alert-triangle","Severity":"Warning","Url":"/Admin/AttendanceReview","Count":4},{"Key":"leave.pending","Title":"Leave awaiting approval","Message":"2 requests are waiting","Icon":"icon-calendar","Severity":"Info","Url":"/Admin/Leave","Count":2}],"GeneratedAt":"2026-08-05T01:33:14.2500677+05:30"};
+  setTimeout(function () {
+    var m = document.querySelector('.notification-view');
+    if (m) { m.classList.add('show'); m.style.display='block'; }
+    var dd = m ? m.closest('.dropdown') : null; if (dd) dd.classList.add('show');
+  }, 900);
+});
+</script>
+</body>
+</html>
+

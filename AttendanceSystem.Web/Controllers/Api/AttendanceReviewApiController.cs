@@ -22,8 +22,10 @@ public class AttendanceReviewApiController : ApiControllerBase
 
     public AttendanceReviewApiController(IAttendanceReviewService review) => _review = review;
 
+    // Employees.View, not Attendance.View — see the note on AdminController.Attendance.
+    // This returns every employee's times; Attendance.View is what lets staff see their own.
     [HttpGet]
-    [SessionAuthorize(Modules.Attendance, Actions.View)]
+    [SessionAuthorize(Modules.Employees, Actions.View)]
     public async Task<IActionResult> Get(
         [FromQuery] DateTime? from, [FromQuery] DateTime? to,
         [FromQuery] int? employeeId, [FromQuery] int? departmentId,

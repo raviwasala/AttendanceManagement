@@ -39,28 +39,18 @@ public class AttendanceService : IAttendanceService
             Shift? shift = shiftAssignment != null ? await _uow.Shifts.GetByIdAsync(shiftAssignment.ShiftId) : null;
 
             bool isHoliday = await _uow.Holidays.IsHolidayAsync(today);
-            bool isWeeklyOff = false, isLate = false;
-            int lateMinutes = 0;
-
-            if (shift != null)
-            {
-                var offDays = shift.WeeklyOffDays.Split(',').Select(d => d.Trim()).ToList();
-                isWeeklyOff = offDays.Contains(today.DayOfWeek.ToString());
-                lateMinutes = DateHelper.CalculateLateMinutes(dto.CheckInTime.TimeOfDay, shift.StartTime, shift.GraceMinutes);
-                isLate = lateMinutes > 0;
-            }
-
-            var status = isHoliday ? AttendanceStatus.Holiday
-                       : isWeeklyOff ? AttendanceStatus.WeeklyOff
-                       : isLate ? AttendanceStatus.Late
-                       : AttendanceStatus.Present;
 
             var log = new AttendanceLog
             {
                 EmployeeId = dto.EmployeeId, AttendanceDate = today, CheckIn = dto.CheckInTime,
-                Status = status, IsLate = isLate, LateMinutes = lateMinutes > 0 ? lateMinutes : null,
-                Remarks = dto.Remarks, IsManual = true, CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now
+                Remarks = dto.Remarks, IsManual = true,
+                CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now
             };
+
+            // Shared with the edit and review paths so night-shift and overtime rules cannot
+            // drift between how a punch is captured and how it is later corrected.
+            AttendanceCalculator.Apply(log,
+                AttendanceCalculator.Calculate(shift, today, log.CheckIn, null, isHoliday));
             await _uow.Attendance.AddAsync(log);
             await _uow.SaveChangesAsync();
             await _audit.LogAsync("Attendance", "CheckIn", _currentUser.UserId, "AttendanceLog", log.Id);
@@ -80,7 +70,6 @@ public class AttendanceService : IAttendanceService
                 return Result<AttendanceLogDto>.Failure("Check-out time cannot be before check-in time.");
 
             log.CheckOut = dto.CheckOutTime;
-            log.WorkingHours = DateHelper.CalculateWorkingHours(log.CheckIn, dto.CheckOutTime);
             if (dto.Remarks != null) log.Remarks = dto.Remarks;
 
             var allShiftAssignments = await _uow.EmployeeShifts.FindAsync(
@@ -89,12 +78,12 @@ public class AttendanceService : IAttendanceService
                       && (es.EffectiveTo == null || es.EffectiveTo >= log.AttendanceDate));
             var sa = allShiftAssignments.OrderByDescending(es => es.EffectiveFrom).FirstOrDefault();
             Shift? shift = sa != null ? await _uow.Shifts.GetByIdAsync(sa.ShiftId) : null;
+            var isHolidayOut = await _uow.Holidays.IsHolidayAsync(log.AttendanceDate.Date);
 
-            if (shift != null && log.CheckOut.HasValue)
-            {
-                var earlyMins = (int)(shift.EndTime - log.CheckOut.Value.TimeOfDay).TotalMinutes;
-                if (earlyMins > 0) { log.IsEarlyLeave = true; log.EarlyLeaveMinutes = earlyMins; }
-            }
+            // Check-out is where overtime and the break deduction are first known.
+            AttendanceCalculator.Apply(log,
+                AttendanceCalculator.Calculate(
+                    shift, log.AttendanceDate, log.CheckIn, log.CheckOut, isHolidayOut));
 
             log.ModifiedBy = _currentUser.UserId; log.ModifiedAt = DateTime.Now;
             await _uow.Attendance.UpdateAsync(log);
@@ -250,25 +239,43 @@ public class AttendanceService : IAttendanceService
     {
         try
         {
-            var summaries = await _uow.AttendanceSummaries.FindAsync(
-                s => s.Month == month && s.Year == year && !s.IsDeleted);
-            var dtos = new List<AttendanceSummaryDto>();
-            foreach (var s in summaries.OrderBy(x => x.EmployeeId))
-            {
-                var emp  = await _uow.Employees.GetByIdAsync(s.EmployeeId);
-                var dept = emp != null ? await _uow.Departments.GetByIdAsync(emp.DepartmentId) : null;
-                dtos.Add(new AttendanceSummaryDto
+            // Built from the attendance logs, not from AttendanceSummaries. Nothing in the
+            // system ever writes to that table, so reading it left this screen permanently
+            // empty apart from the seeded rows. See ReportService.GetMonthlyAttendanceReportAsync.
+            if (month is < 1 or > 12) return Result<IEnumerable<AttendanceSummaryDto>>.Failure("Month must be between 1 and 12.");
+
+            var monthStart = new DateTime(year, month, 1);
+            var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+
+            var employees = (await _uow.Employees.FindAsync(e => e.IsActive && !e.IsDeleted)).ToList();
+            var departments = (await _uow.Departments.GetAllAsync()).ToDictionary(d => d.Id, d => d.Name);
+            var logs = (await _uow.Attendance.FindAsync(a =>
+                !a.IsDeleted && a.AttendanceDate >= monthStart && a.AttendanceDate <= monthEnd)).ToList();
+
+            var dtos = employees
+                .OrderBy(e => e.FirstName).ThenBy(e => e.LastName)
+                .Select(emp =>
                 {
-                    EmployeeId = s.EmployeeId,
-                    EmployeeName = emp != null ? $"{emp.FirstName} {emp.LastName}" : string.Empty,
-                    EmployeeCode = emp?.EmployeeCode ?? string.Empty,
-                    Department = dept?.Name ?? string.Empty,
-                    Month = s.Month, Year = s.Year,
-                    TotalDays = s.TotalDays, PresentDays = s.PresentDays, AbsentDays = s.AbsentDays,
-                    LateDays = s.LateDays, LeaveDays = s.LeaveDays, HolidayDays = s.HolidayDays,
-                    TotalWorkingHours = s.TotalWorkingHours
-                });
-            }
+                    var mine = logs.Where(l => l.EmployeeId == emp.Id).ToList();
+                    return new AttendanceSummaryDto
+                    {
+                        EmployeeId = emp.Id,
+                        EmployeeName = $"{emp.FirstName} {emp.LastName}",
+                        EmployeeCode = emp.EmployeeCode,
+                        Department = departments.TryGetValue(emp.DepartmentId, out var dn) ? dn : string.Empty,
+                        Month = month, Year = year,
+                        TotalDays = mine.Count,
+                        // Late still counts as present — the person was at work.
+                        PresentDays = mine.Count(l => l.Status is AttendanceStatus.Present or AttendanceStatus.Late),
+                        AbsentDays = mine.Count(l => l.Status == AttendanceStatus.Absent),
+                        LateDays = mine.Count(l => l.IsLate),
+                        LeaveDays = mine.Count(l => l.Status == AttendanceStatus.OnLeave),
+                        HolidayDays = mine.Count(l => l.Status is AttendanceStatus.Holiday or AttendanceStatus.WeeklyOff),
+                        TotalWorkingHours = mine.Sum(l => l.WorkingHours ?? 0)
+                    };
+                })
+                .ToList();
+
             return Result<IEnumerable<AttendanceSummaryDto>>.Success(dtos);
         }
         catch (Exception ex) { return Result<IEnumerable<AttendanceSummaryDto>>.Failure(ex.Message); }
@@ -321,26 +328,13 @@ public class AttendanceService : IAttendanceService
 
         var current = assignments.OrderByDescending(a => a.EffectiveFrom).FirstOrDefault();
         var shift = current != null ? await _uow.Shifts.GetByIdAsync(current.ShiftId) : null;
+        var isHoliday = await _uow.Holidays.IsHolidayAsync(date);
 
-        log.IsLate = false;
-        log.LateMinutes = null;
-        log.IsEarlyLeave = false;
-        log.EarlyLeaveMinutes = null;
+        var result = AttendanceCalculator.Calculate(shift, date, log.CheckIn, log.CheckOut, isHoliday);
 
-        if (shift == null) return;   // no shift assigned: nothing to be late against
-
-        if (log.CheckIn.HasValue)
-        {
-            var late = DateHelper.CalculateLateMinutes(
-                log.CheckIn.Value.TimeOfDay, shift.StartTime, shift.GraceMinutes);
-            if (late > 0) { log.IsLate = true; log.LateMinutes = late; }
-        }
-
-        if (log.CheckOut.HasValue)
-        {
-            var early = (int)(shift.EndTime - log.CheckOut.Value.TimeOfDay).TotalMinutes;
-            if (early > 0) { log.IsEarlyLeave = true; log.EarlyLeaveMinutes = early; }
-        }
+        // Status is preserved: EditAsync takes it from the caller, who may be marking someone
+        // On Leave regardless of the times.
+        AttendanceCalculator.Apply(log, result, log.Status);
     }
 
     private async Task<AttendanceLogDto> BuildLogDtoAsync(AttendanceLog log)

@@ -1,0 +1,77 @@
+@using System.Reflection
+@using AttendanceSystem.Common.Constants
+@{
+    ViewData["Title"] = "Audit Log";
+
+    // Listed from the module constants rather than from whatever happens to be in the last
+    // page of results — otherwise a module with no recent activity is missing from the filter,
+    // which is exactly when you want to select it and see "nothing logged".
+    var auditModules = typeof(AppConstants.Modules)
+        .GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
+        .Where(f => f.IsLiteral && f.FieldType == typeof(string))
+        .Select(f => (string)f.GetRawConstantValue()!)
+        .OrderBy(m => m)
+        .ToList();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h5 class="mb-1">Audit Log</h5>
+        <p class="text-muted small mb-0">Who changed what, and when</p>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <select id="alModule" class="form-select form-select-sm" style="width:auto;">
+            <option value="">All Modules</option>
+            @foreach (var m in auditModules)
+            {
+                <option value="@m">@m</option>
+            }
+        </select>
+        <input type="text" id="alSearch" class="form-control form-control-sm" style="width:auto;"
+               placeholder="Search user / action…" oninput="renderAudit()">
+        <select id="alCount" class="form-select form-select-sm" style="width:auto;">
+            <option value="100">Last 100</option>
+            <option value="200" selected>Last 200</option>
+            <option value="500">Last 500</option>
+            <option value="1000">Last 1000</option>
+        </select>
+        <button class="btn btn-primary btn-sm px-3" onclick="loadAudit()">
+            <i class="feather icon-refresh-cw me-1"></i>Refresh
+        </button>
+    </div>
+</div>
+
+@* The log is append-only: there is no edit or delete, deliberately. Saying so prevents
+   someone hunting for the button. *@
+<div class="alert alert-light border py-2 small" role="status">
+    <i class="feather icon-lock me-1"></i>
+    This log is read-only. Entries are written automatically and cannot be edited or removed.
+</div>
+
+<div class="card card-table-container">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">When</th>
+                        <th>User</th>
+                        <th>Module</th>
+                        <th>Action</th>
+                        <th>Record</th>
+                        <th class="pe-3">Changes</th>
+                    </tr>
+                </thead>
+                <tbody id="auditBody">
+                    <tr><td colspan="6" class="text-center py-4 text-muted">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="small text-muted mt-2" id="auditCount"></div>
+
+@section Scripts {
+    <script src="~/js/pages/admin/audit-logs.js" asp-append-version="true"></script>
+}

@@ -4,6 +4,7 @@ using AttendanceSystem.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AttendanceSystem.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AttendanceDbContext))]
-    partial class AttendanceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260804193436_AddShiftOvertimeAndNightShift")]
+    partial class AddShiftOvertimeAndNightShift
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -274,16 +277,10 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
 
-                    b.Property<bool>("ConfirmBeforeDelete")
-                        .HasColumnType("bit");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<int?>("CreatedBy")
-                        .HasColumnType("int");
-
-                    b.Property<int>("DefaultPageSize")
                         .HasColumnType("int");
 
                     b.Property<string>("Email")
@@ -330,9 +327,7 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                         {
                             Id = 1,
                             CompanyName = "My Company Ltd.",
-                            ConfirmBeforeDelete = true,
                             CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DefaultPageSize = 25,
                             IsDeleted = false,
                             MaxLateMinutes = 15,
                             WeekendDays = "Saturday,Sunday",

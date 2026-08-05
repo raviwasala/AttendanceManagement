@@ -23,7 +23,7 @@
             <div class="card-body p-0">
                 <div class="table-responsive"><table class="table table-hover table-sm mb-0">
                     <thead class="table-light">
-                        <tr><th>#</th><th>Name</th><th>Start</th><th>End</th><th>Grace (min)</th><th>Weekly Off</th><th>Status</th><th>Actions</th></tr>
+                        <tr><th>Code</th><th>Name</th><th>Timing</th><th>Span</th><th>Grace In/Out</th><th>Break</th><th>Overtime</th><th>Weekly Off</th><th>Status</th><th>Actions</th></tr>
                     </thead>
                     <tbody id="shiftBody">
                         <tr><td colspan="8" class="text-center py-3 text-muted">Loading...</td></tr>
@@ -69,32 +69,99 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="shiftId">
+                <div id="shiftError" class="alert alert-danger py-2 small d-none"></div>
+
                 <div class="row g-2">
-                    <div class="col-12 mb-2">
-                        <label class="form-label">Name <span class="text-danger">*</span></label>
+                    <div class="col-md-3 mb-2">
+                        <label class="form-label small fw-semibold">Shift Code</label>
+                        <input type="text" id="shiftCode" class="form-control" maxlength="20" placeholder="GEN">
+                    </div>
+                    <div class="col-md-9 mb-2">
+                        <label class="form-label small fw-semibold">Name <span class="text-danger">*</span></label>
                         <input type="text" id="shiftName" class="form-control" maxlength="100">
                     </div>
+
                     <div class="col-md-6 mb-2">
-                        <label class="form-label">Start Time <span class="text-danger">*</span></label>
-                        <input type="time" id="shiftStart" class="form-control">
+                        <label class="form-label small fw-semibold">Start Time <span class="text-danger">*</span></label>
+                        <input type="time" id="shiftStart" class="form-control" onchange="onShiftTimeChange()">
                     </div>
                     <div class="col-md-6 mb-2">
-                        <label class="form-label">End Time <span class="text-danger">*</span></label>
-                        <input type="time" id="shiftEnd" class="form-control">
+                        <label class="form-label small fw-semibold">End Time <span class="text-danger">*</span></label>
+                        <input type="time" id="shiftEnd" class="form-control" onchange="onShiftTimeChange()">
+                    </div>
+
+                    <div class="col-12 mb-2">
+                        @* Ticked automatically when the times cross midnight — the flag and the
+                           times must agree or the calculation goes wrong in a way nobody sees. *@
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="shiftNight" onchange="updateShiftSummary()">
+                            <label class="form-check-label small" for="shiftNight">
+                                Night shift <span class="text-muted">(runs past midnight)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label small fw-semibold">Grace In (min)</label>
+                        <input type="number" id="shiftGrace" class="form-control" value="0" min="0" max="240">
+                        <div class="form-text small">Late only after this.</div>
                     </div>
                     <div class="col-md-6 mb-2">
-                        <label class="form-label">Grace Minutes</label>
-                        <input type="number" id="shiftGrace" class="form-control" value="0" min="0" max="60">
+                        <label class="form-label small fw-semibold">Grace Out (min)</label>
+                        <input type="number" id="shiftGraceOut" class="form-control" value="0" min="0" max="240">
+                        <div class="form-text small">Early leave only before this.</div>
+                    </div>
+
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label small fw-semibold">Break (min)</label>
+                        <input type="number" id="shiftBreak" class="form-control" value="0" min="0" max="480"
+                               onchange="updateShiftSummary()">
+                        <div class="form-text small">Unpaid, deducted from worked time.</div>
                     </div>
                     <div class="col-md-6 mb-2">
-                        <label class="form-label">Weekly Off Days</label>
+                        <label class="form-label small fw-semibold">Standard Working Hours</label>
+                        <input type="number" id="shiftStdHours" class="form-control" value="0" min="0" max="24" step="0.25">
+                        <div class="form-text small">Leave 0 to use span minus break.</div>
+                    </div>
+
+                    <div class="col-12"><hr class="my-2"></div>
+
+                    <div class="col-12 mb-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="shiftOtEnabled" checked
+                                   onchange="toggleOtFields()">
+                            <label class="form-check-label small fw-semibold" for="shiftOtEnabled">Overtime enabled</label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-2 ot-field">
+                        <label class="form-label small fw-semibold">OT starts after (min)</label>
+                        <input type="number" id="shiftOtAfter" class="form-control" value="0" min="0" max="480">
+                        <div class="form-text small">Minutes past shift end before OT accrues.</div>
+                    </div>
+                    <div class="col-md-6 mb-2 ot-field">
+                        <label class="form-label small fw-semibold">OT measured from</label>
+                        <select id="shiftOtBasis" class="form-select">
+                            <option value="true">Shift end time</option>
+                            <option value="false">Standard working hours</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12"><hr class="my-2"></div>
+
+                    <div class="col-md-8 mb-2">
+                        <label class="form-label small fw-semibold">Weekly Off Days</label>
                         <input type="text" id="shiftWeeklyOff" class="form-control" value="Saturday,Sunday" placeholder="Saturday,Sunday">
                     </div>
-                    <div class="col-12">
-                        <div class="form-check">
+                    <div class="col-md-4 mb-2 d-flex align-items-end">
+                        <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" id="shiftActive" checked>
-                            <label class="form-check-label">Active</label>
+                            <label class="form-check-label small" for="shiftActive">Active</label>
                         </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="alert alert-light border py-2 small mb-0" id="shiftSummary"></div>
                     </div>
                 </div>
             </div>

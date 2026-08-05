@@ -1,0 +1,60 @@
+@{
+    ViewData["Title"] = "My Leave";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h5 class="mb-1">My Leave</h5>
+        <p class="text-muted small mb-0">Your balances and requests for <span id="myLeaveYear"></span></p>
+    </div>
+</div>
+
+<div id="myLeaveError" class="alert alert-warning d-none" role="status"></div>
+
+<div class="row g-3">
+    <div class="col-xl-5">
+        <div class="card h-100">
+            <div class="card-header"><strong>Leave Balances</strong></div>
+            <div class="card-body" id="myBalances">
+                <div class="text-muted small">Loading…</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-7">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>My Requests</strong>
+                <span class="text-muted small" id="myPending"></span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Type</th>
+                                <th>Dates</th>
+                                <th class="text-center">Days</th>
+                                <th>Status</th>
+                                <th class="pe-3">Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody id="myLeaveBody">
+                            <tr><td colspan="5" class="text-center py-4 text-muted">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Applying for leave still goes through HR: the existing apply flow needs an approver and a
+   balance check that this read-only screen deliberately does not attempt. *@
+<div class="small text-muted mt-2">
+    To request leave, contact HR — they will record it against your balance.
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/me/my-leave.js" asp-append-version="true"></script>
+}

@@ -142,7 +142,30 @@ public interface IAuditService
         string? entityName = null, int? entityId = null,
         string? oldValues = null, string? newValues = null);
     Task<Result<IEnumerable<AuditLogDto>>> GetRecentAsync(int count = 100);
-    Task<Result<IEnumerable<AuditLogDto>>> GetByModuleAsync(string module);
+    Task<Result<IEnumerable<AuditLogDto>>> GetByModuleAsync(string module, int count = 100);
+}
+
+/// <summary>
+/// Employee self-service — the signed-in employee's own attendance and leave.
+///
+/// No method takes an employee id: the employee is always resolved from the signed-in user's
+/// linked record. Accepting an id would let any employee read a colleague's attendance by
+/// changing a number in the URL.
+/// </summary>
+public interface ISelfServiceService
+{
+    Task<Result<MyProfileDto>> GetMyProfileAsync();
+    Task<Result<MyAttendanceDto>> GetMyAttendanceAsync(int year, int month);
+    Task<Result<MyLeaveDto>> GetMyLeaveAsync();
+}
+
+/// <summary>
+/// Builds the header notification list from live data, filtered by what the signed-in user
+/// is permitted to act on.
+/// </summary>
+public interface INotificationService
+{
+    Task<Result<NotificationsDto>> GetAsync();
 }
 
 /// <summary>
@@ -178,7 +201,8 @@ public interface IAttendanceReviewService
 /// </summary>
 public interface IShiftRosterService
 {
-    Task<Result<ShiftRosterDto>> GetMonthlyRosterAsync(int year, int month, int? departmentId = null);
+    Task<Result<ShiftRosterDto>> GetMonthlyRosterAsync(int year, int month, int? departmentId = null,
+        string? search = null, int? employeeId = null, int? shiftId = null);
 
     /// <summary>Sets one day's shift, or clears the override when ShiftId is null.</summary>
     Task<Result> SetDayAsync(SetRosterDayDto dto);

@@ -124,6 +124,10 @@ public class SettingsService : ISettingsService
             entity.LogoPath = dto.LogoPath; entity.WorkStartTime = dto.WorkStartTime;
             entity.WorkEndTime = dto.WorkEndTime; entity.WeekendDays = dto.WeekendDays;
             entity.MaxLateMinutes = dto.MaxLateMinutes;
+            // Clamped rather than rejected: an out-of-range page size is a slip, not a reason
+            // to refuse the whole settings save. 0 is kept as-is and means "show everything".
+            entity.DefaultPageSize = dto.DefaultPageSize == 0 ? 0 : Math.Clamp(dto.DefaultPageSize, 5, 500);
+            entity.ConfirmBeforeDelete = dto.ConfirmBeforeDelete;
             entity.ModifiedBy = modifiedBy; entity.ModifiedAt = DateTime.Now;
             await _uow.CompanySettings.UpdateAsync(entity);
             await _uow.SaveChangesAsync();
@@ -137,7 +141,8 @@ public class SettingsService : ISettingsService
         Id = s.Id, CompanyName = s.CompanyName, Address = s.Address, Phone = s.Phone,
         Email = s.Email, Website = s.Website, LogoPath = s.LogoPath,
         WorkStartTime = s.WorkStartTime, WorkEndTime = s.WorkEndTime,
-        WeekendDays = s.WeekendDays, MaxLateMinutes = s.MaxLateMinutes
+        WeekendDays = s.WeekendDays, MaxLateMinutes = s.MaxLateMinutes,
+        DefaultPageSize = s.DefaultPageSize, ConfirmBeforeDelete = s.ConfirmBeforeDelete
     };
 }
 
@@ -147,6 +152,19 @@ public class AuditService : IAuditService
     private readonly IUnitOfWork _uow;
     public AuditService(IUnitOfWork uow) => _uow = uow;
 
+    /// <summary>
+    /// Writes an audit entry and commits it.
+    ///
+    /// The commit is deliberate. The repository only stages the row and leaves the transaction
+    /// boundary to the caller, but every caller in the system logs *after* its own
+    /// SaveChangesAsync — so the staged row was never written and the only action that ever
+    /// reached the table was Logout, which happens to save afterwards. Saving here makes the
+    /// entry durable regardless of call order; by that point the caller's own work is already
+    /// committed, so there is nothing else pending to sweep up.
+    ///
+    /// Timestamped with DateTime.Now to match every other entity in the system — CreatedAt was
+    /// UTC here alone, which showed audit rows hours adrift from the records they describe.
+    /// </summary>
     public async Task LogAsync(string module, string action, int? userId = null,
         string? entityName = null, int? entityId = null,
         string? oldValues = null, string? newValues = null)
@@ -157,9 +175,11 @@ public class AuditService : IAuditService
             {
                 Module = module, Action = action, UserId = userId,
                 EntityName = entityName, EntityId = entityId,
-                OldValues = oldValues, NewValues = newValues, CreatedAt = DateTime.UtcNow
+                OldValues = oldValues, NewValues = newValues, CreatedAt = DateTime.Now
             });
+            await _uow.SaveChangesAsync();
         }
+        // Auditing must never take down the operation it is recording.
         catch (Exception ex) { AppLogger.Error("AuditService.LogAsync", ex); }
     }
 
@@ -173,11 +193,11 @@ public class AuditService : IAuditService
         catch (Exception ex) { return Result<IEnumerable<AuditLogDto>>.Failure(ex.Message); }
     }
 
-    public async Task<Result<IEnumerable<AuditLogDto>>> GetByModuleAsync(string module)
+    public async Task<Result<IEnumerable<AuditLogDto>>> GetByModuleAsync(string module, int count = 100)
     {
         try
         {
-            var list = await _uow.AuditLogs.GetByModuleAsync(module);
+            var list = await _uow.AuditLogs.GetByModuleAsync(module, count);
             return Result<IEnumerable<AuditLogDto>>.Success(list.Select(Map));
         }
         catch (Exception ex) { return Result<IEnumerable<AuditLogDto>>.Failure(ex.Message); }

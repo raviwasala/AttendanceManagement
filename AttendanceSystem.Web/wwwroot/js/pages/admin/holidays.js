@@ -15,23 +15,20 @@ function loadHolidays() {
 }
 
 function renderTable(data) {
-    if (!data.length) { $('#tbody').html('<tr><td colspan="8" class="text-center text-muted py-3">No holidays for this year.</td></tr>'); return; }
-    var html = '';
-    data.forEach(function (h, i) {
-        html += '<tr>'
+    amsPage('#tbody', data, function (h, i) {
+        return '<tr>'
             + '<td class="text-muted">' + (i+1) + '</td>'
-            + '<td class="fw-semibold">' + h.Name + '</td>'
-            + '<td>' + h.DateDisplay + '</td>'
-            + '<td class="text-muted">' + h.DayName + '</td>'
-            + '<td><span class="badge bg-info text-dark">' + h.HolidayTypeDisplay + '</span></td>'
+            + '<td class="fw-semibold">' + esc(h.Name) + '</td>'
+            + '<td>' + esc(h.DateDisplay) + '</td>'
+            + '<td class="text-muted">' + esc(h.DayName) + '</td>'
+            + '<td><span class="badge bg-info text-dark">' + esc(h.HolidayTypeDisplay) + '</span></td>'
             + '<td>' + (h.IsRecurring ? '<i class="fa fa-repeat text-success"></i>' : '—') + '</td>'
-            + '<td class="text-muted small">' + (h.Description || '—') + '</td>'
+            + '<td class="text-muted small">' + (h.Description ? esc(h.Description) : '—') + '</td>'
             + '<td>'
             + '<button class="btn btn-sm btn-outline-primary me-1" onclick="editItem(' + h.Id + ')" title="Edit"><i class="fa fa-pencil"></i></button>'
             + '<button class="btn btn-sm btn-outline-danger" onclick="deleteItem(' + h.Id + ')" title="Delete"><i class="fa fa-trash"></i></button>'
             + '</td></tr>';
-    });
-    $('#tbody').html(html);
+    }, { colspan: 8, empty: 'No holidays for this year.', label: 'holiday' });
 }
 
 function openModal() {

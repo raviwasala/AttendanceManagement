@@ -504,4 +504,203 @@ a:hover { color: var(--ams-primary-d); }
   padding: 1rem 1.5rem !important;
   border-bottom-left-radius: 16px !important;
   border-bottom-right-radius: 16px !important;
-}
+}
+
+/* ── Header notification panel ───────────────────────────────────────────────
+   Own class namespace so the theme's .show-notification rules (which assume the
+   demo's avatar/media markup, and put a 1px border on every li) can be overridden
+   in one place instead of fought item by item. */
+.ams-notif {
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  padding: 0 !important;
+  border: 1px solid rgba(0, 0, 0, .06) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .14) !important;
+  overflow: hidden;
+}
+
+/* The theme draws a border and fixed line-height on every li in this list. */
+.header-navbar .navbar-wrapper .navbar-container .header-notification .ams-notif li {
+  border-top: 0 !important;
+  line-height: normal !important;
+  padding: 0 !important;
+}
+
+.ams-notif .ams-notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .7rem 1rem !important;
+  background: #f8f9fa;
+  border-bottom: 1px solid rgba(0, 0, 0, .06) !important;
+}
+.ams-notif .ams-notif-title {
+  font-weight: 600;
+  font-size: .9rem;
+  color: #2c3e50;
+}
+.ams-notif .ams-notif-count {
+  font-size: .72rem;
+  color: #6c757d;
+}
+
+/* Cap the height so a long list scrolls inside the panel rather than running off screen. */
+.ams-notif .ams-notif-body {
+  max-height: 380px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ams-notif .ams-notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: .7rem;
+  padding: .7rem 1rem;
+  text-decoration: none !important;
+  border-bottom: 1px solid rgba(0, 0, 0, .05);
+  transition: background-color .15s ease;
+}
+.ams-notif .ams-notif-item:last-child { border-bottom: 0; }
+.ams-notif a.ams-notif-item:hover { background: #f1f3f5; }
+
+/* Circular chip carries the severity colour, so scanning the list is a glance
+   rather than a read. */
+.ams-notif .ams-notif-icon {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+/* The header rule `.header-navbar .navbar-container i { color:#555 !important }` also
+   catches these icons, so the severity colour has to be set on the <i> with !important. */
+.ams-notif .ams-notif-icon.sev-info     { background: rgba(45, 206, 227, .14); }
+.ams-notif .ams-notif-icon.sev-warning  { background: rgba(254, 147, 101, .16); }
+.ams-notif .ams-notif-icon.sev-critical { background: rgba(254, 93, 112, .16); }
+.ams-notif .ams-notif-icon.sev-info i     { color: #1b9cb0 !important; }
+.ams-notif .ams-notif-icon.sev-warning i  { color: #e2661f !important; }
+.ams-notif .ams-notif-icon.sev-critical i { color: #d92b45 !important; }
+
+/* Rendered as spans (so they may sit inside an <a>), hence the explicit display. */
+.ams-notif .ams-notif-text { display: block; min-width: 0; flex: 1 1 auto; }
+
+.ams-notif .ams-notif-item-title {
+  font-size: .82rem;
+  font-weight: 600;
+  color: #2c3e50;
+  line-height: 1.25;
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+.ams-notif .ams-notif-msg {
+  font-size: .75rem;
+  color: #6c757d;
+  line-height: 1.35;
+  margin-top: .15rem;
+  /* Two lines then ellipsis: the detail lives on the page the item links to. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ams-notif .ams-notif-pill {
+  flex: 0 0 auto;
+  font-size: .66rem;
+  font-weight: 700;
+  padding: .1rem .4rem;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, .06);
+  color: #495057;
+}
+
+.ams-notif .ams-notif-chevron {
+  flex: 0 0 auto;
+  color: #ced4da !important;
+  font-size: .85rem;
+  align-self: center;
+}
+.ams-notif a.ams-notif-item:hover .ams-notif-chevron { color: var(--ams-primary) !important; }
+
+.ams-notif .ams-notif-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #adb5bd;
+  font-size: .82rem;
+}
+.ams-notif .ams-notif-empty i { font-size: 1.8rem; display: block; margin-bottom: .4rem; color: #0ac282; }
+
+@media (max-width: 575.98px) {
+  .ams-notif { width: calc(100vw - 24px); }
+}
+
+/* ── Table pager (created by amsPage in site.js) ───────────────────────────── */
+.ams-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  flex-wrap: wrap;
+  padding: .6rem 1rem;
+  border-top: 1px solid rgba(0, 0, 0, .06);
+  background: #fcfcfd;
+}
+.ams-pager:empty { display: none; }
+
+.ams-pager-info {
+  font-size: .78rem;
+  color: #6c757d;
+}
+
+.ams-pager-btns {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  flex-wrap: wrap;
+}
+
+.ams-pager-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 .5rem;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background: #fff;
+  color: #495057;
+  font-size: .8rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.ams-pager-btn:hover:not(:disabled):not(.active) {
+  background: #f1f3f5;
+  border-color: #ced4da;
+}
+.ams-pager-btn.active {
+  background: var(--ams-primary);
+  border-color: var(--ams-primary);
+  color: #fff;
+  font-weight: 600;
+  cursor: default;
+}
+.ams-pager-btn:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.ams-pager-gap {
+  padding: 0 .15rem;
+  color: #adb5bd;
+  font-size: .8rem;
+}
+
+@media (max-width: 575.98px) {
+  .ams-pager { justify-content: center; }
+  .ams-pager-info { width: 100%; text-align: center; }
+}

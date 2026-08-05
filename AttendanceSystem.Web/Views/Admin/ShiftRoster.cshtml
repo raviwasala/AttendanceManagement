@@ -13,8 +13,18 @@
         <select id="rDept" class="form-select form-select-sm" style="width:auto;">
             <option value="">All Departments</option>
         </select>
+        <select id="rShift" class="form-select form-select-sm" style="width:auto;">
+            <option value="">All Shifts</option>
+        </select>
+        @* Search covers the code and the name in one box: staff know a person by one or the
+           other and should not have to pick which field they are typing into. *@
+        <input id="rSearch" type="search" class="form-control form-control-sm"
+               style="width:190px;" placeholder="Code or name…" autocomplete="off" />
         <button class="btn btn-primary btn-sm px-3" onclick="loadRoster()">
             <i class="feather icon-refresh-cw me-1"></i>Load
+        </button>
+        <button id="rClear" class="btn btn-outline-secondary btn-sm px-3 d-none" onclick="clearRosterFilters()">
+            <i class="feather icon-x me-1"></i>Clear
         </button>
     </div>
 </div>

@@ -41,15 +41,54 @@ public class ShiftService : IShiftService
     {
         try
         {
-            if (dto.EndTime <= dto.StartTime)
-                return Result<ShiftDto>.Failure("End time must be after start time.");
+            // A night shift legitimately ends "before" it starts (22:00 → 06:00). Rejecting
+            // that outright made night shifts impossible to create at all; the times are only
+            // wrong if they are equal, or if they cross midnight without being declared one.
+            var crossesMidnight = dto.EndTime <= dto.StartTime;
+
+            if (dto.EndTime == dto.StartTime)
+                return Result<ShiftDto>.Failure("Start and end time cannot be the same.");
+
+            if (crossesMidnight && !dto.IsNightShift)
+                return Result<ShiftDto>.Failure(
+                    "End time is before start time. Tick \"Night shift\" if this shift runs past midnight.");
+
+            if (!crossesMidnight && dto.IsNightShift)
+                return Result<ShiftDto>.Failure(
+                    "This shift does not cross midnight, so it cannot be marked as a night shift.");
+
+            var span = crossesMidnight
+                ? dto.EndTime.Add(TimeSpan.FromDays(1)) - dto.StartTime
+                : dto.EndTime - dto.StartTime;
+
+            if (dto.BreakMinutes >= span.TotalMinutes)
+                return Result<ShiftDto>.Failure("Break cannot be longer than the shift itself.");
+
+            if (dto.StandardWorkingHours > span.TotalHours)
+                return Result<ShiftDto>.Failure(
+                    $"Standard working hours cannot exceed the shift span of {span.TotalHours:0.##} hours.");
+
+            if (!string.IsNullOrWhiteSpace(dto.ShiftCode))
+            {
+                var code = dto.ShiftCode.Trim();
+                var duplicate = (await _uow.Shifts.FindAsync(s =>
+                    s.ShiftCode == code && s.Id != dto.Id && !s.IsDeleted)).FirstOrDefault();
+                if (duplicate != null)
+                    return Result<ShiftDto>.Failure($"Shift code '{code}' is already used by {duplicate.Name}.");
+            }
 
             if (dto.Id == 0)
             {
                 var entity = new Shift
                 {
+                    ShiftCode = dto.ShiftCode?.Trim(),
                     Name = dto.Name.Trim(), StartTime = dto.StartTime, EndTime = dto.EndTime,
-                    GraceMinutes = dto.GraceMinutes, WeeklyOffDays = dto.WeeklyOffDays,
+                    GraceMinutes = dto.GraceMinutes, GraceOutMinutes = dto.GraceOutMinutes,
+                    IsNightShift = dto.IsNightShift, BreakMinutes = dto.BreakMinutes,
+                    StandardWorkingHours = dto.StandardWorkingHours,
+                    OtStartAfterMinutes = dto.OtStartAfterMinutes,
+                    OtCountsFromShiftEnd = dto.OtCountsFromShiftEnd, IsOtEnabled = dto.IsOtEnabled,
+                    WeeklyOffDays = dto.WeeklyOffDays,
                     IsActive = dto.IsActive, CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now
                 };
                 await _uow.Shifts.AddAsync(entity);
@@ -61,11 +100,21 @@ public class ShiftService : IShiftService
             {
                 var entity = await _uow.Shifts.GetByIdAsync(dto.Id);
                 if (entity == null) return Result<ShiftDto>.Failure("Shift not found.");
+
+                entity.ShiftCode = dto.ShiftCode?.Trim();
                 entity.Name = dto.Name.Trim(); entity.StartTime = dto.StartTime; entity.EndTime = dto.EndTime;
-                entity.GraceMinutes = dto.GraceMinutes; entity.WeeklyOffDays = dto.WeeklyOffDays; entity.IsActive = dto.IsActive;
+                entity.GraceMinutes = dto.GraceMinutes; entity.GraceOutMinutes = dto.GraceOutMinutes;
+                entity.IsNightShift = dto.IsNightShift; entity.BreakMinutes = dto.BreakMinutes;
+                entity.StandardWorkingHours = dto.StandardWorkingHours;
+                entity.OtStartAfterMinutes = dto.OtStartAfterMinutes;
+                entity.OtCountsFromShiftEnd = dto.OtCountsFromShiftEnd;
+                entity.IsOtEnabled = dto.IsOtEnabled;
+                entity.WeeklyOffDays = dto.WeeklyOffDays; entity.IsActive = dto.IsActive;
                 entity.ModifiedBy = _currentUser.UserId; entity.ModifiedAt = DateTime.Now;
+
                 await _uow.Shifts.UpdateAsync(entity);
                 await _uow.SaveChangesAsync();
+                await _audit.LogAsync("Shifts", "Update", _currentUser.UserId, "Shift", entity.Id);
                 return Result<ShiftDto>.Success(MapShift(entity));
             }
         }
@@ -142,8 +191,14 @@ public class ShiftService : IShiftService
 
     private static ShiftDto MapShift(Shift s) => new()
     {
-        Id = s.Id, Name = s.Name, StartTime = s.StartTime, EndTime = s.EndTime,
-        GraceMinutes = s.GraceMinutes, WeeklyOffDays = s.WeeklyOffDays, IsActive = s.IsActive
+        Id = s.Id, ShiftCode = s.ShiftCode, Name = s.Name,
+        StartTime = s.StartTime, EndTime = s.EndTime,
+        GraceMinutes = s.GraceMinutes, GraceOutMinutes = s.GraceOutMinutes,
+        IsNightShift = s.IsNightShift, BreakMinutes = s.BreakMinutes,
+        StandardWorkingHours = s.StandardWorkingHours,
+        OtStartAfterMinutes = s.OtStartAfterMinutes,
+        OtCountsFromShiftEnd = s.OtCountsFromShiftEnd, IsOtEnabled = s.IsOtEnabled,
+        WeeklyOffDays = s.WeeklyOffDays, IsActive = s.IsActive
     };
 }
 

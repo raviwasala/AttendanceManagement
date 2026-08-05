@@ -47,7 +47,18 @@ public class AttendanceReviewRowDto
     public int? LateMinutes { get; set; }
     public bool IsEarlyLeave { get; set; }
     public int? EarlyLeaveMinutes { get; set; }
+
+    /// <summary>Paid hours, after the shift's break is deducted.</summary>
     public double? WorkingHours { get; set; }
+
+    /// <summary>Check-out minus check-in, before the break deduction.</summary>
+    public double? GrossHours { get; set; }
+
+    public int? OvertimeMinutes { get; set; }
+
+    /// <summary>True when the rostered shift runs past midnight — the out time is the next day.</summary>
+    public bool IsNightShift { get; set; }
+    public int BreakMinutes { get; set; }
 
     public AttendanceStatus Status { get; set; }
     public string StatusDisplay => Status.ToString();
@@ -84,6 +95,7 @@ public class AttendanceReviewDto
 
     public int TotalLateMinutes { get; set; }
     public double TotalWorkingHours { get; set; }
+    public int TotalOvertimeMinutes { get; set; }
 
     /// <summary>Set when the result was capped, so the UI can say so rather than mislead.</summary>
     public bool Truncated { get; set; }

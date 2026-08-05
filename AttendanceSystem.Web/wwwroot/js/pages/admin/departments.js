@@ -6,38 +6,34 @@ $(function () { loadDepts(); });
 
 function loadDepts() {
     $.getJSON('/api/departments', function (data) {
-        allDepts = data;
-        renderTable(data);
+        allDepts = data || [];
+        // Re-apply whatever is in the filter boxes. Rendering the raw list here meant that
+        // after a save or delete the table silently ignored the search the user had typed.
+        filterTable();
     }).fail(function () {
         $('#deptBody').html('<tr><td colspan="6" class="text-danger text-center">Failed to load departments.</td></tr>');
     });
 }
 
 function renderTable(data) {
-    if (!data || !data.length) {
-        $('#deptBody').html('<tr><td colspan="6" class="text-center text-muted py-3">No departments found.</td></tr>');
-        return;
-    }
-    var html = '';
-    data.forEach(function (d, i) {
+    amsPage('#deptBody', data, function (d, i) {
         var id = d.Id !== undefined ? d.Id : d.id;
         var name = d.Name || d.name || '';
         var desc = d.Description || d.description || '';
         var count = d.EmployeeCount !== undefined ? d.EmployeeCount : (d.employeeCount || 0);
         var isActive = d.IsActive !== undefined ? d.IsActive : d.isActive;
 
-        html += '<tr>'
+        return '<tr>'
             + '<td class="text-muted">' + (i + 1) + '</td>'
-            + '<td class="fw-semibold">' + name + '</td>'
-            + '<td class="text-muted small">' + (desc || '—') + '</td>'
-            + '<td><span class="badge bg-secondary">' + count + '</span></td>'
+            + '<td class="fw-semibold">' + esc(name) + '</td>'
+            + '<td class="text-muted small">' + (desc ? esc(desc) : '—') + '</td>'
+            + '<td><span class="badge bg-secondary">' + esc(count) + '</span></td>'
             + '<td>' + (isActive ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-danger">Inactive</span>') + '</td>'
             + '<td>'
             + '<button class="btn btn-sm btn-outline-primary me-1" onclick="editDept(' + id + ')" title="Edit"><i class="fa fa-pencil"></i></button>'
             + '<button class="btn btn-sm btn-outline-danger" onclick="deleteDept(' + id + ')" title="Delete"><i class="fa fa-trash"></i></button>'
             + '</td></tr>';
-    });
-    $('#deptBody').html(html);
+    }, { colspan: 6, empty: 'No departments found.', label: 'department' });
 }
 
 function filterTable() {

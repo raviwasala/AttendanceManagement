@@ -194,6 +194,17 @@ public class AttendanceDbContext : DbContext
             e.HasQueryFilter(x => !x.IsDeleted);
         });
 
+        modelBuilder.Entity<Shift>(e =>
+        {
+            e.Property(x => x.ShiftCode).HasMaxLength(20);
+            e.Property(x => x.StandardWorkingHours).HasPrecision(5, 2);
+        });
+
+        modelBuilder.Entity<AttendanceLog>(e =>
+        {
+            e.Property(x => x.GrossHours).HasPrecision(6, 2);
+        });
+
         // ── EmployeeShift ─────────────────────────────────────────────────────
         modelBuilder.Entity<EmployeeShift>(e =>
         {
@@ -417,6 +428,8 @@ public class AttendanceDbContext : DbContext
                 WorkEndTime   = new TimeSpan(18, 0, 0),
                 WeekendDays   = "Saturday,Sunday",
                 MaxLateMinutes = 15,
+                DefaultPageSize = 25,
+                ConfirmBeforeDelete = true,
                 IsDeleted = false,
                 CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             }

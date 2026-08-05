@@ -55,5 +55,5 @@ public interface IAuditLogRepository
     Task AddAsync(AuditLog log);
     Task<IEnumerable<AuditLog>> GetRecentAsync(int count = 100);
     Task<IEnumerable<AuditLog>> GetByUserAsync(int userId);
-    Task<IEnumerable<AuditLog>> GetByModuleAsync(string module);
+    Task<IEnumerable<AuditLog>> GetByModuleAsync(string module, int count = 100);
 }

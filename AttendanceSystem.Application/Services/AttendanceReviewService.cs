@@ -136,6 +136,7 @@ public class AttendanceReviewService : IAttendanceReviewService
             dto.MissingCheckOut = dto.Rows.Count(r => r.CheckIn.HasValue && !r.CheckOut.HasValue);
             dto.TotalLateMinutes = dto.Rows.Sum(r => r.LateMinutes ?? 0);
             dto.TotalWorkingHours = Math.Round(dto.Rows.Sum(r => r.WorkingHours ?? 0), 1);
+            dto.TotalOvertimeMinutes = dto.Rows.Sum(r => r.OvertimeMinutes ?? 0);
 
             return Result<AttendanceReviewDto>.Success(dto);
         }
@@ -160,8 +161,21 @@ public class AttendanceReviewService : IAttendanceReviewService
             if (!TryParseTime(dto.CheckOutTime, day, out var checkOut))
                 return Result<AttendanceReviewRowDto>.Failure("Check-out time is not valid. Use HH:mm.");
 
+            // On a night shift the clock time of the check-out belongs to the following day —
+            // 21:55 in, 07:30 out. Both parse onto the attendance date, so the out time has to
+            // be rolled forward or it reads as "before check-in" and gets rejected.
+            var shiftForDay = await ResolveShiftAsync(dto.EmployeeId, day);
+            if (checkIn.HasValue && checkOut.HasValue && checkOut <= checkIn &&
+                shiftForDay != null && AttendanceCalculator.CrossesMidnight(shiftForDay))
+            {
+                checkOut = checkOut.Value.AddDays(1);
+            }
+
             if (checkIn.HasValue && checkOut.HasValue && checkOut < checkIn)
-                return Result<AttendanceReviewRowDto>.Failure("Check-out cannot be before check-in.");
+                return Result<AttendanceReviewRowDto>.Failure(
+                    shiftForDay != null && AttendanceCalculator.CrossesMidnight(shiftForDay)
+                        ? "Check-out cannot be before check-in."
+                        : "Check-out cannot be before check-in. If this shift runs past midnight, mark it as a night shift.");
 
             if (!checkIn.HasValue && checkOut.HasValue)
                 return Result<AttendanceReviewRowDto>.Failure("Cannot record a check-out without a check-in.");
@@ -265,6 +279,8 @@ public class AttendanceReviewService : IAttendanceReviewService
             row.ExpectedIn = Fmt(shift.StartTime);
             row.ExpectedOut = Fmt(shift.EndTime);
             row.GraceMinutes = shift.GraceMinutes;
+            row.IsNightShift = AttendanceCalculator.CrossesMidnight(shift);
+            row.BreakMinutes = shift.BreakMinutes;
             row.IsWeeklyOff = IsWeeklyOff(shift, date);
         }
         else
@@ -284,6 +300,8 @@ public class AttendanceReviewService : IAttendanceReviewService
             row.IsEarlyLeave = log.IsEarlyLeave;
             row.EarlyLeaveMinutes = log.EarlyLeaveMinutes;
             row.WorkingHours = log.WorkingHours;
+            row.GrossHours = log.GrossHours;
+            row.OvertimeMinutes = log.OvertimeMinutes;
             row.Status = log.Status;
             row.IsManual = log.IsManual;
             row.Remarks = log.Remarks;
@@ -314,50 +332,12 @@ public class AttendanceReviewService : IAttendanceReviewService
     {
         var day = log.AttendanceDate.Date;
         var shift = await ResolveShiftAsync(log.EmployeeId, day);
-
-        log.IsLate = false;
-        log.LateMinutes = null;
-        log.IsEarlyLeave = false;
-        log.EarlyLeaveMinutes = null;
-
-        if (shift != null && log.CheckIn.HasValue)
-        {
-            var lateMinutes = DateHelper.CalculateLateMinutes(
-                log.CheckIn.Value.TimeOfDay, shift.StartTime, shift.GraceMinutes);
-            if (lateMinutes > 0)
-            {
-                log.IsLate = true;
-                log.LateMinutes = lateMinutes;
-            }
-        }
-
-        if (shift != null && log.CheckOut.HasValue)
-        {
-            var earlyMinutes = (int)(shift.EndTime - log.CheckOut.Value.TimeOfDay).TotalMinutes;
-            if (earlyMinutes > 0)
-            {
-                log.IsEarlyLeave = true;
-                log.EarlyLeaveMinutes = earlyMinutes;
-            }
-        }
-
-        log.WorkingHours = log.CheckIn.HasValue && log.CheckOut.HasValue
-            ? DateHelper.CalculateWorkingHours(log.CheckIn, log.CheckOut)
-            : null;
-
-        if (explicitStatus.HasValue)
-        {
-            log.Status = explicitStatus.Value;
-            return;
-        }
-
         var isHoliday = await _uow.Holidays.IsHolidayAsync(day);
-        var isWeeklyOff = shift != null && IsWeeklyOff(shift, day);
 
-        log.Status = isHoliday      ? AttendanceStatus.Holiday
-                   : isWeeklyOff    ? AttendanceStatus.WeeklyOff
-                   : log.IsLate     ? AttendanceStatus.Late
-                                    : AttendanceStatus.Present;
+        var result = AttendanceCalculator.Calculate(
+            shift, day, log.CheckIn, log.CheckOut, isHoliday);
+
+        AttendanceCalculator.Apply(log, result, explicitStatus);
     }
 
     private async Task<Shift?> ResolveShiftAsync(int employeeId, DateTime date)
@@ -410,10 +390,7 @@ public class AttendanceReviewService : IAttendanceReviewService
     }
 
     private static bool IsWeeklyOff(Shift shift, DateTime date) =>
-        shift.WeeklyOffDays
-            .Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .Select(d => d.Trim())
-            .Contains(date.DayOfWeek.ToString(), StringComparer.OrdinalIgnoreCase);
+        AttendanceCalculator.IsWeeklyOff(shift, date);
 
     private static string Fmt(TimeSpan t) => DateTime.Today.Add(t).ToString("HH:mm");
 }

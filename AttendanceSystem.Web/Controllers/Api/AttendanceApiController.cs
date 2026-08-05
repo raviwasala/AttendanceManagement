@@ -1,4 +1,4 @@
-﻿using AttendanceSystem.Application.DTOs;
+using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Web.Filters;
 using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
@@ -14,8 +14,10 @@ public class AttendanceApiController : ApiControllerBase
     private readonly IAttendanceService _svc;
     public AttendanceApiController(IAttendanceService svc) => _svc = svc;
 
+    // Employees.View: this lists every employee's times. Attendance.View is what the
+    // Employee role holds to see their own records via /api/me/attendance.
     [HttpGet("today")]
-    [SessionAuthorize(Modules.Attendance, Actions.View)]
+    [SessionAuthorize(Modules.Employees, Actions.View)]
     public async Task<IActionResult> Today()
     {
         var r = await _svc.GetTodayAsync();
@@ -30,8 +32,9 @@ public class AttendanceApiController : ApiControllerBase
         return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
     }
 
+    // Takes an arbitrary employee id, so it must require permission to see other people.
     [HttpGet("employee/{employeeId}")]
-    [SessionAuthorize(Modules.Attendance, Actions.View)]
+    [SessionAuthorize(Modules.Employees, Actions.View)]
     public async Task<IActionResult> ByEmployee(int employeeId,
         [FromQuery] DateTime from, [FromQuery] DateTime to)
     {
@@ -40,7 +43,7 @@ public class AttendanceApiController : ApiControllerBase
     }
 
     [HttpGet("monthly")]
-    [SessionAuthorize(Modules.Attendance, Actions.View)]
+    [SessionAuthorize(Modules.Employees, Actions.View)]
     public async Task<IActionResult> Monthly([FromQuery] int month, [FromQuery] int year)
     {
         var r = await _svc.GetMonthlySummaryAsync(month, year);

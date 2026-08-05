@@ -26,17 +26,36 @@ public class ReportService : IReportService
     public async Task<IEnumerable<AttendanceSummaryDto>> GetMonthlyAttendanceReportAsync(
         int month, int year, int? departmentId = null)
     {
+        // Aggregated from AttendanceLogs rather than read from AttendanceSummaries.
+        //
+        // AttendanceSummaries is written by nothing in the system — the only rows in it are
+        // the seed data — so this report returned nothing for every real month, no matter how
+        // much attendance had been recorded. Computing it from the logs is also always current,
+        // where a stored summary would need a nightly job and could go stale between runs.
+        //
+        // Employees are LEFT JOINed so somebody with no punches at all still appears, with
+        // zeros, instead of vanishing from the report.
         var sql = @"
-            SELECT s.EmployeeId, e.EmployeeCode,
+            SELECT e.Id AS EmployeeId, e.EmployeeCode,
                    CONCAT(e.FirstName,' ',e.LastName) AS EmployeeName,
-                   d.Name AS Department, s.Month, s.Year,
-                   s.TotalDays, s.PresentDays, s.AbsentDays, s.LateDays,
-                   s.LeaveDays, s.HolidayDays, s.TotalWorkingHours
-            FROM AttendanceSummaries s
-            INNER JOIN Employees e ON e.Id = s.EmployeeId
+                   d.Name AS Department, @Month AS Month, @Year AS Year,
+                   COUNT(a.Id)                                                   AS TotalDays,
+                   SUM(CASE WHEN a.Status IN (1,3) THEN 1 ELSE 0 END)            AS PresentDays,
+                   SUM(CASE WHEN a.Status = 2      THEN 1 ELSE 0 END)            AS AbsentDays,
+                   SUM(CASE WHEN a.IsLate = 1      THEN 1 ELSE 0 END)            AS LateDays,
+                   SUM(CASE WHEN a.Status = 5      THEN 1 ELSE 0 END)            AS LeaveDays,
+                   SUM(CASE WHEN a.Status IN (6,7) THEN 1 ELSE 0 END)            AS HolidayDays,
+                   ISNULL(SUM(a.WorkingHours), 0)                                AS TotalWorkingHours
+            FROM Employees e
             INNER JOIN Departments d ON d.Id = e.DepartmentId
-            WHERE s.Month = @Month AND s.Year = @Year AND s.IsDeleted = 0
+            LEFT JOIN AttendanceLogs a
+                   ON a.EmployeeId = e.Id
+                  AND a.IsDeleted = 0
+                  AND MONTH(a.AttendanceDate) = @Month
+                  AND YEAR(a.AttendanceDate)  = @Year
+            WHERE e.IsDeleted = 0 AND e.IsActive = 1
               AND (@DeptId IS NULL OR e.DepartmentId = @DeptId)
+            GROUP BY e.Id, e.EmployeeCode, e.FirstName, e.LastName, d.Name
             ORDER BY e.FirstName";
         return await _dapper.QueryAsync<AttendanceSummaryDto>(sql,
             new { Month = month, Year = year, DeptId = departmentId });

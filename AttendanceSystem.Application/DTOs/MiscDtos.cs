@@ -39,6 +39,8 @@ public class CompanySettingsDto
     public TimeSpan WorkEndTime { get; set; }
     public string WeekendDays { get; set; } = string.Empty;
     public int MaxLateMinutes { get; set; }
+    public int DefaultPageSize { get; set; } = 25;
+    public bool ConfirmBeforeDelete { get; set; } = true;
 }
 
 public class AuditLogDto

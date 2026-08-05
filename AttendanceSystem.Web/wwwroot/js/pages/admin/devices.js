@@ -42,17 +42,11 @@ function loadDevices() {
 }
 
 function renderDevices() {
-    if (!allDevices.length) {
-        $('#deviceBody').html(
-            '<tr><td colspan="7" class="text-center text-muted py-4">' +
-            'No devices registered yet.' +
-            (window.devicePerms.create ? ' Use <strong>Add Device</strong> to register your first terminal.' : '') +
-            '</td></tr>');
-        return;
-    }
+    var empty = 'No devices registered yet.'
+              + (window.devicePerms.create
+                    ? ' Use <strong>Add Device</strong> to register your first terminal.' : '');
 
-    var html = '';
-    allDevices.forEach(function (d) {
+    amsPage('#deviceBody', allDevices, function (d) {
         var actions = '<button class="btn btn-sm btn-outline-secondary me-1" onclick="testDevice(' + d.Id + ')" title="Test connection">' +
                       '<i class="feather icon-activity"></i></button>';
         if (window.devicePerms.edit) {
@@ -64,7 +58,7 @@ function renderDevices() {
                        '<i class="fa fa-trash"></i></button>';
         }
 
-        html += '<tr' + (d.IsActive ? '' : ' class="text-muted"') + '>'
+        return '<tr' + (d.IsActive ? '' : ' class="text-muted"') + '>'
             + '<td class="ps-3 fw-semibold">' + esc(d.Name)
               + (d.IsActive ? '' : ' <span class="badge bg-light text-muted">inactive</span>')
               + (d.Model ? '<br><small class="text-muted">' + esc(d.Model) + '</small>' : '')
@@ -78,8 +72,7 @@ function renderDevices() {
                 : '<span class="badge bg-light text-muted">Off</span>') + '</td>'
             + '<td class="text-end pe-3">' + actions + '</td>'
             + '</tr>';
-    });
-    $('#deviceBody').html(html);
+    }, { colspan: 7, empty: empty, label: 'device' });
 }
 
 function fillBranches(selected) {

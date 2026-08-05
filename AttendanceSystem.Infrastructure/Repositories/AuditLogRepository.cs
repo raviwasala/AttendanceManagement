@@ -34,9 +34,10 @@ public class AuditLogRepository : IAuditLogRepository
                                  .OrderByDescending(a => a.CreatedAt)
                                  .ToListAsync();
 
-    public async Task<IEnumerable<AuditLog>> GetByModuleAsync(string module) =>
+    public async Task<IEnumerable<AuditLog>> GetByModuleAsync(string module, int count = 100) =>
         await _context.AuditLogs.Include(a => a.User)
                                  .Where(a => a.Module == module)
                                  .OrderByDescending(a => a.CreatedAt)
+                                 .Take(count)
                                  .ToListAsync();
 }

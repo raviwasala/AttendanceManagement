@@ -27,13 +27,41 @@ $(function () {
             $('#rDept').append('<option value="' + esc(x.Id) + '">' + esc(x.Name) + '</option>');
         });
     }).always(loadRoster);
+
+    // Typing then hitting Enter is the natural gesture in a search box; without this it
+    // submits nothing and looks broken.
+    $('#rSearch').on('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); loadRoster(); }
+    });
+    $('#rDept, #rShift').on('change', loadRoster);
 });
 
+function rosterFilters() {
+    return {
+        dept:   $('#rDept').val(),
+        shift:  $('#rShift').val(),
+        search: ($('#rSearch').val() || '').trim()
+    };
+}
+
+function clearRosterFilters() {
+    $('#rDept').val('');
+    $('#rShift').val('');
+    $('#rSearch').val('');
+    loadRoster();
+}
+
 function loadRoster() {
-    var y = $('#rYear').val(), m = $('#rMonth').val(), dept = $('#rDept').val();
+    var y = $('#rYear').val(), m = $('#rMonth').val(), f = rosterFilters();
     $('#rosterBody').html('<tr><td class="text-center py-4 text-muted">Loading…</td></tr>');
 
-    var url = '/api/shift-roster?year=' + y + '&month=' + m + (dept ? '&departmentId=' + dept : '');
+    // Clear is only meaningful once something is filtered.
+    $('#rClear').toggleClass('d-none', !(f.dept || f.shift || f.search));
+
+    var url = '/api/shift-roster?year=' + y + '&month=' + m
+            + (f.dept ? '&departmentId=' + encodeURIComponent(f.dept) : '')
+            + (f.shift ? '&shiftId=' + encodeURIComponent(f.shift) : '')
+            + (f.search ? '&search=' + encodeURIComponent(f.search) : '');
     $.getJSON(url, function (d) { roster = d; renderRoster(); })
      .fail(function (xhr) {
          $('#rosterBody').html('<tr><td class="text-danger text-center py-3">' +
@@ -49,6 +77,15 @@ function renderRoster() {
         shiftColour[s.Id] = SHIFT_COLOURS[i % SHIFT_COLOURS.length];
     });
 
+    // The roster payload already lists the active shifts, so the filter is filled from it
+    // rather than a second request. Only once — refilling would drop the current selection.
+    var $shift = $('#rShift');
+    if ($shift.find('option').length <= 1) {
+        roster.AvailableShifts.forEach(function (s) {
+            $shift.append('<option value="' + esc(s.Id) + '">' + esc(s.Name) + '</option>');
+        });
+    }
+
     // Header: employee column + one per day, showing day number over weekday initial.
     var head = '<th class="emp-col">Employee</th>';
     for (var i = 0; i < roster.DaysInMonth; i++) {
@@ -60,7 +97,7 @@ function renderRoster() {
 
     if (!roster.Employees.length) {
         $('#rosterBody').html('<tr><td colspan="' + (roster.DaysInMonth + 1) +
-            '" class="text-center py-4 text-muted">No active employees for this filter.</td></tr>');
+            '" class="text-center py-4 text-muted">No employees match these filters.</td></tr>');
         $('#rosterLegend').empty();
         return;
     }

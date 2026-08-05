@@ -47,12 +47,19 @@ public class AdminController : BaseController
     [SessionAuthorize(Modules.Employees, Actions.View)]
     public IActionResult Employees() => View();
 
+    // Company-wide attendance is gated on Employees.View, not Attendance.View.
+    //
+    // Attendance.View is granted to the Employee role so staff can see *their own* records
+    // via /Me/Attendance. Using it here let any employee open the whole company's attendance.
+    // Employees.View is the permission that already means "may see other people's records",
+    // and every role except Employee holds it — so this closes the gap without taking
+    // anything away from Manager, Supervisor or HR.
     [HttpGet("Attendance")]
-    [SessionAuthorize(Modules.Attendance, Actions.View)]
+    [SessionAuthorize(Modules.Employees, Actions.View)]
     public IActionResult Attendance() => View();
 
     [HttpGet("AttendanceReview")]
-    [SessionAuthorize(Modules.Attendance, Actions.View)]
+    [SessionAuthorize(Modules.Employees, Actions.View)]
     public IActionResult AttendanceReview() => View();
 
     [HttpGet("Leave")]
@@ -86,4 +93,8 @@ public class AdminController : BaseController
     [HttpGet("Settings")]
     [SessionAuthorize(Modules.Settings, Actions.View)]
     public IActionResult Settings() => View();
+
+    [HttpGet("AuditLogs")]
+    [SessionAuthorize(Modules.AuditLogs, Actions.View)]
+    public IActionResult AuditLogs() => View();
 }
