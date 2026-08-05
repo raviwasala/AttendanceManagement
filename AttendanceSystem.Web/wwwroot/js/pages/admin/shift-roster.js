@@ -31,9 +31,10 @@ $(function () {
     // Typing then hitting Enter is the natural gesture in a search box; without this it
     // submits nothing and looks broken.
     $('#rSearch').on('keydown', function (e) {
-        if (e.key === 'Enter') { e.preventDefault(); loadRoster(); }
+        if (e.key === 'Enter') { e.preventDefault(); loadRoster(1); }
     });
-    $('#rDept, #rShift').on('change', loadRoster);
+    // A filter change goes back to page 1 — page 4 of the old filter means nothing.
+    $('#rDept, #rShift').on('change', function () { loadRoster(1); });
 });
 
 function rosterFilters() {
@@ -51,7 +52,11 @@ function clearRosterFilters() {
     loadRoster();
 }
 
-function loadRoster() {
+var rosterPage = 1;
+
+function loadRoster(page) {
+    rosterPage = amsPageNo(page, rosterPage);
+
     var y = $('#rYear').val(), m = $('#rMonth').val(), f = rosterFilters();
     $('#rosterBody').html('<tr><td class="text-center py-4 text-muted">Loading…</td></tr>');
 
@@ -59,6 +64,7 @@ function loadRoster() {
     $('#rClear').toggleClass('d-none', !(f.dept || f.shift || f.search));
 
     var url = '/api/shift-roster?year=' + y + '&month=' + m
+            + '&page=' + rosterPage + '&pageSize=' + (amsPageSize() || 25)
             + (f.dept ? '&departmentId=' + encodeURIComponent(f.dept) : '')
             + (f.shift ? '&shiftId=' + encodeURIComponent(f.shift) : '')
             + (f.search ? '&search=' + encodeURIComponent(f.search) : '');
@@ -96,15 +102,13 @@ function renderRoster() {
     $('#rosterHead').html(head);
 
     if (!roster.Employees.length) {
-        $('#rosterBody').html('<tr><td colspan="' + (roster.DaysInMonth + 1) +
-            '" class="text-center py-4 text-muted">No employees match these filters.</td></tr>');
         $('#rosterLegend').empty();
-        return;
     }
 
-    var html = '';
-    roster.Employees.forEach(function (e) {
-        html += '<tr>';
+    // Server-paged over employees. Each row carries a cell per day, so an unpaged roster at a
+    // few thousand staff meant laying out six figures' worth of clickable cells at once.
+    amsPage('#rosterBody', roster.Employees, function (e) {
+        var html = '<tr>';
         html += '<td class="emp-col">'
               + '<div class="fw-semibold small">' + esc(e.EmployeeName) + '</div>'
               + '<div class="text-muted" style="font-size:.7rem;">' + esc(e.EmployeeCode)
@@ -149,9 +153,20 @@ function renderRoster() {
                   + '>' + esc(label) + '</td>';
         });
 
-        html += '</tr>';
+        return html + '</tr>';
+    }, {
+        colspan: roster.DaysInMonth + 1,
+        empty: 'No employees match these filters.',
+        label: 'employee',
+        server: {
+            total: roster.TotalEmployees,
+            page: roster.Page,
+            pageSize: roster.PageSize,
+            onPage: loadRoster
+        }
     });
-    $('#rosterBody').html(html);
+
+    if (!roster.Employees.length) return;
 
     // Legend
     var legend = roster.AvailableShifts.map(function (s) {

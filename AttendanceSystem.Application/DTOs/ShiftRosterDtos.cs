@@ -59,6 +59,14 @@ public class ShiftRosterDto
 
     /// <summary>Employees with no shift assignment at all — surfaced so it can be fixed.</summary>
     public int EmployeesWithoutAssignment { get; set; }
+
+    // ── Paging ──────────────────────────────────────────────────────────────────
+    //
+    // Employees holds one page of rows; TotalEmployees counts everyone matching the filters.
+    // The day columns are never paged — a roster cut in half by date would be unreadable.
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; }
+    public int TotalEmployees { get; set; }
 }
 
 /// <summary>Sets or clears the shift for one employee on one date.</summary>

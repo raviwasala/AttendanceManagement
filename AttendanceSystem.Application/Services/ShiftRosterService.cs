@@ -35,8 +35,16 @@ public class ShiftRosterService : IShiftRosterService
         _currentUser = currentUser;
     }
 
+    /// <summary>
+    /// The month's roster, one page of employees at a time.
+    ///
+    /// A page here is a page of <em>employees</em>, not of cells: the day columns always cover
+    /// the whole month, because a roster split across pages by date would be unreadable. That
+    /// still matters — every row carries a cell per day, so a site with 5,000 staff was asking
+    /// the browser to lay out 155,000 clickable cells in one go.
+    /// </summary>
     public async Task<Result<ShiftRosterDto>> GetMonthlyRosterAsync(int year, int month, int? departmentId = null,
-        string? search = null, int? employeeId = null, int? shiftId = null)
+        string? search = null, int? employeeId = null, int? shiftId = null, PageRequest? page = null)
     {
         try
         {
@@ -95,7 +103,35 @@ public class ShiftRosterService : IShiftRosterService
                     .ToList()
             };
 
-            foreach (var emp in employees.OrderBy(e => e.FirstName).ThenBy(e => e.LastName))
+            page ??= new PageRequest { Page = 1, PageSize = 0 };
+
+            var ordered = employees.OrderBy(e => e.FirstName).ThenBy(e => e.LastName).ToList();
+
+            // Counted over everyone who matched the filters, not the page — a header saying
+            // "3 without a shift" that only meant "on this page" would send people hunting.
+            var assignedIds = assignments.Select(a => a.EmployeeId).ToHashSet();
+            dto.EmployeesWithoutAssignment = ordered.Count(e => !assignedIds.Contains(e.Id));
+
+            // The shift filter needs the resolved shift for each day, which only exists once a
+            // row is built — so it cannot be pushed into the page slice. Narrowing to employees
+            // who at least *hold* an assignment to that shift keeps the number of rows that
+            // have to be built small, and the exact per-day test still runs below.
+            if (shiftId.HasValue)
+            {
+                var candidates = assignments
+                    .Where(a => a.ShiftId == shiftId.Value)
+                    .Select(a => a.EmployeeId)
+                    .ToHashSet();
+                ordered = ordered.Where(e => candidates.Contains(e.Id)).ToList();
+            }
+
+            // Without a shift filter the page can be taken before any row is built, so only the
+            // rows actually shown are assembled.
+            var buildFor = shiftId.HasValue || page.PageSize <= 0
+                ? ordered
+                : ordered.Skip(page.Skip).Take(page.PageSize).ToList();
+
+            foreach (var emp in buildFor)
             {
                 var mine = assignments.Where(a => a.EmployeeId == emp.Id).ToList();
 
@@ -154,12 +190,27 @@ public class ShiftRosterService : IShiftRosterService
 
                 // Shift filter keeps anyone who works that shift on at least one day of the
                 // month, so a one-day override is not missed the way a base-shift-only test
-                // would miss it.
+                // would miss it — an assignment can be entirely shadowed by a later one.
                 if (shiftId == null || row.Days.Any(d => d.ShiftId == shiftId))
                     dto.Employees.Add(row);
             }
 
-            dto.EmployeesWithoutAssignment = dto.Employees.Count(e => e.HasNoAssignment);
+            dto.Page = page.Page;
+            dto.PageSize = page.PageSize;
+
+            if (shiftId.HasValue)
+            {
+                // Rows were built for every candidate, so the exact count is known and the page
+                // is taken here instead.
+                dto.TotalEmployees = dto.Employees.Count;
+                if (page.PageSize > 0)
+                    dto.Employees = dto.Employees.Skip(page.Skip).Take(page.PageSize).ToList();
+            }
+            else
+            {
+                dto.TotalEmployees = ordered.Count;
+            }
+
             return Result<ShiftRosterDto>.Success(dto);
         }
         catch (Exception ex)

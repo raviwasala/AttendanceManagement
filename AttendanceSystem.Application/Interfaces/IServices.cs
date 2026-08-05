@@ -222,7 +222,7 @@ public interface IAttendanceReviewService
 public interface IShiftRosterService
 {
     Task<Result<ShiftRosterDto>> GetMonthlyRosterAsync(int year, int month, int? departmentId = null,
-        string? search = null, int? employeeId = null, int? shiftId = null);
+        string? search = null, int? employeeId = null, int? shiftId = null, PageRequest? page = null);
 
     /// <summary>Sets one day's shift, or clears the override when ShiftId is null.</summary>
     Task<Result> SetDayAsync(SetRosterDayDto dto);

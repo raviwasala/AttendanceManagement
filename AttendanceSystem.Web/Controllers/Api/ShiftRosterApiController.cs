@@ -1,5 +1,6 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Common.Models;
 using AttendanceSystem.Web.Filters;
 using Microsoft.AspNetCore.Mvc;
 using Modules = AttendanceSystem.Common.Constants.AppConstants.Modules;
@@ -23,13 +24,16 @@ public class ShiftRosterApiController : ApiControllerBase
     [SessionAuthorize(Modules.Shifts, Actions.View)]
     public async Task<IActionResult> Get([FromQuery] int? year, [FromQuery] int? month,
         [FromQuery] int? departmentId, [FromQuery] string? search,
-        [FromQuery] int? employeeId, [FromQuery] int? shiftId)
+        [FromQuery] int? employeeId, [FromQuery] int? shiftId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = PageRequest.DefaultPageSize)
     {
         // Default to the current month so the screen is useful with no query string.
         var y = year ?? DateTime.Today.Year;
         var m = month ?? DateTime.Today.Month;
 
-        var r = await _roster.GetMonthlyRosterAsync(y, m, departmentId, search, employeeId, shiftId);
+        var r = await _roster.GetMonthlyRosterAsync(y, m, departmentId, search, employeeId, shiftId,
+            new PageRequest { Page = page, PageSize = pageSize });
         return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
     }
 
