@@ -48,6 +48,7 @@ public class AttendanceDbContext : DbContext
     public DbSet<EmployeeHistory> EmployeeHistories { get; set; } = null!;
     public DbSet<EmployeeDocument> EmployeeDocuments { get; set; } = null!;
     public DbSet<AttendancePeriodLock> AttendancePeriodLocks { get; set; } = null!;
+    public DbSet<DashboardPreference> DashboardPreferences { get; set; } = null!;
 
     // ── Auto-timestamp & Soft-Delete interception ─────────────────────────────
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -249,6 +250,22 @@ public class AttendanceDbContext : DbContext
             // Every save and every imported punch asks "is this date locked?", so the range
             // is indexed rather than scanned.
             e.HasIndex(x => new { x.FromDate, x.ToDate });
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        // ── DashboardPreference ───────────────────────────────────────────────
+        modelBuilder.Entity<DashboardPreference>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.WidgetKey).IsRequired().HasMaxLength(50);
+
+            // Null UserId is the company default, so the relationship is optional.
+            e.HasOne(x => x.User).WithMany()
+             .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+
+            // One row per user per widget. Unique so a double-save cannot leave two
+            // contradictory rows and make the dashboard depend on which is read first.
+            e.HasIndex(x => new { x.UserId, x.WidgetKey }).IsUnique();
             e.HasQueryFilter(x => !x.IsDeleted);
         });
 

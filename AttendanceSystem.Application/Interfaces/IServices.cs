@@ -483,6 +483,30 @@ public interface IAttendanceLockService
     Task<Result<ReprocessResultDto>> ReprocessAsync(ReprocessRequestDto dto);
 }
 
+/// <summary>
+/// Which dashboard widgets a user sees.
+///
+/// Every method filters the catalogue by what the signed-in user is permitted to load. A
+/// widget they cannot see is never offered and never returned — and the underlying data
+/// endpoints keep their own permission checks, so a tampered preference produces an empty
+/// widget rather than somebody else's data.
+/// </summary>
+public interface IDashboardPreferenceService
+{
+    /// <summary>The catalogue as it applies to the signed-in user, with current visibility.</summary>
+    Task<Result<IEnumerable<DashboardWidgetDto>>> GetMyWidgetsAsync();
+
+    Task<Result> SaveMyPreferencesAsync(SaveDashboardPreferencesDto dto);
+
+    /// <summary>Removes this user's choices so they follow the company default again.</summary>
+    Task<Result> ResetMineAsync();
+
+    /// <summary>The company default new users start from.</summary>
+    Task<Result<IEnumerable<DashboardWidgetDto>>> GetCompanyDefaultAsync();
+
+    Task<Result> SaveCompanyDefaultAsync(SaveDashboardPreferencesDto dto);
+}
+
 /// <summary>Bulk creation and update of employee records from a CSV or Excel file.</summary>
 public interface IEmployeeImportService
 {

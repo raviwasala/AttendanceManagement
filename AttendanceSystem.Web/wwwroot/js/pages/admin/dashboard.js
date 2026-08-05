@@ -296,3 +296,99 @@ document.addEventListener('DOMContentLoaded', function () {
     loadLeaveOverview();
     loadOperations();
 });
+
+/* ── Widget visibility ────────────────────────────────────────────────────────
+   Applied on load and after saving. Hiding is a preference, not a permission:
+   the server has already dropped any widget this user cannot load, and each
+   widget's data endpoint enforces its own permission regardless. */
+var dashWidgets = [];
+
+$(function () { loadWidgetPrefs(); });
+
+function loadWidgetPrefs() {
+    $.getJSON('/api/dashboard-widgets', function (list) {
+        dashWidgets = list || [];
+        applyWidgetVisibility();
+    });
+}
+
+function applyWidgetVisibility() {
+    dashWidgets.forEach(function (w) {
+        $('[data-widget="' + w.Key + '"]').toggle(!!w.IsVisible);
+    });
+}
+
+function openCustomise() {
+    $('#cuList').html('<div class="text-muted small">Loading…</div>');
+    new bootstrap.Modal('#customiseModal').show();
+
+    $.getJSON('/api/dashboard-widgets', function (list) {
+        dashWidgets = list || [];
+        if (!dashWidgets.length) {
+            $('#cuList').html('<div class="text-muted small">'
+                + 'There are no dashboard widgets available to your role.</div>');
+            return;
+        }
+        $('#cuList').html(dashWidgets.map(function (w) {
+            return '<div class="form-check mb-2">'
+                 + '<input class="form-check-input cu-chk" type="checkbox" id="cu-' + esc(w.Key) + '"'
+                 + ' value="' + esc(w.Key) + '"' + (w.IsVisible ? ' checked' : '') + '>'
+                 + '<label class="form-check-label" for="cu-' + esc(w.Key) + '">'
+                 + '<strong>' + esc(w.Title) + '</strong>'
+                 + '<div class="text-muted small">' + esc(w.Description) + '</div>'
+                 + '</label></div>';
+        }).join(''));
+    }).fail(function (xhr) {
+        $('#cuList').html('<div class="alert alert-danger py-2 mb-0 small">'
+            + esc(xhr.responseText || 'Could not load the widget list.') + '</div>');
+    });
+}
+
+function selectedWidgetKeys() {
+    return $('.cu-chk:checked').map(function () { return $(this).val(); }).get();
+}
+
+function saveCustomise() {
+    $.ajax({
+        url: '/api/dashboard-widgets', type: 'POST', contentType: 'application/json',
+        data: JSON.stringify({ VisibleKeys: selectedWidgetKeys() }),
+        success: function () {
+            bootstrap.Modal.getInstance('#customiseModal').hide();
+            notifySuccess('Dashboard updated.');
+            loadWidgetPrefs();
+        },
+        error: function (xhr) { notifyError(xhr.responseText || 'Could not save.'); }
+    });
+}
+
+function saveAsDefault() {
+    notifyConfirm({
+        title: 'Save as company default',
+        text: 'New users will start with this selection. People who have already customised '
+            + 'their own dashboard keep their choices.',
+        confirmText: 'Save default', icon: 'question'
+    }, function () {
+        $.ajax({
+            url: '/api/dashboard-widgets/default', type: 'POST', contentType: 'application/json',
+            data: JSON.stringify({ VisibleKeys: selectedWidgetKeys() }),
+            success: function () { notifySuccess('Company default saved.'); },
+            error: function (xhr) { notifyError(xhr.responseText || 'Could not save the default.'); }
+        });
+    });
+}
+
+function resetCustomise() {
+    notifyConfirm({
+        title: 'Reset dashboard',
+        text: 'Your choices are removed and you follow the company default again.',
+        confirmText: 'Reset', icon: 'warning'
+    }, function () {
+        $.post('/api/dashboard-widgets/reset')
+            .done(function () {
+                bootstrap.Modal.getInstance('#customiseModal').hide();
+                notifySuccess('Dashboard reset to the default.');
+                loadWidgetPrefs();
+            })
+            .fail(function (xhr) { notifyError(xhr.responseText || 'Could not reset.'); });
+    });
+}

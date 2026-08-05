@@ -42,15 +42,64 @@
     };
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+@{
+    var canSetDashboardDefault = ViewContext.HasPermission(
+        AppConstants.Modules.Settings, AppConstants.Actions.Edit);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <h5 class="mb-0">Dashboard</h5>
-    <span class="text-muted small">@DateTime.Now.ToString("dddd, dd MMMM yyyy")</span>
+    <div class="d-flex align-items-center gap-3">
+        <span class="text-muted small">@DateTime.Now.ToString("dddd, dd MMMM yyyy")</span>
+        <button class="btn btn-outline-secondary btn-sm px-3" onclick="openCustomise()">
+            <i class="feather icon-sliders me-1"></i>Customise
+        </button>
+    </div>
+</div>
+
+@* ── Customise ───────────────────────────────────────────────────────────────
+   Only widgets this user is permitted to load are listed. Offering one they
+   cannot open would be a setting that does nothing, and the data endpoints keep
+   their own permission checks regardless — hiding a widget is a preference, not
+   a security boundary. *@
+<div class="modal fade" id="customiseModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">Customise dashboard</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted">
+                    Choose what appears on <strong>your</strong> dashboard. This changes nothing
+                    for anyone else.
+                </p>
+                <div id="cuList"><div class="text-muted small">Loading…</div></div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <button class="btn btn-link btn-sm text-muted p-0" onclick="resetCustomise()">
+                    Reset to default
+                </button>
+                <div class="d-flex gap-2">
+                    @if (canSetDashboardDefault)
+                    {
+                        <button class="btn btn-outline-secondary btn-sm px-3" onclick="saveAsDefault()"
+                                title="New users will start with this selection">
+                            Save as company default
+                        </button>
+                    }
+                    <button class="btn btn-light btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary btn-sm px-4" onclick="saveCustomise()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Stat Cards -->
 @* Gradient classes (bg-c-yellow / green / pink / blue) come from the Adminty theme rather
    than being redefined here, so these tiles stay in step with the rest of the template. *@
-<div class="row g-3 mb-4" id="statCards">
+<div class="row g-3 mb-4" id="statCards" data-widget="stats">
     @foreach (var t in tiles)
     {
         var canOpen = ViewContext.HasPermission(t.Module, AppConstants.Actions.View);
@@ -90,7 +139,9 @@
    dashboard itself is visible to roles that cannot see attendance or leave. *@
 @if (ViewContext.HasPermission(AppConstants.Modules.Attendance, AppConstants.Actions.View))
 {
-    <div class="row g-3 mb-3">
+    @* data-widget marks a block the user can switch off in Customise. The permission gate
+       above still applies first — a hidden widget is a preference, not a security boundary. *@
+    <div class="row g-3 mb-3" data-widget="trend">
         <div class="col-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -125,7 +176,7 @@
 @if (ViewContext.HasPermission(AppConstants.Modules.Employees, AppConstants.Actions.View))
 {
     <div class="row g-3 mb-3">
-        <div class="col-xl-5">
+        <div class="col-xl-5" data-widget="punctuality">
             <div class="card h-100">
                 <div class="card-header"><strong>Punctuality</strong>
                     <span class="text-muted small ms-1">last 30 days</span>
@@ -151,7 +202,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-xl-7">
+        <div class="col-xl-7" data-widget="toplate">
             <div class="card h-100">
                 <div class="card-header"><strong>Most Late Arrivals</strong>
                     <span class="text-muted small ms-1">last 30 days</span>
@@ -183,7 +234,7 @@
 @if (ViewContext.HasPermission(AppConstants.Modules.Leave, AppConstants.Actions.View))
 {
     <div class="row g-3 mb-3">
-        <div class="col-xl-7">
+        <div class="col-xl-7" data-widget="pendingleave">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <strong>Pending Leave Approvals</strong>
@@ -208,7 +259,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-xl-5">
+        <div class="col-xl-5" data-widget="leaveutil">
             <div class="card h-100">
                 <div class="card-header"><strong>Leave Utilisation</strong>
                     <span class="text-muted small ms-1">this year</span>
@@ -224,7 +275,7 @@
 @* ── Operations health ──────────────────────────────────────────────────────── *@
 @if (ViewContext.HasPermission(AppConstants.Modules.Employees, AppConstants.Actions.View))
 {
-    <div class="row g-3 mb-3">
+    <div class="row g-3 mb-3" data-widget="datahealth">
         <div class="col-12">
             <div class="card">
                 <div class="card-header"><strong>Data Health</strong>
@@ -238,7 +289,7 @@
     </div>
 }
 
-<div class="row g-3">
+<div class="row g-3" data-widget="quicklinks">
     <!-- Attendance % card -->
     <div class="col-xl-4 col-md-6">
         <div class="card h-100">
