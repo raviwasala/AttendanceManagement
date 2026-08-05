@@ -1,33 +1,36 @@
 /* ── Admin Biometric Import JavaScript ── */
 
-var employeesMap = {}; // EnrollId -> Name mapping
+var employeesMap = {};      // EnrollId -> Name
+var previewedPunches = [];  // last preview, imported as-is
+
+// A .mdb can yield well over a hundred thousand punches. Rendering them all locks
+// the browser for seconds and tells the operator nothing the count does not; the
+// preview exists to confirm the file was read correctly, not to be read in full.
+var PREVIEW_ROW_LIMIT = 500;
 
 $(function () {
     var today = new Date().toISOString().split('T')[0];
     var firstDay = new Date(new Date().setDate(1)).toISOString().split('T')[0];
-    $('#importFrom').val(firstDay); 
+    $('#importFrom').val(firstDay);
     $('#importTo').val(today);
     loadEmployees();
 });
 
 function loadEmployees() {
     $.getJSON('/api/employees', function (data) {
-        if (data && data.length) {
-            data.forEach(function (e) {
-                if (e.biometricEnrollId || e.BiometricEnrollId) {
-                    var bId = e.biometricEnrollId || e.BiometricEnrollId;
-                    var name = (e.firstName || e.FirstName || '') + ' ' + (e.lastName || e.LastName || '');
-                    employeesMap[bId] = name.trim();
-                }
-            });
-        }
+        (data || []).forEach(function (e) {
+            var bId = e.BiometricEnrollId || e.biometricEnrollId;
+            if (!bId) return;
+            var name = ((e.FirstName || e.firstName || '') + ' ' + (e.LastName || e.lastName || '')).trim();
+            employeesMap[bId] = name;
+        });
     });
 }
 
 function getFormData() {
     var fileInput = $('#importFile')[0];
     if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-        alert('Please select a biometric file (.csv, .xlsx, .xls, .mdb, .accdb).');
+        notifyError('Please select a biometric file (.csv, .xlsx, .xls, .mdb, .accdb).');
         return null;
     }
     var fd = new FormData();
@@ -37,178 +40,218 @@ function getFormData() {
     return fd;
 }
 
+/* ── Progress ─────────────────────────────────────────────────────────────────
+   Two phases, shown honestly.
+
+   Upload is measurable, and on a 35 MB Access file it is most of the wait — so it
+   gets a real percentage. Once the bytes are on the server the work is a single
+   opaque call, so the bar goes indeterminate rather than inventing a number that
+   creeps to 99% and stops. An elapsed counter carries "still working" instead. */
+var progressTimer = null;
+var progressStart = 0;
+
+function progressStart_(label, hint) {
+    progressStart = Date.now();
+    $('#importProgress').removeClass('d-none');
+    $('#ipLabel').text(label);
+    $('#ipHint').text(hint || '');
+    $('#ipElapsed').text('0s');
+    setBar(0, false);
+
+    $('#btnPreview, #btnImport').prop('disabled', true);
+
+    clearInterval(progressTimer);
+    progressTimer = setInterval(function () {
+        $('#ipElapsed').text(Math.round((Date.now() - progressStart) / 1000) + 's');
+    }, 500);
+}
+
+function setBar(pct, indeterminate) {
+    var $bar = $('#ipBar');
+    $bar.css('width', indeterminate ? '100%' : pct + '%').attr('aria-valuenow', indeterminate ? 100 : pct);
+    $bar.toggleClass('progress-bar-striped progress-bar-animated', !!indeterminate);
+}
+
+function progressStop_() {
+    clearInterval(progressTimer);
+    progressTimer = null;
+    $('#importProgress').addClass('d-none');
+    $('#btnPreview, #btnImport').prop('disabled', false);
+}
+
+/**
+ * POSTs a FormData with upload progress.
+ *
+ * jQuery's .ajax does not expose the upload's progress events, so the XHR is built
+ * here rather than wrapping it — the percentage is the whole reason this exists.
+ */
+function postWithProgress(url, fd, opts) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+
+    xhr.upload.onprogress = function (e) {
+        if (!e.lengthComputable) return;
+        var pct = Math.round(e.loaded / e.total * 100);
+        setBar(pct, false);
+        $('#ipLabel').text('Uploading… ' + pct + '%');
+        $('#ipHint').text(fmtBytes(e.loaded) + ' of ' + fmtBytes(e.total));
+    };
+
+    // Upload finished; the server now reads and processes the file, and there is
+    // nothing further to measure from here.
+    xhr.upload.onload = function () {
+        setBar(100, true);
+        $('#ipLabel').text(opts.processingLabel || 'Processing on the server…');
+        $('#ipHint').text(opts.processingHint || '');
+    };
+
+    xhr.onload = function () {
+        progressStop_();
+        if (xhr.status >= 200 && xhr.status < 300) {
+            var data = null;
+            try { data = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch (e) { }
+            opts.success(data);
+        } else {
+            opts.error(xhr.responseText || 'Request failed (' + xhr.status + ').');
+        }
+    };
+
+    xhr.onerror = function () {
+        progressStop_();
+        opts.error('The connection failed during upload.');
+    };
+
+    xhr.send(fd);
+    return xhr;
+}
+
+function fmtBytes(n) {
+    return n < 1024 ? n + ' B'
+         : n < 1048576 ? (n / 1024).toFixed(0) + ' KB'
+         : (n / 1048576).toFixed(1) + ' MB';
+}
+
+/* ── Preview ──────────────────────────────────────────────────────────────── */
+
 function previewFile() {
     var fd = getFormData(); if (!fd) return;
-    $('#previewCard').hide(); 
-    $('#previewBody').html('');
-    $('#resultPanel').html('<div class="text-muted"><i class="fa fa-spinner fa-spin me-2"></i>Reading biometric file...</div>');
 
-    $.ajax({
-        url: '/api/import/preview', 
-        type: 'POST', 
-        data: fd, 
-        processData: false, 
-        contentType: false,
+    $('#previewCard').hide();
+    $('#previewBody').html('');
+    previewedPunches = [];
+    $('#resultPanel').html('<div class="text-muted small">Reading the file…</div>');
+
+    progressStart_('Uploading…', 'Large Access files take a moment.');
+
+    postWithProgress('/api/import/preview', fd, {
+        processingLabel: 'Reading punches…',
+        processingHint: 'Opening the file and filtering to the selected date range.',
         success: function (data) {
             if (!data || !data.length) {
-                $('#resultPanel').html('<div class="alert alert-warning">No valid punch records found in file.</div>');
+                $('#resultPanel').html('<div class="alert alert-warning py-2 mb-0">'
+                    + 'No punch records found in this file for the selected date range.</div>');
                 return;
             }
-
-            renderEditableGrid(data);
-            $('#resultPanel').html('<div class="alert alert-info py-2 mb-0"><i class="fa fa-info-circle me-1"></i>Loaded <strong>' + data.length + '</strong> punch entries into the grid below. You can edit times, enroll IDs, or select specific rows before importing.</div>');
+            previewedPunches = data;
+            renderPreview(data);
+            $('#resultPanel').html('<div class="alert alert-info py-2 mb-0">'
+                + '<i class="fa fa-info-circle me-1"></i>Read <strong>' + data.length
+                + '</strong> punch entries. Nothing has been saved — use '
+                + '<strong>Import these punches</strong> below to save them.</div>');
         },
-        error: function (xhr) {
-            var msg = xhr.responseText || 'Unknown error occurred.';
-            $('#resultPanel').html('<div class="alert alert-danger"><i class="fa fa-exclamation-triangle me-1"></i>Preview failed: ' + msg + '</div>');
+        error: function (msg) {
+            $('#resultPanel').html('<div class="alert alert-danger py-2 mb-0">'
+                + '<i class="fa fa-exclamation-triangle me-1"></i>Preview failed: ' + esc(msg) + '</div>');
         }
     });
 }
 
-function renderEditableGrid(data) {
+function renderPreview(data) {
+    var shown = Math.min(data.length, PREVIEW_ROW_LIMIT);
     var html = '';
-    data.forEach(function (p, i) {
-        var enrollId = p.enrollId !== undefined ? p.enrollId : (p.EnrollId !== undefined ? p.EnrollId : '');
-        var empName = p.empName || p.EmpName || employeesMap[enrollId] || '—';
-        var rawTime = p.punchTime || p.PunchTime || '';
-        var isoTime = formatIsoDateTime(rawTime);
-        var deviceId = p.deviceId || p.DeviceId || '—';
 
-        html += createGridRowHtml(i + 1, enrollId, empName, isoTime, deviceId, true);
-    });
+    for (var i = 0; i < shown; i++) {
+        var p = data[i];
+        var enrollId = p.EnrollId !== undefined ? p.EnrollId : p.enrollId;
+        var name = p.EmpName || p.empName || employeesMap[enrollId];
+        var time = p.PunchTime || p.punchTime;
+        var device = p.DeviceId || p.deviceId;
 
-    $('#previewBody').html(html); 
-    $('#previewCount').text(data.length + ' records'); 
-    $('#previewCard').show();
-}
-
-function createGridRowHtml(rowNum, enrollId, empName, isoTime, deviceId, checked) {
-    var chkAttr = checked ? 'checked' : '';
-    return '<tr class="punch-row">'
-        + '<td class="text-center ps-3"><input type="checkbox" class="form-check-input row-chk" ' + chkAttr + '></td>'
-        + '<td class="text-muted row-num">' + rowNum + '</td>'
-        + '<td><input type="number" class="form-control form-control-sm cell-enroll" value="' + enrollId + '" onchange="onEnrollChange(this)"></td>'
-        + '<td class="cell-emp-name text-truncate" style="max-width:180px;">' + empName + '</td>'
-        + '<td><input type="datetime-local" class="form-control form-control-sm cell-time" value="' + isoTime + '"></td>'
-        + '<td class="text-muted"><input type="text" class="form-control form-control-sm cell-device" value="' + deviceId + '"></td>'
-        + '<td class="text-center">'
-        + '  <button class="btn btn-xs btn-outline-danger py-0 px-2" onclick="removeRow(this)"><i class="fa fa-trash"></i></button>'
-        + '</td>'
-        + '</tr>';
-}
-
-function formatIsoDateTime(dateStr) {
-    if (!dateStr) return '';
-    try {
-        var d = new Date(dateStr);
-        if (isNaN(d.getTime())) return '';
-        var pad = function(n) { return n < 10 ? '0' + n : n; };
-        return d.getFullYear() + '-' 
-            + pad(d.getMonth() + 1) + '-' 
-            + pad(d.getDate()) + 'T' 
-            + pad(d.getHours()) + ':' 
-            + pad(d.getMinutes());
-    } catch(e) {
-        return '';
+        html += '<tr>'
+            + '<td class="ps-3 text-muted small">' + (i + 1) + '</td>'
+            + '<td class="small">' + esc(enrollId == null ? '—' : enrollId) + '</td>'
+            // An unmatched enrol id is the reason a punch will not import, so it is
+            // called out here rather than left as a blank cell.
+            + '<td class="small">' + (name
+                ? esc(name)
+                : '<span class="badge bg-warning text-dark">no matching employee</span>') + '</td>'
+            + '<td class="small">' + esc(fmtPunch(time)) + '</td>'
+            + '<td class="pe-3 small text-muted">' + esc(device || '—') + '</td>'
+            + '</tr>';
     }
-}
 
-function onEnrollChange(input) {
-    var val = $(input).val();
-    var row = $(input).closest('tr');
-    var name = employeesMap[val] || '—';
-    row.find('.cell-emp-name').text(name);
-}
-
-function addManualRow() {
-    var count = $('#previewBody tr').length + 1;
-    var nowIso = formatIsoDateTime(new Date());
-    var html = createGridRowHtml(count, '', '—', nowIso, 'DEV-1', true);
-    $('#previewBody').append(html);
-    $('#previewCount').text($('#previewBody tr').length + ' records');
+    $('#previewBody').html(html);
+    $('#previewCount').text(data.length.toLocaleString() + ' records');
+    $('#previewShown').text(shown.toLocaleString());
     $('#previewCard').show();
 }
 
-function removeRow(btn) {
-    $(btn).closest('tr').remove();
-    reindexRows();
+function fmtPunch(v) {
+    if (!v) return '—';
+    var d = new Date(v);
+    if (isNaN(d.getTime())) return String(v);
+    var pad = function (n) { return n < 10 ? '0' + n : n; };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+         + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
 }
 
-function reindexRows() {
-    $('#previewBody tr').each(function (idx, tr) {
-        $(tr).find('.row-num').text(idx + 1);
-    });
-    $('#previewCount').text($('#previewBody tr').length + ' records');
-}
+/* ── Importing ────────────────────────────────────────────────────────────── */
 
-function toggleSelectAll(check) {
-    $('.row-chk').prop('checked', check);
-}
+/** Imports exactly what was previewed, without re-reading the file. */
+function importPreviewed() {
+    if (!previewedPunches.length) { notifyError('Preview a file first.'); return; }
 
-function importEditedPunches() {
-    var selectedPunches = [];
-    $('#previewBody tr').each(function () {
-        var row = $(this);
-        if (row.find('.row-chk').is(':checked')) {
-            var enrollId = parseInt(row.find('.cell-enroll').val());
-            var punchTime = row.find('.cell-time').val();
-            var deviceId = row.find('.cell-device').val();
-            var empName = row.find('.cell-emp-name').text();
+    notifyConfirm({
+        title: 'Import punches',
+        text: previewedPunches.length.toLocaleString() + ' punch record(s) will be processed into attendance.',
+        confirmText: 'Import', icon: 'question'
+    }, function () {
+        progressStart_('Processing punches…', 'Pairing punches and calculating attendance.');
+        setBar(100, true);
 
-            if (enrollId && punchTime) {
-                selectedPunches.push({
-                    EnrollId: enrollId,
-                    PunchTime: punchTime,
-                    EmpName: empName !== '—' ? empName : null,
-                    DeviceId: deviceId !== '—' ? deviceId : null
-                });
+        $.ajax({
+            url: '/api/import/process-edited', type: 'POST',
+            contentType: 'application/json', data: JSON.stringify(previewedPunches),
+            success: function (result) { progressStop_(); showImportSummary(result); },
+            error: function (xhr) {
+                progressStop_();
+                $('#resultPanel').html('<div class="alert alert-danger py-2 mb-0">'
+                    + '<i class="fa fa-exclamation-triangle me-1"></i>Import failed: '
+                    + esc(xhr.responseText || 'Unknown error.') + '</div>');
             }
-        }
-    });
-
-    if (selectedPunches.length === 0) {
-        alert('Please check at least one valid row with Enroll ID and Punch Time.');
-        return;
-    }
-
-    $('#resultPanel').html('<div class="text-muted"><i class="fa fa-spinner fa-spin me-2"></i>Processing ' + selectedPunches.length + ' selected punch records...</div>');
-
-    $.ajax({
-        url: '/api/import/process-edited',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(selectedPunches),
-        success: function (result) {
-            showImportSummary(result);
-        },
-        error: function (xhr) {
-            var msg = xhr.responseText || 'Error processing punches.';
-            $('#resultPanel').html('<div class="alert alert-danger"><i class="fa fa-exclamation-triangle me-1"></i>Import failed: ' + msg + '</div>');
-        }
+        });
     });
 }
 
 function importDirectFile() {
     var fd = getFormData(); if (!fd) return;
-    $('#resultPanel').html('<div class="text-muted"><i class="fa fa-spinner fa-spin me-2"></i>Importing direct file...</div>');
 
-    $.ajax({
-        url: '/api/import/file', 
-        type: 'POST', 
-        data: fd, 
-        processData: false, 
-        contentType: false,
-        success: function (result) {
-            showImportSummary(result);
-        },
-        error: function (xhr) {
-            var msg = xhr.responseText || 'Unknown error occurred.';
-            $('#resultPanel').html('<div class="alert alert-danger">Import failed: ' + msg + '</div>');
+    progressStart_('Uploading…', 'Large Access files take a moment.');
+
+    postWithProgress('/api/import/file', fd, {
+        processingLabel: 'Importing…',
+        processingHint: 'Reading punches, pairing them and calculating attendance.',
+        success: function (result) { showImportSummary(result); },
+        error: function (msg) {
+            $('#resultPanel').html('<div class="alert alert-danger py-2 mb-0">'
+                + '<i class="fa fa-exclamation-triangle me-1"></i>Import failed: ' + esc(msg) + '</div>');
         }
     });
 }
 
 function showImportSummary(result) {
+    if (!result) { $('#resultPanel').html('<div class="alert alert-warning py-2 mb-0">No response from the server.</div>'); return; }
+
     // The API has been seen to serialise either casing, so both are read.
     var pick = function (lower, upper) {
         return result[lower] !== undefined ? result[lower] : (result[upper] || 0);
@@ -266,4 +309,6 @@ function showImportSummary(result) {
     }
 
     $('#resultPanel').html(html);
+    $('#previewCard').hide();
+    previewedPunches = [];
 }
