@@ -355,7 +355,7 @@ public class BiometricImportService : IBiometricImportService
 
         if (connStr == null)
         {
-            return ReadFromAccessBinaryFallback(mdbFilePath, fromDate, toDate);
+            return ReadFromAccessBinaryFallback(mdbFilePath, fromDate, toDate, connectionFailed: true);
         }
 
         using var conn = new OleDbConnection(connStr);
@@ -406,7 +406,11 @@ public class BiometricImportService : IBiometricImportService
                 c.Equals("TTime", StringComparison.OrdinalIgnoreCase) ||
                 c.Equals("ClockTime", StringComparison.OrdinalIgnoreCase) ||
                 c.Equals("AttTime", StringComparison.OrdinalIgnoreCase) ||
-                c.Equals("InOutTime", StringComparison.OrdinalIgnoreCase));
+                c.Equals("InOutTime", StringComparison.OrdinalIgnoreCase) ||
+                // Realand / EBKQ name their punch timestamp KqDate. Omitting it meant RecordTable
+                // — the real log — failed the "has a time column" test and was skipped entirely.
+                c.Equals("KqDate", StringComparison.OrdinalIgnoreCase) ||
+                c.Equals("Kq_Date", StringComparison.OrdinalIgnoreCase));
 
             string nCol = colNames.FirstOrDefault(c =>
                 c.Equals("EmpName", StringComparison.OrdinalIgnoreCase) ||
@@ -423,17 +427,39 @@ public class BiometricImportService : IBiometricImportService
             }
         }
 
+        // A table whose column names match but which holds no rows is not the punch log. These
+        // devices ship empty summary tables next to the real one, and an empty match taking
+        // precedence is how every import came to read nothing at all.
+        int RowCount(string table)
+        {
+            try
+            {
+                using var countCmd = new OleDbCommand($"SELECT COUNT(*) FROM [{table}]", conn);
+                return Convert.ToInt32(countCmd.ExecuteScalar() ?? 0);
+            }
+            catch { return 0; }
+        }
+
+        // Tracked so an empty result can report the range the file actually covers, rather than
+        // blaming a database driver that opened the file perfectly well.
+        DateTime? dataMin = null, dataMax = null;
+        bool readAPunchTable = false;
+
         if (validTables.Count > 0)
         {
-            var selected = validTables.FirstOrDefault(vt =>
-                vt.TableName.Equals("RecordTable", StringComparison.OrdinalIgnoreCase) ||
-                vt.TableName.Equals("CHECKINOUT", StringComparison.OrdinalIgnoreCase) ||
-                vt.TableName.Equals("Att_log", StringComparison.OrdinalIgnoreCase) ||
-                vt.TableName.Equals("AttendanceLogs", StringComparison.OrdinalIgnoreCase) ||
-                vt.TableName.Equals("AttLogs", StringComparison.OrdinalIgnoreCase) ||
-                vt.TableName.Equals("DoorRecord", StringComparison.OrdinalIgnoreCase));
+            static bool IsPreferred(string name) =>
+                name.Equals("RecordTable", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("CHECKINOUT", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("Att_log", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("AttendanceLogs", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("AttLogs", StringComparison.OrdinalIgnoreCase) ||
+                name.Equals("DoorRecord", StringComparison.OrdinalIgnoreCase);
 
-            if (selected.TableName == null) selected = validTables.First();
+            var populated = validTables.Where(vt => RowCount(vt.TableName) > 0).ToList();
+            var pool = populated.Count > 0 ? populated : validTables;
+
+            var selected = pool.FirstOrDefault(vt => IsPreferred(vt.TableName));
+            if (selected.TableName == null) selected = pool.First();
 
             string tableName = selected.TableName;
             string userCol = selected.UserCol;
@@ -445,12 +471,16 @@ public class BiometricImportService : IBiometricImportService
 
             using var cmd = new OleDbCommand(sql, conn);
             using var reader = await cmd.ExecuteReaderAsync();
+            readAPunchTable = true;
 
             while (await reader.ReadAsync())
             {
                 if (int.TryParse(reader[userCol]?.ToString(), out int enrollId) &&
                     DateTime.TryParse(reader[timeCol]?.ToString(), out DateTime punchTime))
                 {
+                    if (dataMin == null || punchTime < dataMin) dataMin = punchTime;
+                    if (dataMax == null || punchTime > dataMax) dataMax = punchTime;
+
                     if (punchTime.Date >= fromDate.Date && punchTime.Date <= toDate.Date)
                     {
                         punches.Add(new BiometricPunchDto
@@ -480,7 +510,19 @@ public class BiometricImportService : IBiometricImportService
         // 3. Fallback binary scanner if empty
         if (punches.Count == 0)
         {
-            punches = ReadFromAccessBinaryFallback(mdbFilePath, fromDate, toDate);
+            // The database opened and its punch table read cleanly, so there is nothing wrong
+            // with the driver — the window simply misses the data. Falling through to the binary
+            // scanner here is what produced "install Microsoft Access Database Engine", sending
+            // people off to fix an engine that was working the whole time.
+            if (readAPunchTable && dataMin != null && dataMax != null)
+            {
+                throw new InvalidOperationException(
+                    $"No punches between {fromDate:yyyy-MM-dd} and {toDate:yyyy-MM-dd}. " +
+                    $"This file covers {dataMin:yyyy-MM-dd} to {dataMax:yyyy-MM-dd} — " +
+                    "widen the date range and try again.");
+            }
+
+            punches = ReadFromAccessBinaryFallback(mdbFilePath, fromDate, toDate, connectionFailed: false);
         }
 
         return punches;
@@ -648,7 +690,13 @@ public class BiometricImportService : IBiometricImportService
         return -1;
     }
 
-    private static List<BiometricPunchDto> ReadFromAccessBinaryFallback(string mdbFilePath, DateTime fromDate, DateTime toDate)
+    /// <param name="connectionFailed">
+    /// True only when no OLE DB provider could open the file. The driver message below is
+    /// actionable in that case and actively misleading in any other, so it is not reused for
+    /// "the file opened but held no punches in range".
+    /// </param>
+    private static List<BiometricPunchDto> ReadFromAccessBinaryFallback(
+        string mdbFilePath, DateTime fromDate, DateTime toDate, bool connectionFailed)
     {
         var punches = new List<BiometricPunchDto>();
         try
@@ -698,8 +746,10 @@ public class BiometricImportService : IBiometricImportService
 
         if (punches.Count == 0)
         {
-            throw new InvalidOperationException(
-                "Cannot connect to Microsoft Access (.mdb) file. Please install Microsoft Access Database Engine (64-bit) from Microsoft, or export/convert the database file to CSV or Excel.");
+            throw new InvalidOperationException(connectionFailed
+                ? "Cannot connect to Microsoft Access (.mdb) file. Please install Microsoft Access Database Engine (64-bit) from Microsoft, or export/convert the database file to CSV or Excel."
+                : $"No punch records found between {fromDate:yyyy-MM-dd} and {toDate:yyyy-MM-dd}. " +
+                  "The database opened correctly but contains no attendance in that range.");
         }
 
         return punches;
