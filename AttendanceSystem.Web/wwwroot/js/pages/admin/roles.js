@@ -3,6 +3,9 @@
 var currentRoleId = 0;
 var allRoles = [];
 
+/* Everything the server returned for the selected role — the save guard checks against it. */
+var loadedPermissions = [];
+
 document.addEventListener('DOMContentLoaded', function () {
     loadRoles();
 });
@@ -82,12 +85,51 @@ function selectRole(roleId) {
     fetch('/api/roles/' + roleId + '/permissions')
         .then(res => res.json())
         .then(perms => {
-            renderMatrixTable(perms);
+            loadedPermissions = perms || [];
+            renderMatrixTable(loadedPermissions);
         })
         .catch(err => {
             console.error(err);
             showAlert('danger', 'Failed to load permissions for role.');
         });
+}
+
+/*
+ * Column order and styling for the actions we know about. Anything not listed still gets a
+ * column — see buildActionColumns — so a new action can never go missing from this screen again.
+ */
+var ACTION_META = {
+    View:              { label: 'Page Access', colour: 'primary'   },
+    Create:            { label: 'Create',      colour: 'success'   },
+    Edit:              { label: 'Save',        colour: 'success'   },
+    Delete:            { label: 'Remove',      colour: 'danger'    },
+    Approve:           { label: 'Authorise',   colour: 'warning'   },
+    Export:            { label: 'Export',      colour: 'info'      },
+    Sync:              { label: 'Sync device', colour: 'secondary' },
+    Assign:            { label: 'Assign',      colour: 'secondary' },
+    BulkImport:        { label: 'Bulk import', colour: 'secondary' },
+    AssignPermissions: { label: 'Grant rights', colour: 'secondary' }
+};
+var ACTION_ORDER = ['View', 'Create', 'Edit', 'Delete', 'Approve', 'Export', 'Sync',
+                    'Assign', 'BulkImport', 'AssignPermissions'];
+
+/*
+ * The set of columns is derived from the permissions the server actually returned, not from a
+ * fixed list.
+ *
+ * The previous fixed list was ['View','Add','Edit','Delete','Print']. Two of those names do not
+ * exist in this system — the real actions are Create and Export — and Approve, Sync, Assign,
+ * BulkImport and AssignPermissions had no column at all. 21 of 63 permissions were therefore
+ * invisible, and because saving submits only the rendered checkboxes and the server replaces a
+ * role's permissions wholesale, pressing Save silently revoked every one of them.
+ */
+function buildActionColumns(perms) {
+    var present = {};
+    perms.forEach(p => { present[p.action || p.Action || 'View'] = true; });
+
+    var known = ACTION_ORDER.filter(a => present[a]);
+    var extra = Object.keys(present).filter(a => ACTION_ORDER.indexOf(a) < 0).sort();
+    return known.concat(extra);
 }
 
 function renderMatrixTable(perms) {
@@ -109,7 +151,15 @@ function renderMatrixTable(perms) {
         modulesMap[m][a] = { id: pid, isGranted: granted, displayName: p.displayName || p.DisplayName };
     });
 
-    var actionsList = ['View', 'Add', 'Edit', 'Delete', 'Print'];
+    var actionsList = buildActionColumns(perms);
+
+    var headCells = actionsList.map(act => {
+        var meta = ACTION_META[act] || { label: act, colour: 'secondary' };
+        return `<th class="text-center" style="width:96px;">
+                    <span class="badge bg-${meta.colour}">${esc(act)}</span><br>
+                    <span style="font-size:.72rem;">${esc(meta.label)}</span>
+                </th>`;
+    }).join('');
 
     var html = `
         <div class="table-responsive">
@@ -117,21 +167,7 @@ function renderMatrixTable(perms) {
                 <thead class="table-light">
                     <tr>
                         <th style="min-width:200px;" class="ps-3">System Page / Module</th>
-                        <th class="text-center" style="width:110px;">
-                            <span class="badge bg-primary me-1">View</span><br>Page Access
-                        </th>
-                        <th class="text-center" style="width:90px;">
-                            <span class="badge bg-success me-1">Add</span><br>Create
-                        </th>
-                        <th class="text-center" style="width:90px;">
-                            <span class="badge bg-success me-1">Edit</span><br>Save
-                        </th>
-                        <th class="text-center" style="width:90px;">
-                            <span class="badge bg-danger me-1">Delete</span><br>Remove
-                        </th>
-                        <th class="text-center" style="width:100px;">
-                            <span class="badge bg-info me-1">Print</span><br>Export
-                        </th>
+                        ${headCells}
                         <th class="text-center" style="width:100px;">Toggle Row</th>
                     </tr>
                 </thead>
@@ -143,7 +179,7 @@ function renderMatrixTable(perms) {
         var safeModId = moduleName.replace(/[^a-zA-Z0-9]/g, '_');
 
         html += `<tr>`;
-        html += `<td class="ps-3 fw-bold text-dark"><i class="fa fa-folder-o me-2" style="color:#01a9ac;"></i>${moduleName}</td>`;
+        html += `<td class="ps-3 fw-bold text-dark"><i class="fa fa-folder-o me-2" style="color:#01a9ac;"></i>${esc(moduleName)}</td>`;
 
         actionsList.forEach(act => {
             var item = mod[act];
@@ -192,6 +228,21 @@ function toggleAllPermissions(check) {
 function saveRolePermissions() {
     if (!currentRoleId) {
         showAlert('warning', 'Please select a role first.');
+        return;
+    }
+
+    /*
+     * Saving replaces a role's permissions wholesale on the server, so an unchecked box and a
+     * permission that was never drawn are indistinguishable in the payload — both come out as
+     * "revoke". That is exactly how the old fixed column list silently stripped 21 permissions
+     * on every save. Refuse rather than guess if the matrix does not cover everything loaded.
+     */
+    var rendered = document.querySelectorAll('.perm-chk').length;
+    if (loadedPermissions.length && rendered !== loadedPermissions.length) {
+        showAlert('danger',
+            'Not saving: the matrix is showing ' + rendered + ' of ' + loadedPermissions.length +
+            ' permissions, so saving would revoke the ones it cannot show. Reload the page and ' +
+            'report this if it persists.');
         return;
     }
 
