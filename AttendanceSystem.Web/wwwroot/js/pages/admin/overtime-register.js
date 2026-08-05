@@ -3,11 +3,18 @@
 var regData = null, regPage = 1;
 
 $(function () {
+    // Arriving from a dashboard tile, which carries its own range, department and status.
+    var q = new URLSearchParams(window.location.search);
+    if (q.get('from')) $('#regFrom').val(q.get('from'));
+    if (q.get('to')) $('#regTo').val(q.get('to'));
+    if (q.get('status')) $('#regStatus').val(q.get('status'));
+
     $.when(
         $.getJSON('/api/departments', function (d) {
             (d || []).filter(function (x) { return x.IsActive; }).forEach(function (x) {
                 $('#regDept').append('<option value="' + esc(x.Id) + '">' + esc(x.Name) + '</option>');
             });
+            if (q.get('departmentId')) $('#regDept').val(q.get('departmentId'));
         }),
         $.getJSON('/api/employees', function (d) {
             (d || []).filter(function (x) { return x.IsActive; }).forEach(function (x) {

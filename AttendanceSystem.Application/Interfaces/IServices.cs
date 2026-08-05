@@ -505,6 +505,17 @@ public interface IDashboardPreferenceService
     Task<Result<IEnumerable<DashboardWidgetDto>>> GetCompanyDefaultAsync();
 
     Task<Result> SaveCompanyDefaultAsync(SaveDashboardPreferencesDto dto);
+
+    // ── Custom tiles ──────────────────────────────────────────────────────────
+
+    /// <summary>Metrics this user may build a tile from — filtered by permission.</summary>
+    Result<IEnumerable<DashboardMetricDto>> GetMetrics();
+
+    /// <summary>The user's own tiles, each with its number already computed.</summary>
+    Task<Result<IEnumerable<DashboardTileDto>>> GetMyTilesAsync();
+
+    Task<Result<DashboardTileDto>> SaveTileAsync(SaveDashboardTileDto dto);
+    Task<Result> DeleteTileAsync(int tileId);
 }
 
 /// <summary>Bulk creation and update of employee records from a CSV or Excel file.</summary>

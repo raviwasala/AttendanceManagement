@@ -58,4 +58,39 @@ public class DashboardWidgetsApiController : ApiControllerBase
         var r = await _svc.SaveCompanyDefaultAsync(dto);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
+
+    // ── Custom tiles ──────────────────────────────────────────────────────────
+    //
+    // No module permission beyond being signed in. Each metric carries its own, checked by
+    // the service on save *and* on every read — so a tile cannot outlive the access that
+    // created it, and a demotion stops the number rather than leaving it on screen.
+
+    [HttpGet("metrics")]
+    public IActionResult Metrics()
+    {
+        var r = _svc.GetMetrics();
+        return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
+    }
+
+    [HttpGet("tiles")]
+    public async Task<IActionResult> Tiles()
+    {
+        var r = await _svc.GetMyTilesAsync();
+        return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
+    }
+
+    [HttpPost("tiles")]
+    public async Task<IActionResult> SaveTile([FromBody] SaveDashboardTileDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        var r = await _svc.SaveTileAsync(dto);
+        return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
+    }
+
+    [HttpDelete("tiles/{id:int}")]
+    public async Task<IActionResult> DeleteTile(int id)
+    {
+        var r = await _svc.DeleteTileAsync(id);
+        return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
+    }
 }

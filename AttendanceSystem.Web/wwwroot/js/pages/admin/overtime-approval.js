@@ -3,11 +3,17 @@
 var apData = null, apPage = 1;
 
 $(function () {
+    // Arriving from a dashboard tile, which carries its own range and department.
+    var q = new URLSearchParams(window.location.search);
+    if (q.get('from')) $('#apFrom').val(q.get('from'));
+    if (q.get('to')) $('#apTo').val(q.get('to'));
+
     $.when(
         $.getJSON('/api/departments', function (d) {
             (d || []).filter(function (x) { return x.IsActive; }).forEach(function (x) {
                 $('#apDept').append('<option value="' + esc(x.Id) + '">' + esc(x.Name) + '</option>');
             });
+            if (q.get('departmentId')) $('#apDept').val(q.get('departmentId'));
         }),
         $.getJSON('/api/employees', function (d) {
             (d || []).filter(function (x) { return x.IsActive; }).forEach(function (x) {

@@ -392,3 +392,157 @@ function resetCustomise() {
             .fail(function (xhr) { notifyError(xhr.responseText || 'Could not reset.'); });
     });
 }
+
+/* ── Custom tiles ─────────────────────────────────────────────────────────────
+   Composed from a fixed metric catalogue, never a query. The server re-checks
+   the metric's permission on every read, so a tile stops producing a number the
+   moment its owner loses access rather than leaving a stale figure on screen. */
+var tileMetrics = [];
+
+$(function () {
+    loadCustomTiles();
+
+    $.getJSON('/api/departments', function (d) {
+        (d || []).filter(function (x) { return x.IsActive; }).forEach(function (x) {
+            $('#tlDept').append('<option value="' + esc(x.Id) + '">' + esc(x.Name) + '</option>');
+        });
+    });
+    $.getJSON('/api/branches', function (d) {
+        (d || []).filter(function (x) { return x.IsActive; }).forEach(function (x) {
+            $('#tlBranch').append('<option value="' + esc(x.Id) + '">' + esc(x.Name) + '</option>');
+        });
+    });
+});
+
+function loadCustomTiles() {
+    $.getJSON('/api/dashboard-widgets/tiles', function (tiles) {
+        if (!tiles || !tiles.length) { $('#customTiles').empty(); return; }
+
+        $('#customTiles').html(tiles.map(function (t) {
+            var value = t.Value == null ? '—' : t.Value + (t.Suffix || '');
+
+            // The tile drills through to the screen that explains the number, carrying its
+            // own scope and period. A figure you cannot open is one nobody can act on.
+            var inner =
+                  '<div class="card stat-card ' + esc(t.Colour) + ' h-100">'
+                + '<div class="card-body stat-card-body">'
+                + '<div class="stat-card-text">'
+                + '<p class="stat-card-label mb-0">' + esc(t.Title) + '</p>'
+                + '<h3 class="stat-card-value" style="font-size:1.35rem;">' + esc(value) + '</h3>'
+                + '<div style="font-size:.68rem;opacity:.85;">' + esc(t.ScopeDisplay) + '</div>'
+                + '</div></div></div>';
+
+            return '<div class="col-xl-3 col-md-6">'
+                 + '<div class="position-relative h-100">'
+                 + (t.Url
+                     ? '<a href="' + esc(t.Url) + '" class="stat-card-link d-block h-100"'
+                       + ' title="Open ' + esc(t.Title) + '">' + inner + '</a>'
+                     : inner)
+                 // Remove sits on the tile rather than in a separate manage screen: it is the
+                 // only other action a tile has. Outside the anchor, so removing one does not
+                 // also navigate.
+                 + '<button class="btn btn-sm position-absolute top-0 end-0 m-1 p-0 px-1 text-white"'
+                 + ' style="background:rgba(0,0,0,.15);z-index:2;" title="Remove tile"'
+                 + ' onclick="deleteTile(' + t.Id + ')"><i class="fa fa-times"></i></button>'
+                 + '</div></div>';
+        }).join(''));
+    });
+}
+
+function openTileBuilder() {
+    $('#tlId').val(0);
+    $('#tlTitle').val('');
+    $('#tlDept').val(''); $('#tlBranch').val(''); $('#tlPeriod').val('today');
+    $('#tlColour').val('bg-c-blue');
+
+    $.getJSON('/api/dashboard-widgets/metrics', function (list) {
+        tileMetrics = list || [];
+        if (!tileMetrics.length) {
+            notifyError('There are no metrics available to your role.');
+            return;
+        }
+        $('#tlMetric').html(tileMetrics.map(function (m) {
+            return '<option value="' + esc(m.Key) + '">' + esc(m.Title) + '</option>';
+        }).join(''));
+        onMetricChange();
+        new bootstrap.Modal('#tileModal').show();
+    });
+}
+
+function currentMetric() {
+    var key = $('#tlMetric').val();
+    return tileMetrics.filter(function (m) { return m.Key === key; })[0];
+}
+
+function onMetricChange() {
+    var m = currentMetric();
+    if (!m) return;
+
+    $('#tlMetricHint').text(m.Description);
+
+    // A headcount is a state now, not something with a period. Showing the picker
+    // would offer a choice that changes nothing.
+    $('#tlPeriodRow').toggle(!!m.SupportsPeriod);
+
+    suggestTitle();
+    $('#tlDept, #tlBranch, #tlPeriod').off('change.tl').on('change.tl', suggestTitle);
+}
+
+/* Fills the label from the choices, until the user types their own. */
+function suggestTitle() {
+    var $title = $('#tlTitle');
+    if ($title.data('touched')) return;
+
+    var m = currentMetric();
+    if (!m) return;
+
+    var parts = [];
+    var dept = $('#tlDept option:selected').text();
+    var branch = $('#tlBranch option:selected').text();
+    if ($('#tlDept').val()) parts.push(dept);
+    if ($('#tlBranch').val()) parts.push(branch);
+
+    var label = m.Title;
+    if (parts.length) label = parts.join(' ') + ' — ' + m.Title.toLowerCase();
+    $title.val(label.substring(0, 60));
+}
+
+$(document).on('input', '#tlTitle', function () { $(this).data('touched', true); });
+
+function saveTile() {
+    var title = $('#tlTitle').val().trim();
+    if (!title) { notifyError('Give the tile a label.'); return; }
+
+    $.ajax({
+        url: '/api/dashboard-widgets/tiles', type: 'POST', contentType: 'application/json',
+        data: JSON.stringify({
+            Id: parseInt($('#tlId').val()) || 0,
+            Title: title,
+            MetricKey: $('#tlMetric').val(),
+            DepartmentId: $('#tlDept').val() ? parseInt($('#tlDept').val()) : null,
+            BranchId: $('#tlBranch').val() ? parseInt($('#tlBranch').val()) : null,
+            Period: $('#tlPeriod').val(),
+            Colour: $('#tlColour').val()
+        }),
+        success: function () {
+            bootstrap.Modal.getInstance('#tileModal').hide();
+            $('#tlTitle').data('touched', false);
+            notifySuccess('Tile added.');
+            loadCustomTiles();
+        },
+        error: function (xhr) { notifyError(xhr.responseText || 'Could not add that tile.'); }
+    });
+}
+
+function deleteTile(id) {
+    notifyConfirm({
+        title: 'Remove tile', text: 'This removes the tile from your dashboard only.',
+        confirmText: 'Remove', icon: 'warning'
+    }, function () {
+        $.ajax({
+            url: '/api/dashboard-widgets/tiles/' + id, type: 'DELETE',
+            success: function () { notifySuccess('Tile removed.'); loadCustomTiles(); },
+            error: function (xhr) { notifyError(xhr.responseText || 'Could not remove that tile.'); }
+        });
+    });
+}

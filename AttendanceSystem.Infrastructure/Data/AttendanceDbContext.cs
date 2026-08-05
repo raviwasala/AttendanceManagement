@@ -49,6 +49,7 @@ public class AttendanceDbContext : DbContext
     public DbSet<EmployeeDocument> EmployeeDocuments { get; set; } = null!;
     public DbSet<AttendancePeriodLock> AttendancePeriodLocks { get; set; } = null!;
     public DbSet<DashboardPreference> DashboardPreferences { get; set; } = null!;
+    public DbSet<UserDashboardTile> UserDashboardTiles { get; set; } = null!;
 
     // ── Auto-timestamp & Soft-Delete interception ─────────────────────────────
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -266,6 +267,30 @@ public class AttendanceDbContext : DbContext
             // One row per user per widget. Unique so a double-save cannot leave two
             // contradictory rows and make the dashboard depend on which is read first.
             e.HasIndex(x => new { x.UserId, x.WidgetKey }).IsUnique();
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        // ── UserDashboardTile ─────────────────────────────────────────────────
+        modelBuilder.Entity<UserDashboardTile>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Title).IsRequired().HasMaxLength(60);
+            e.Property(x => x.MetricKey).IsRequired().HasMaxLength(40);
+            e.Property(x => x.Period).IsRequired().HasMaxLength(20);
+            e.Property(x => x.Colour).IsRequired().HasMaxLength(30);
+
+            // Cascade from the user: a personal tile has no meaning once its owner is gone.
+            e.HasOne(x => x.User).WithMany()
+             .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict on the lookups: deleting a department must not silently delete the
+            // tiles that were watching it.
+            e.HasOne(x => x.Department).WithMany()
+             .HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Branch).WithMany()
+             .HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.Restrict);
+
+            e.HasIndex(x => x.UserId);
             e.HasQueryFilter(x => !x.IsDeleted);
         });
 

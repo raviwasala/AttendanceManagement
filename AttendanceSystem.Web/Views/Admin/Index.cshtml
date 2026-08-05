@@ -51,6 +51,9 @@
     <h5 class="mb-0">Dashboard</h5>
     <div class="d-flex align-items-center gap-3">
         <span class="text-muted small">@DateTime.Now.ToString("dddd, dd MMMM yyyy")</span>
+        <button class="btn btn-outline-secondary btn-sm px-3" onclick="openTileBuilder()">
+            <i class="feather icon-plus me-1"></i>Add tile
+        </button>
         <button class="btn btn-outline-secondary btn-sm px-3" onclick="openCustomise()">
             <i class="feather icon-sliders me-1"></i>Customise
         </button>
@@ -91,6 +94,78 @@
                     <button class="btn btn-light btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
                     <button class="btn btn-primary btn-sm px-4" onclick="saveCustomise()">Save</button>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ── Custom tiles ────────────────────────────────────────────────────────────
+   The user's own tiles, above the standard ones: somebody who has built a tile
+   has said what they care about, and it should not sit below the defaults. *@
+<div class="row g-3 mb-4" id="customTiles"></div>
+
+@* ── Tile builder ────────────────────────────────────────────────────────── *@
+<div class="modal fade" id="tileModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title">Add a tile</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="tlId" value="0">
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">What to show <span class="text-danger">*</span></label>
+                    <select id="tlMetric" class="form-select form-select-sm" onchange="onMetricChange()"></select>
+                    <div class="small text-muted mt-1" id="tlMetricHint"></div>
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Department</label>
+                        <select id="tlDept" class="form-select form-select-sm">
+                            <option value="">All departments</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small fw-semibold">Branch</label>
+                        <select id="tlBranch" class="form-select form-select-sm">
+                            <option value="">All branches</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3" id="tlPeriodRow">
+                    <label class="form-label small fw-semibold">Period</label>
+                    <select id="tlPeriod" class="form-select form-select-sm">
+                        <option value="today">Today</option>
+                        <option value="week">This week</option>
+                        <option value="month">This month</option>
+                        <option value="lastmonth">Last month</option>
+                    </select>
+                </div>
+
+                <div class="row g-2">
+                    <div class="col-7">
+                        <label class="form-label small fw-semibold">Label <span class="text-danger">*</span></label>
+                        <input type="text" id="tlTitle" class="form-control form-control-sm" maxlength="60"
+                               placeholder="Fills in automatically">
+                    </div>
+                    <div class="col-5">
+                        <label class="form-label small fw-semibold">Colour</label>
+                        <select id="tlColour" class="form-select form-select-sm">
+                            <option value="bg-c-blue">Blue</option>
+                            <option value="bg-c-green">Green</option>
+                            <option value="bg-c-yellow">Yellow</option>
+                            <option value="bg-c-pink">Pink</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-light btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary btn-sm px-4" onclick="saveTile()">Add tile</button>
             </div>
         </div>
     </div>

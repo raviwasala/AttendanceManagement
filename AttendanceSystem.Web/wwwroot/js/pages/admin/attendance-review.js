@@ -11,21 +11,44 @@ function fmtMins(m) {
     return h ? h + 'h ' + (r ? r + 'm' : '') : r + 'm';
 }
 
+/* Arriving from a dashboard tile: the tile carries its own range, department and
+   row filter, and the screen has to honour them or the drill-down lands on a
+   different figure than the one that was clicked. */
+function applyQueryFilters() {
+    var q = new URLSearchParams(window.location.search);
+    var from = q.get('from'), to = q.get('to');
+    var applied = false;
+
+    if (from && to) { $('#arFrom').val(from); $('#arTo').val(to); applied = true; }
+    if (q.get('filter')) { $('#arFilter').val(q.get('filter')); applied = true; }
+
+    return { applied: applied, departmentId: q.get('departmentId') };
+}
+
 $(function () {
     preset('today');
 
-    $.getJSON('/api/departments', function (d) {
-        (d || []).filter(function (x) { return x.IsActive; }).forEach(function (x) {
-            $('#arDept').append('<option value="' + esc(x.Id) + '">' + esc(x.Name) + '</option>');
-        });
-    });
+    // Read before the dropdowns load, applied after — the department cannot be
+    // selected until its options exist.
+    var incoming = applyQueryFilters();
 
-    $.getJSON('/api/employees', function (d) {
-        (d || []).forEach(function (e) {
-            $('#arEmployee').append('<option value="' + esc(e.Id) + '">'
-                + esc(e.FullName) + ' (' + esc(e.EmployeeCode) + ')</option>');
-        });
-    }).always(loadReview);
+    // Both lookups must finish before the first load: loadReview reads the department
+    // filter, and firing it when only the employee list had arrived would query with
+    // an empty department and show a wider figure than the tile that was clicked.
+    $.when(
+        $.getJSON('/api/departments', function (d) {
+            (d || []).filter(function (x) { return x.IsActive; }).forEach(function (x) {
+                $('#arDept').append('<option value="' + esc(x.Id) + '">' + esc(x.Name) + '</option>');
+            });
+            if (incoming.departmentId) $('#arDept').val(incoming.departmentId);
+        }),
+        $.getJSON('/api/employees', function (d) {
+            (d || []).forEach(function (e) {
+                $('#arEmployee').append('<option value="' + esc(e.Id) + '">'
+                    + esc(e.FullName) + ' (' + esc(e.EmployeeCode) + ')</option>');
+            });
+        })
+    ).always(function () { loadReview(); });
 
     // Filtering is a server round trip now, so it reloads rather than re-rendering.
     $('#arFilter').on('change', function () { loadReview(1); });
