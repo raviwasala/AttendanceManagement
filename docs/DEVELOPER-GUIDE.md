@@ -283,7 +283,10 @@ Follow that pattern rather than adding a suppression.
 1. **No tests.** See [ARCHITECTURE.md](ARCHITECTURE.md) §11 for the priority order.
    `AttendanceCalculator` is first: pure, static, and every other number depends on it.
 2. **`esc()` sweep incomplete** — several page scripts still interpolate raw values.
-3. **`.svg` logo upload** is a stored-XSS vector; drop it from the allow-list.
+3. **`.svg` logo upload** accepts SVG (`SettingsApiController.UploadLogo`). Lower risk than it
+   looks — the file is always written as `samanmal_logo.png` and rendered in an `<img>`, where
+   SVG script does not execute — but the upload is unvalidated beyond its extension and the
+   saved bytes do not match the saved name. Validate content, and drop `.svg` from the list.
 4. **Time handling** mixes local and UTC; unify on `DateTimeOffset`/`TimeProvider`.
 5. **Session id not rotated** on sign-in; needs cookie authentication for a full fix.
 6. **CDN assets** (toastr, SweetAlert2, Chart.js) should be vendored for on-premise deployment.

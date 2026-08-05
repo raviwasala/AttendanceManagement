@@ -51,11 +51,17 @@
     <link rel="stylesheet" type="text/css" href="~/assets/icon/icofont/css/icofont.css">
     <!-- Font Awesome -->
     <link rel="stylesheet" type="text/css" href="~/assets/icon/font-awesome/css/font-awesome.min.css">
+    @* Select2 base styles must precede the theme, because assets/css/style.css carries
+       Adminty's own select2 overrides and those have to win. *@
+    <link rel="stylesheet" type="text/css" href="~/lib/select2/css/select2.min.css">
     <!-- Theme style (local assets) -->
     <link rel="stylesheet" type="text/css" href="~/assets/css/style.css">
     <link rel="stylesheet" type="text/css" href="~/assets/css/jquery.mCustomScrollbar.css">
     <!-- Adminty teal colour overrides (must come after template CSS) -->
     <link rel="stylesheet" type="text/css" href="~/css/site.css">
+    @* Neutral Select2 appearance. Must come after style.css and site.css — it
+       matches the theme's selector specificity, so load order is what decides. *@
+    <link rel="stylesheet" type="text/css" href="~/css/ams-select2.css" asp-append-version="true">
     <!-- Toastr & SweetAlert2 UI Framework Alerts -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
@@ -593,6 +599,12 @@
         };
     </script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    @* Select2 (Adminty's own component, vendored locally) plus the initialiser that
+       applies it to every <select>. Loaded before the page scripts so its ready
+       handler runs first; it then tracks their .html()/.val() calls, so no page
+       script needs to know it exists. *@
+    <script src="~/lib/select2/js/select2.full.min.js"></script>
+    <script src="~/js/ams-select2.js" asp-append-version="true"></script>
 
     @RenderSection("Scripts", required: false)
 </body>

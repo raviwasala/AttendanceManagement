@@ -1,0 +1,189 @@
+/* ── Select2 appearance ───────────────────────────────────────────────────────
+   Neutral styling for the searchable dropdowns, overriding Adminty's.
+
+   The theme paints the whole closed control solid teal with white text
+   (.select2-selection__rendered{background-color:#01a9ac;color:#fff}), which
+   makes a dropdown shout louder than every input beside it and stops it reading
+   as a form field at all. These rules put it back to the same white-and-grey as
+   .form-control, and keep colour for the one thing that needs it: the row the
+   keyboard is currently on.
+
+   Must load AFTER assets/css/style.css and css/site.css — the selectors match
+   the theme's specificity exactly, so load order is what decides.
+
+   To re-tint it later, change the two custom properties below and nothing else. */
+
+:root {
+    --ams-select-accent: #5b7c99;          /* focus ring + current row */
+    --ams-select-accent-soft: #eef2f6;     /* hover / selected background */
+}
+
+/* ── Closed control ─────────────────────────────────────────────────────────── */
+
+.select2-container--default .select2-selection--single {
+    height: calc(1.5em + .75rem + 2px);    /* line up with .form-control exactly */
+    color: #495057;
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    border-radius: .375rem;
+    transition: border-color .12s ease-in-out, box-shadow .12s ease-in-out;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    background-color: transparent;
+    color: #495057;
+    padding: .375rem 2rem .375rem .75rem;
+    line-height: 1.5;
+    font-size: .875rem;
+}
+
+/* A placeholder entry ("-- Department --") is not a chosen value; mute it so a
+   filled field is distinguishable from an empty one at a glance. */
+.select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #8b98a5;
+}
+
+.select2-container--default .select2-selection--single:hover {
+    border-color: #b6c2ce;
+}
+
+/* ── Arrow ──────────────────────────────────────────────────────────────────── */
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 100%;
+    top: 0;
+    right: .6rem;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow b,
+.select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+    border-color: #6c7a89 transparent transparent transparent;
+}
+
+.select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+    border-color: transparent transparent #6c7a89 transparent;
+}
+
+/* ── Focus / open ───────────────────────────────────────────────────────────── */
+
+.select2-container--default.select2-container--focus .select2-selection--single,
+.select2-container--default.select2-container--open .select2-selection--single {
+    border-color: var(--ams-select-accent);
+    box-shadow: 0 0 0 .2rem rgba(91, 124, 153, .15);
+    outline: 0;
+}
+
+/* ── Dropdown panel ─────────────────────────────────────────────────────────── */
+
+.select2-dropdown {
+    border: 1px solid #d3dae1;
+    border-radius: .375rem;
+    box-shadow: 0 .5rem 1.25rem rgba(20, 32, 48, .13);
+    overflow: hidden;
+}
+
+.select2-container--default .select2-search--dropdown {
+    padding: .5rem;
+    border-bottom: 1px solid #eef1f4;
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field {
+    border: 1px solid #ced4da;
+    border-radius: .3rem;
+    padding: .35rem .6rem;
+    font-size: .86rem;
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field:focus {
+    border: 1px solid var(--ams-select-accent);
+    box-shadow: 0 0 0 .15rem rgba(91, 124, 153, .13);
+    outline: 0;
+}
+
+/* ── Results ────────────────────────────────────────────────────────────────── */
+
+.select2-container--default .select2-results > .select2-results__options {
+    max-height: 260px;
+}
+
+.select2-container--default .select2-results__option {
+    padding: .45rem .75rem;
+    font-size: .86rem;
+    line-height: 1.4;
+    color: #46525e;
+}
+
+/* The row under the cursor or the arrow keys. Soft grey-blue with dark text,
+   rather than a solid fill that hides the text it is meant to highlight. */
+.select2-container--default .select2-results__option--highlighted[aria-selected],
+.select2-container--default .select2-results__option--highlighted[data-selected] {
+    background-color: var(--ams-select-accent-soft);
+    color: #22303c;
+}
+
+/* The value actually chosen. Marked by weight and a left rule, so it stays
+   identifiable even while the keyboard highlight is elsewhere. */
+.select2-container--default .select2-results__option[aria-selected=true],
+.select2-container--default .select2-results__option[data-selected=true] {
+    background-color: #f6f8fa;
+    color: #22303c;
+    font-weight: 600;
+    box-shadow: inset .18rem 0 0 var(--ams-select-accent);
+}
+
+.select2-container--default .select2-results__option[aria-disabled=true] {
+    color: #aeb7c0;
+}
+
+.select2-container--default .select2-results__message {
+    color: #8b98a5;
+    font-size: .84rem;
+}
+
+/* Group headings, for the rare grouped list. */
+.select2-container--default .select2-results__group {
+    color: #7a8794;
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    padding: .45rem .75rem .25rem;
+}
+
+/* ── Multi-select chips (not used today, kept consistent) ───────────────────── */
+
+.select2-container--default .select2-selection--multiple {
+    border: 1px solid #ced4da;
+    border-radius: .375rem;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: var(--ams-select-accent-soft);
+    border: 1px solid #d3dae1;
+    color: #33414e;
+    padding: 2px 10px;
+    border-radius: .25rem;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice span,
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: #5b6b7a;
+}
+
+/* ── Disabled ───────────────────────────────────────────────────────────────── */
+
+.select2-container--disabled .select2-selection--single,
+.select2-container--default .select2-selection--single[aria-disabled=true] {
+    background-color: #e9ecef;
+    color: #8b98a5;
+    cursor: not-allowed;
+}
+
+/* Scrollbar, so a long employee list does not show the OS default inside an
+   otherwise flat panel. */
+.select2-results__options::-webkit-scrollbar { width: 8px; }
+.select2-results__options::-webkit-scrollbar-thumb {
+    background: #ccd5dd;
+    border-radius: 4px;
+}
+.select2-results__options::-webkit-scrollbar-thumb:hover { background: #aeb9c5; }

@@ -112,6 +112,31 @@ browser's `[hidden]{display:none}`, so hidden items stay visible.
 | `notifySuccess` / `notifyError` | Toasts |
 | `notifyConfirm(opts, cb)` | Confirmation dialog, honours the Confirm-before-delete setting |
 | `amsPage(sel, items, rowFn, opts)` | Renders a table with paging; pass `server: { total, page, pageSize, onPage }` for server-side paging |
+| `amsInitSelects(scope)` | Applies Select2 to `<select>` elements in `scope`. Called automatically |
+
+### Searchable dropdowns (`wwwroot/js/ams-select2.js`)
+
+Every `<select>` becomes a type-to-filter dropdown automatically. **No page script was changed
+to add this**, and none needs to know it exists.
+
+Select2 **4.0.3** is Adminty's own component, vendored from the theme package into
+`wwwroot/lib/select2/` — not loaded from a CDN, because this product is deployed on-premise and
+`assets/css/style.css` already carries the theme's select2 overrides. Its stylesheet is linked
+*before* `style.css` so those overrides win.
+
+Select2 keeps the native `<select>` as the source of truth, so `.val()`, `.val(id)`,
+`.html(options)` and `change` handlers behave exactly as before. Two details make that hold:
+
+- **`dropdownParent` is set to the containing `.modal`.** Bootstrap keeps focus inside a dialog,
+  so a dropdown appended to `<body>` renders but its search box cannot be typed into — it looks
+  broken rather than erroring. Most of this app's dropdowns are in modals.
+- **jQuery's `.val()` and `.html()` setters are wrapped** to fire `change.select2`. Those setters
+  raise no event, so without this the widget shows a stale label after an edit loads a record.
+  The `.select2` namespace updates the widget *without* re-entering the page's own change
+  handlers.
+
+Options: opt out per control with `data-no-search`; the search box is hidden below 8 options
+(`minimumResultsForSearch`), and `data-search` forces it on. Multi-selects are left native.
 
 ---
 
