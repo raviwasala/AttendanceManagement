@@ -19,9 +19,11 @@ function renderShifts(data) {
         var ot = s.IsOtEnabled
             ? '<span class="badge bg-success">On</span>'
               + '<div class="text-muted" style="font-size:.68rem;">'
+              // "after end only" rather than "after end": the word that matters is the one
+              // saying an early start is excluded.
               + (s.OtCountsFromShiftEnd
-                    ? 'after end' + (s.OtStartAfterMinutes ? ' +' + s.OtStartAfterMinutes + 'm' : '')
-                    : 'over ' + s.EffectiveStandardHours + 'h')
+                    ? 'after end only' + (s.OtStartAfterMinutes ? ' +' + s.OtStartAfterMinutes + 'm' : '')
+                    : 'over ' + s.EffectiveStandardHours + 'h, incl. early')
               + '</div>'
             : '<span class="badge bg-light text-muted">Off</span>';
 
@@ -65,6 +67,7 @@ function openShiftModal(s) {
     $('#shiftOtEnabled').prop('checked', s.Id ? !!s.IsOtEnabled : true);
     $('#shiftOtAfter').val(s.OtStartAfterMinutes || 0);
     $('#shiftOtBasis').val(String(s.Id ? !!s.OtCountsFromShiftEnd : true));
+    updateOtBasisHelp();
     $('#shiftWeeklyOff').val(s.WeeklyOffDays || 'Saturday,Sunday');
     $('#shiftActive').prop('checked', s.Id ? !!s.IsActive : true);
 
@@ -91,6 +94,26 @@ function toggleOtFields() {
     $('.ot-field').toggle($('#shiftOtEnabled').is(':checked'));
     updateShiftSummary();
 }
+
+/* Spells out what the chosen basis means for someone who starts early, and greys the
+   threshold field when it no longer applies. The two options differ only in a case that is
+   invisible from the labels alone — an early start — so the consequence is stated here
+   rather than left to be discovered in a payslip. */
+function updateOtBasisHelp() {
+    var fromEnd = $('#shiftOtBasis').val() === 'true';
+
+    $('#shiftOtBasisHelp').html(fromEnd
+        ? 'Only time worked <strong>after the shift ends</strong> is paid as overtime. '
+          + 'Clocking in early earns nothing.'
+        : 'Any time beyond the shift\'s standard hours is paid as overtime, '
+          + '<strong>including an early start</strong>.');
+
+    // The threshold is measured from the shift end, so it means nothing on the other basis.
+    $('#shiftOtAfter').prop('disabled', !fromEnd)
+                      .closest('.ot-field').toggleClass('opacity-50', !fromEnd);
+}
+
+$(document).on('change', '#shiftOtBasis', updateOtBasisHelp);
 
 /* Shows the arithmetic the shift implies, so a night shift or a long break is obvious
    before saving rather than surfacing later as odd attendance. */

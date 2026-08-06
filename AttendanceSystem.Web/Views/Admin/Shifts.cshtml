@@ -152,12 +152,17 @@
                         <input type="number" id="shiftOtAfter" class="form-control" value="0" min="0" max="480">
                         <div class="form-text small">Minutes past shift end before OT accrues.</div>
                     </div>
+                    @* Named by consequence, not by mechanism. As "Shift end time" versus
+                       "Standard working hours" this decided whether staff are paid for an
+                       early start, and said so nowhere — someone clocking in two hours early
+                       silently earned nothing. *@
                     <div class="col-md-6 mb-2 ot-field">
                         <label class="form-label small fw-semibold">OT measured from</label>
                         <select id="shiftOtBasis" class="form-select">
-                            <option value="true">Shift end time</option>
-                            <option value="false">Standard working hours</option>
+                            <option value="true">Shift end only — early starts earn nothing</option>
+                            <option value="false">Total hours worked — early starts count</option>
                         </select>
+                        <div class="form-text small" id="shiftOtBasisHelp"></div>
                     </div>
 
                     <div class="col-12"><hr class="my-2"></div>

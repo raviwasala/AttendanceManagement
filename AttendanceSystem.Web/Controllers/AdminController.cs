@@ -62,6 +62,13 @@ public class AdminController : BaseController
     [SessionAuthorize(Modules.Employees, Actions.View)]
     public IActionResult AttendanceReview() => View();
 
+    // Viewing the readiness checks and the payroll figures needs only Attendance.View;
+    // closing the month is guarded separately on the API by Attendance.Delete, since it
+    // stops everybody else editing a whole month.
+    [HttpGet("MonthEnd")]
+    [SessionAuthorize(Modules.Attendance, Actions.View)]
+    public IActionResult MonthEnd() => View();
+
     // Overtime rules are policy: viewing the screen needs Overtime.View like the rest, but
     // every write on it is guarded by Overtime.Edit on the API.
     [HttpGet("OvertimeRules")]

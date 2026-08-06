@@ -1,0 +1,123 @@
+@{
+    ViewData["Title"] = "Month End & Payroll";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h5 class="mb-0">Month End &amp; Payroll</h5>
+        <div class="text-muted small">Check the month, close it, then hand the figures to payroll.</div>
+    </div>
+</div>
+
+<div id="meAlert"></div>
+
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Month</label>
+                <select id="meMonth" class="form-select form-select-sm" onchange="loadStatus()">
+                    @for (int m = 1; m <= 12; m++)
+                    {
+                        <option value="@m" selected="@(m == DateTime.Now.Month ? "selected" : null)">
+                            @(new DateTime(2000, m, 1).ToString("MMMM"))
+                        </option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Year</label>
+                <input type="number" id="meYear" class="form-control form-control-sm"
+                       value="@DateTime.Now.Year" onchange="loadStatus()">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">&nbsp;</label>
+                <button class="btn btn-sm btn-outline-secondary w-100" onclick="loadStatus()">
+                    <i class="feather icon-refresh-cw me-1"></i>Re-check
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* The order is the feature. Closing is what makes the numbers trustworthy, so the export
+   sits after it and says whether it happened rather than leaving that to memory. *@
+<div class="card mb-3">
+    <div class="card-header bg-white py-2 border-bottom">
+        <h6 class="mb-0 fw-bold"><i class="feather icon-check-square text-primary me-2"></i>1. Readiness</h6>
+    </div>
+    <div class="card-body">
+        <div id="meStatusBanner"></div>
+        <div id="meChecks"><div class="text-muted small">Loading…</div></div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header bg-white py-2 border-bottom">
+        <h6 class="mb-0 fw-bold"><i class="feather icon-lock text-primary me-2"></i>2. Close the month</h6>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-light border py-2 small">
+            <i class="feather icon-info me-1"></i>
+            Closing locks every day in the month. After that nobody can add, edit or delete
+            attendance in it — including imports and reprocessing — until an administrator
+            reopens it, which is recorded with a reason.
+        </div>
+        <div class="row g-2 align-items-end">
+            <div class="col-md-7">
+                <label class="form-label small mb-1">Reason <span class="text-danger">*</span></label>
+                <input type="text" id="meReason" class="form-control form-control-sm" maxlength="300"
+                       placeholder="e.g. August payroll processed and paid">
+            </div>
+            <div class="col-md-5">
+                <label class="form-label small mb-1">&nbsp;</label>
+                <button class="btn btn-danger btn-sm w-100" id="meCloseBtn" onclick="closeMonth()" disabled>
+                    <i class="feather icon-lock me-1"></i>Close Month
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white py-2 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold"><i class="feather icon-download text-primary me-2"></i>3. Payroll figures</h6>
+        <div>
+            <button class="btn btn-sm btn-outline-primary me-1" onclick="loadPayroll()">
+                <i class="feather icon-eye me-1"></i>Preview
+            </button>
+            <button class="btn btn-sm btn-primary" onclick="downloadPayroll()">
+                <i class="feather icon-download me-1"></i>Download CSV
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="mePayrollNote" class="px-3 pt-3"></div>
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Code</th>
+                        <th>Name</th>
+                        <th>Department</th>
+                        <th class="text-center">Working Days</th>
+                        <th class="text-center">Present</th>
+                        <th class="text-center">Absent</th>
+                        <th class="text-center">Leave</th>
+                        <th class="text-center">Late</th>
+                        <th class="text-center">Hours</th>
+                        <th class="text-center">Approved OT</th>
+                        <th class="text-center pe-3">Att %</th>
+                    </tr>
+                </thead>
+                <tbody id="mePayrollBody">
+                    <tr><td colspan="11" class="text-center py-3 text-muted">Press Preview to load the figures.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/admin/month-end.js" asp-append-version="true"></script>
+}

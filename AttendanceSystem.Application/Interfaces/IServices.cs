@@ -479,6 +479,22 @@ public interface IEmployeeLifecycleService
 /// after the fact: a lock stops a paid month from changing, and reprocessing fixes an unpaid
 /// one when the shift settings it was calculated against turn out to be wrong.
 /// </summary>
+/// <summary>
+/// Closing a month and handing it to payroll — the readiness checks, the close itself, and
+/// the single combined export.
+/// </summary>
+public interface IMonthEndService
+{
+    /// <summary>Whether the month can be closed, and what is in the way.</summary>
+    Task<Result<MonthEndStatusDto>> GetStatusAsync(int month, int year);
+
+    /// <summary>Closes the month by locking it. Refuses while any blocking check fails.</summary>
+    Task<Result> CloseMonthAsync(CloseMonthDto dto);
+
+    /// <summary>Attendance and approved overtime as one row per employee.</summary>
+    Task<Result<PayrollExportDto>> GetPayrollAsync(int month, int year);
+}
+
 public interface IAttendanceLockService
 {
     Task<Result<IEnumerable<AttendancePeriodLockDto>>> GetLocksAsync();

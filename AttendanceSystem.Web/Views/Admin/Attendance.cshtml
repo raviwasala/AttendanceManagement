@@ -103,6 +103,21 @@
                     <label class="form-label small mb-1">Year</label>
                     <input type="number" id="mYear" class="form-control form-control-sm" value="@DateTime.Now.Year">
                 </div>
+
+                @* Department and search sit beside the period rather than in a second row:
+                   with 239 employees the summary is unreadable until it is narrowed, so the
+                   narrowing belongs next to the button that produces it. *@
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Department</label>
+                    <select id="mDept" class="form-select form-select-sm" onchange="filterMonthly()">
+                        <option value="">All departments</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Search</label>
+                    <input type="text" id="mSearch" class="form-control form-control-sm"
+                           placeholder="Name, code or department…" oninput="filterMonthly()">
+                </div>
                 <div class="col-md-3">
                     <label class="form-label small mb-1">&nbsp;</label>
                     <button class="btn btn-primary btn-sm d-block w-100" onclick="loadMonthly()">

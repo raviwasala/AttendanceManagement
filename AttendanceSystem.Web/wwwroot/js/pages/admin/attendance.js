@@ -2,6 +2,10 @@
 
 let todayRows = [];
 
+/* Held so the department and search filters re-render without regenerating the month —
+   the summary is an aggregate over every employee and is not cheap to rebuild. */
+let monthlyRows = [];
+
 // ── tab switching ──────────────────────────────────────────────
 function showTab(t) {
     document.getElementById('pane-today').style.display   = t === 'today'   ? '' : 'none';
@@ -94,7 +98,46 @@ async function loadMonthly() {
     tbody.innerHTML = '<tr><td colspan="11" class="text-center py-3 text-muted">Loading…</td></tr>';
     try {
         const r = await fetch(`/api/attendance/monthly?month=${m}&year=${y}`);
-        const data = r.ok ? await r.json() : [];
+        monthlyRows = r.ok ? await r.json() : [];
+
+        // Rebuilt from the result rather than fetched separately: it then lists only the
+        // departments actually present in this month's data, and inherits the caller's
+        // visibility scope for free instead of offering departments with no rows behind them.
+        buildMonthlyDepartments();
+        filterMonthly();
+    } catch { tbody.innerHTML = '<tr><td colspan="11" class="text-danger text-center py-3">Failed to load.</td></tr>'; }
+}
+
+/** Department options taken from the rows on screen, preserving the current choice. */
+function buildMonthlyDepartments() {
+    const sel = document.getElementById('mDept');
+    const previous = sel.value;
+
+    const names = [...new Set(monthlyRows.map(d => d.Department).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b));
+
+    sel.innerHTML = '<option value="">All departments</option>'
+        + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+
+    // Kept only if the regenerated month still contains it, so the filter can never point at
+    // a department with nothing behind it and show an empty table with no explanation.
+    if (names.includes(previous)) sel.value = previous;
+}
+
+function filterMonthly() {
+    const q = (document.getElementById('mSearch').value ?? '').toLowerCase();
+    const dept = document.getElementById('mDept').value ?? '';
+
+    renderMonthly(monthlyRows.filter(d =>
+        (!dept || d.Department === dept) &&
+        (!q || (d.EmployeeName ?? '').toLowerCase().includes(q)
+            || (d.EmployeeCode ?? '').toLowerCase().includes(q)
+            || (d.Department ?? '').toLowerCase().includes(q))
+    ));
+}
+
+function renderMonthly(data) {
+    try {
         amsPage('#monthlyBody', data, d => `
             <tr>
                 <td>${esc(d.EmployeeCode) || '—'}</td>
@@ -117,8 +160,17 @@ async function loadMonthly() {
                         </div>
                     </div>
                 </td>
-            </tr>`, { colspan: 11, empty: 'No data found.', label: 'employee' });
-    } catch { tbody.innerHTML = '<tr><td colspan="11" class="text-danger text-center py-3">Failed to load.</td></tr>'; }
+            </tr>`, {
+            colspan: 11,
+            // Distinguishes "nothing generated yet" from "filters exclude everything" —
+            // otherwise a too-narrow search reads as missing data.
+            empty: monthlyRows.length ? 'No employees match these filters.' : 'No data found.',
+            label: 'employee'
+        });
+    } catch {
+        document.getElementById('monthlyBody').innerHTML =
+            '<tr><td colspan="11" class="text-danger text-center py-3">Failed to render.</td></tr>';
+    }
 }
 
 // ── CHECK-IN ──────────────────────────────────────────────────

@@ -20,6 +20,7 @@ public static class ApplicationServiceExtensions
         services.AddScoped<IAttendanceService, AttendanceService>();
         // Shared by leave and overtime — both ask "may this person decide this request".
         services.AddScoped<IApprovalScopeService, ApprovalScopeService>();
+        services.AddScoped<IMonthEndService, MonthEndService>();
         services.AddScoped<ILeaveService, LeaveService>();
         services.AddScoped<IHolidayService, HolidayService>();
         services.AddScoped<ISettingsService, SettingsService>();
