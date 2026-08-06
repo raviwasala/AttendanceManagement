@@ -101,17 +101,49 @@ function openApprovers(id, name) {
     $('#apDeptName').text(name);
     $('#apBody').html('<tr><td colspan="3" class="text-center py-3 text-muted">Loading…</td></tr>');
 
-    $.getJSON('/api/users', function (users) {
+    /* The list used to be every active user, so plain employees appeared as candidates.
+       Naming one does nothing — approving also needs the Leave.Approve permission, which
+       their role does not hold — so the entry looked like a grant and silently wasn't one.
+       Only approve-capable roles are offered now.
+
+       Department is a hint, not a filter: own-department people are listed first because
+       they are the usual answer, but a supervisor covering two departments or an HR officer
+       based in Admin is a legitimate approver for this one, so nobody capable is excluded. */
+    $.when($.getJSON('/api/users'), $.getJSON('/api/users/roles'))
+     .done(function (usersRes, rolesRes) {
+        var users = usersRes[0] || [], allRoles = rolesRes[0] || [];
+
+        var canApproveRole = {};
+        allRoles.forEach(function (r) { canApproveRole[r.Id] = !!r.CanApprove; });
+
+        var empDept = {};
+        deptEmployees.forEach(function (e) { empDept[e.Id] = e.DepartmentId; });
+
         apCompanyWide = {};
-        $('#apUser').html((users || [])
-            .filter(function (u) { return u.IsActive; })
-            .map(function (u) {
+        var eligible = users.filter(function (u) {
+            return u.IsActive && canApproveRole[u.RoleId];
+        });
+
+        eligible.sort(function (a, b) {
+            var aHere = empDept[a.EmployeeId] === apDeptId ? 0 : 1;
+            var bHere = empDept[b.EmployeeId] === apDeptId ? 0 : 1;
+            return aHere - bHere || (a.FullName || '').localeCompare(b.FullName || '');
+        });
+
+        if (!eligible.length) {
+            $('#apUser').html('<option disabled>No user holds an approve permission. '
+                + 'Grant one on the Roles screen first.</option>');
+        } else {
+            $('#apUser').html(eligible.map(function (u) {
                 var wide = (u.ApprovalScope || 1) === 1;
                 apCompanyWide[u.Id] = wide;
+                var here = empDept[u.EmployeeId] === apDeptId;
                 return '<option value="' + esc(u.Id) + '">'
                      + esc(u.FullName) + ' (' + esc(u.Username) + ')'
+                     + (here ? ' — in this department' : '')
                      + (wide ? ' — already approves all departments' : '') + '</option>';
             }).join(''));
+        }
         loadApprovers();
     });
 

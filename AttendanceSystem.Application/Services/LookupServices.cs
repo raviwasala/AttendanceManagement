@@ -1,5 +1,6 @@
 using AttendanceSystem.Application.DTOs;
 using AttendanceSystem.Application.Interfaces;
+using AttendanceSystem.Common.Constants;
 using AttendanceSystem.Common.Logging;
 using AttendanceSystem.Common.Models;
 using AttendanceSystem.Common.Session;
@@ -147,9 +148,23 @@ public class DepartmentService : IDepartmentService
             var user = await _uow.Users.GetByIdAsync(dto.UserId);
             if (user == null) return Result.Failure("User not found.");
 
-            // Naming somebody an approver restricts them to this department. Saying so here
-            // is the difference between granting access and quietly taking it away — an HR
-            // Manager who approved company-wide yesterday would otherwise silently stop.
+            // Rejected rather than stored: approving also requires the role to hold an
+            // approve permission, so naming someone without one creates a row that looks
+            // like a grant and does nothing. A dead assignment is worse than a refusal,
+            // because it reads as configured until somebody's leave sits unapproved.
+            var approveIds = (await _uow.Permissions.FindAsync(
+                    p => p.Action == AppConstants.Actions.Approve))
+                .Select(p => p.Id).ToHashSet();
+
+            var holdsApprove = user.RoleId == 1 ||
+                (await _uow.GetRolePermissionsAsync(user.RoleId)).Any(rp => approveIds.Contains(rp.PermissionId));
+
+            if (!holdsApprove)
+                return Result.Failure(
+                    $"{user.FullName}'s role cannot approve leave or overtime, so naming them " +
+                    "here would have no effect. Grant that role an Authorise permission on the " +
+                    "Roles screen first.");
+
             var existing = await _uow.DepartmentApprovers.FindAsync(
                 a => a.DepartmentId == dto.DepartmentId && a.UserId == dto.UserId && !a.IsDeleted);
             if (existing.Any()) return Result.Failure($"{user.FullName} is already an approver for this department.");

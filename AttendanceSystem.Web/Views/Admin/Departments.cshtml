@@ -114,18 +114,19 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                @* The HR-manager case is the one people get wrong, so it is spelled out.
-                   Adding somebody here *narrows* them, so a company-wide approver should be
-                   left out rather than added — they already cover every department. *@
+                @* This said naming a company-wide approver would "restrict them to it" — true
+                   under the old inferred rule, and wrong since scope became a stated property
+                   of the user. Adding them is now simply a no-op, and the text has to say the
+                   same thing the code does. *@
                 <div class="alert alert-light border py-2 small mb-3">
                     <i class="feather icon-info me-1"></i>
                     A department can have <strong>as many approvers as you like</strong> — a
                     head and a supervisor, or two supervisors sharing the duty.
                     <div class="mt-1">
-                        Anyone who already approves for the whole company — an HR Manager, an
-                        administrator — <strong>should not be added here</strong>. They can
-                        already decide this department's requests, and naming them would
-                        restrict them to it.
+                        Only people whose role can authorise leave or overtime are listed —
+                        naming anyone else would have no effect. Those who already approve for
+                        the whole company are marked; adding them here changes nothing, since
+                        they can already decide this department's requests.
                     </div>
                 </div>
 

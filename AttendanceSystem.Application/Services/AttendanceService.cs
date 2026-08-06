@@ -16,10 +16,32 @@ public class AttendanceService : IAttendanceService
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
     private readonly ICurrentUserContext _currentUser;
+    private readonly IAttendanceLockService _locks;
 
-    public AttendanceService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser)
+    public AttendanceService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser,
+                             IAttendanceLockService locks)
     {
-        _uow = uow; _audit = audit; _currentUser = currentUser;
+        _uow = uow; _audit = audit; _currentUser = currentUser; _locks = locks;
+    }
+
+    /// <summary>
+    /// Refuses a write into a closed period, returning null when the date is open.
+    ///
+    /// A lock is only worth anything if every door respects it. AttendanceReviewService
+    /// enforced this on the review grid, but these methods sit behind a different endpoint
+    /// on the same records — so a month that was closed and paid could still be edited or
+    /// deleted through PUT/DELETE /api/attendance/{id}, which is precisely what locking is
+    /// meant to prevent.
+    /// </summary>
+    private async Task<string?> LockRefusalAsync(int employeeId, DateTime date)
+    {
+        var employee = await _uow.Employees.GetByIdAsync(employeeId);
+        var periodLock = await _locks.GetLockForAsync(date.Date, employee?.BranchId);
+        if (periodLock == null) return null;
+
+        return $"{date:dd-MMM-yyyy} is in a locked period " +
+               $"({periodLock.FromDate:dd-MMM-yyyy} – {periodLock.ToDate:dd-MMM-yyyy}: {periodLock.Reason}). " +
+               "Unlock it first if this really needs changing.";
     }
 
     public async Task<Result<AttendanceLogDto>> CheckInAsync(CheckInDto dto)
@@ -30,6 +52,11 @@ public class AttendanceService : IAttendanceService
             var existing = await _uow.Attendance.GetTodayAttendanceAsync(dto.EmployeeId, today);
             if (existing != null)
                 return Result<AttendanceLogDto>.Failure("Employee has already checked in today.");
+
+            // CheckInTime is supplied by the caller, so "today" is not necessarily today —
+            // a back-dated punch lands in whatever period that date belongs to.
+            var locked = await LockRefusalAsync(dto.EmployeeId, today);
+            if (locked != null) return Result<AttendanceLogDto>.Failure(locked);
 
             var allShiftAssignments = await _uow.EmployeeShifts.FindAsync(
                 es => es.EmployeeId == dto.EmployeeId && !es.IsDeleted
@@ -69,6 +96,9 @@ public class AttendanceService : IAttendanceService
             if (log.CheckIn.HasValue && dto.CheckOutTime < log.CheckIn)
                 return Result<AttendanceLogDto>.Failure("Check-out time cannot be before check-in time.");
 
+            var lockedOut = await LockRefusalAsync(log.EmployeeId, log.AttendanceDate);
+            if (lockedOut != null) return Result<AttendanceLogDto>.Failure(lockedOut);
+
             log.CheckOut = dto.CheckOutTime;
             if (dto.Remarks != null) log.Remarks = dto.Remarks;
 
@@ -100,6 +130,9 @@ public class AttendanceService : IAttendanceService
         {
             var log = await _uow.Attendance.GetByIdAsync(dto.Id);
             if (log == null) return Result.Failure("Attendance record not found.");
+
+            var locked = await LockRefusalAsync(log.EmployeeId, log.AttendanceDate);
+            if (locked != null) return Result.Failure(locked);
 
             // Snapshot before anything is touched: correcting a punch changes what somebody is
             // paid, so the trail has to show what the times were before the correction.
@@ -135,12 +168,24 @@ public class AttendanceService : IAttendanceService
         {
             var log = await _uow.Attendance.GetByIdAsync(id);
             if (log == null) return Result.Failure("Attendance record not found.");
+
+            var locked = await LockRefusalAsync(log.EmployeeId, log.AttendanceDate);
+            if (locked != null) return Result.Failure(locked);
+
+            // Captured before the flag flips: a deleted record is invisible to the query
+            // filters afterwards, so the trail is the only remaining evidence of what the
+            // times were — and every other write path here records one.
+            var before = AuditSnapshot.Snapshot(log);
+
             log.IsDeleted = true; log.ModifiedBy = deletedBy; log.ModifiedAt = DateTime.Now;
             await _uow.Attendance.UpdateAsync(log);
             await _uow.SaveChangesAsync();
+
+            await _audit.LogAsync("Attendance", "Delete", deletedBy, "AttendanceLog", log.Id,
+                oldValues: before);
             return Result.Success();
         }
-        catch (Exception ex) { return Result.Failure(ex.Message); }
+        catch (Exception ex) { AppLogger.Error("AttendanceService.DeleteAsync", ex); return Result.Failure(ex.Message); }
     }
 
     public async Task<Result<IEnumerable<AttendanceLogDto>>> GetTodayAsync()
