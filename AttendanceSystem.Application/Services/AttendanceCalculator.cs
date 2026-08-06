@@ -76,26 +76,37 @@ public static class AttendanceCalculator
             if (late > 0) { isLate = true; lateMinutes = late; }
         }
 
+        // ── Normalised out-punch ─────────────────────────────────────────────
+        // A night-shift out-punch recorded against the same calendar date reads as being
+        // before the in-punch; roll it forward a day, which is what actually happened.
+        //
+        // Done once, up front, because every figure below depends on it. The roll-forward
+        // used to live inside the hours block alone, so hours came out right while early
+        // leave compared a 06:00 out-punch against an expected end on the *following* day
+        // and reported the employee 1,440 minutes early — a full night shift flagged as
+        // leaving early, every time.
+        var effectiveOut = checkOut;
+        if (checkOut.HasValue && checkOut.Value < checkIn.Value
+            && shift != null && CrossesMidnight(shift))
+        {
+            effectiveOut = checkOut.Value.AddDays(1);
+        }
+
         // ── Early leave ──────────────────────────────────────────────────────
         var isEarly = false;
         int? earlyMinutes = null;
-        if (shift != null && checkOut.HasValue && expectedEnd.HasValue)
+        if (shift != null && effectiveOut.HasValue && expectedEnd.HasValue)
         {
-            var early = (int)(expectedEnd.Value.AddMinutes(-shift.GraceOutMinutes) - checkOut.Value).TotalMinutes;
+            var early = (int)(expectedEnd.Value.AddMinutes(-shift.GraceOutMinutes) - effectiveOut.Value).TotalMinutes;
             if (early > 0) { isEarly = true; earlyMinutes = early; }
         }
 
         // ── Hours ────────────────────────────────────────────────────────────
         double? grossHours = null;
         double? workingHours = null;
-        if (checkOut.HasValue)
+        if (effectiveOut.HasValue)
         {
-            var span = checkOut.Value - checkIn.Value;
-
-            // A night-shift out-punch recorded against the same calendar date reads as
-            // negative; roll it forward a day, which is what actually happened.
-            if (span < TimeSpan.Zero && shift != null && CrossesMidnight(shift))
-                span = span.Add(TimeSpan.FromDays(1));
+            var span = effectiveOut.Value - checkIn.Value;
 
             if (span >= TimeSpan.Zero)
             {
@@ -107,7 +118,7 @@ public static class AttendanceCalculator
 
         // ── Overtime ─────────────────────────────────────────────────────────
         int? overtimeMinutes = null;
-        if (shift is { IsOtEnabled: true } && checkOut.HasValue && workingHours.HasValue)
+        if (shift is { IsOtEnabled: true } && effectiveOut.HasValue && workingHours.HasValue)
         {
             double otMinutes;
 
@@ -128,8 +139,11 @@ public static class AttendanceCalculator
             {
                 // Only time past the shift end (plus the threshold) counts. Arriving early
                 // does not earn overtime under this rule.
+                // effectiveOut, not checkOut: expectedEnd is already on the following day for
+                // a night shift, so comparing a same-date out-punch against it understated
+                // overtime by a full day and silently paid nothing.
                 var otFrom = expectedEnd.Value.AddMinutes(shift.OtStartAfterMinutes);
-                otMinutes = (checkOut.Value - otFrom).TotalMinutes;
+                otMinutes = (effectiveOut.Value - otFrom).TotalMinutes;
             }
             else
             {

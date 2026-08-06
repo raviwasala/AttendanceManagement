@@ -66,6 +66,11 @@ public class MyLeaveBalanceDto
     public string LeaveType { get; set; } = string.Empty;
     public int Entitled { get; set; }
     public int Used { get; set; }
+
+    /// <summary>Days on the employee's own requests still awaiting a decision.</summary>
+    public int Pending { get; set; }
+
+    /// <summary>Entitled less used <b>and pending</b> — what can still be booked.</summary>
     public int Remaining { get; set; }
     public bool IsPaid { get; set; }
 }

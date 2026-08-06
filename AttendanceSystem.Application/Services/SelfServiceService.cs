@@ -204,13 +204,24 @@ public class SelfServiceService : ISelfServiceService
                                 l.FromDate.Year == year)
                     .Sum(l => l.TotalDays);
 
+                // Pending days are already spoken for. Showing them as available is what
+                // let an employee read "14 left", apply for 14 while 14 were still awaiting
+                // a decision, and end up over entitlement once both were approved. The
+                // entitlement check counts them too, so this number now agrees with it —
+                // a screen promising days the server will refuse is its own bug.
+                var pending = mine
+                    .Where(l => l.LeaveTypeId == t.Id && l.Status == LeaveStatus.Pending &&
+                                l.FromDate.Year == year)
+                    .Sum(l => l.TotalDays);
+
                 return new MyLeaveBalanceDto
                 {
                     LeaveTypeId = t.Id,
                     LeaveType = t.Name,
                     Entitled = t.TotalDays,
                     Used = used,
-                    Remaining = Math.Max(0, t.TotalDays - used),
+                    Pending = pending,
+                    Remaining = Math.Max(0, t.TotalDays - used - pending),
                     IsPaid = t.IsPaid
                 };
             }).ToList();
@@ -253,7 +264,7 @@ public class SelfServiceService : ISelfServiceService
             if (employee == null) return Result<LeaveRequestDto>.Failure(NotLinkedMessage);
 
             // Hands off to the same service the admin screen uses, so the entitlement check,
-            // the inclusive day count and the overlap rules are applied once and cannot drift
+            // the inclusive day count and the overlap check are applied once and cannot drift
             // between the two ways of applying. The employee id is supplied here, from the
             // session — it is the one field the caller never gets to set.
             return await _leave.ApplyLeaveAsync(new ApplyLeaveDto

@@ -51,6 +51,23 @@ public interface ILeaveRepository : IRepository<LeaveRequest>
     Task<int> GetUsedLeaveDaysAsync(int employeeId, int leaveTypeId, int year);
 
     /// <summary>
+    /// Days already committed for the year — approved <b>plus still pending</b>.
+    ///
+    /// The entitlement check has to use this rather than approved-only, otherwise a pending
+    /// request reserves nothing: someone with 14 days can submit 14, submit another 14 while
+    /// the first is undecided, and both pass. Approving both then puts them 14 days over.
+    /// </summary>
+    Task<int> GetCommittedLeaveDaysAsync(int employeeId, int leaveTypeId, int year,
+                                         int? excludeRequestId = null);
+
+    /// <summary>
+    /// Requests for this employee that overlap the given range and still hold dates —
+    /// pending or approved. Used to stop the same days being booked twice.
+    /// </summary>
+    Task<IEnumerable<LeaveRequest>> GetOverlappingAsync(int employeeId, DateTime from, DateTime to,
+                                                        int? excludeRequestId = null);
+
+    /// <summary>
     /// One page of requests, newest first, with employee, department and leave type included.
     ///
     /// The generic GetAllAsync this replaced included none of those navigations, so every
@@ -91,6 +108,12 @@ public interface IHolidayRepository : IRepository<Holiday>
 {
     Task<bool> IsHolidayAsync(DateTime date);
     Task<IEnumerable<Holiday>> GetByYearAsync(int year);
+
+    /// <summary>
+    /// Holiday dates inside a range, recurring entries projected onto each year covered.
+    /// One query for many dates, and one copy of the recurrence rule.
+    /// </summary>
+    Task<HashSet<DateTime>> GetHolidayDatesAsync(DateTime from, DateTime to);
 }
 
 /// <summary>

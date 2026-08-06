@@ -64,5 +64,14 @@ public class LeaveBalanceDto
     public string LeaveTypeName { get; set; } = string.Empty;
     public int TotalAllowed { get; set; }
     public int UsedDays { get; set; }
-    public int RemainingDays => TotalAllowed - UsedDays;
+
+    /// <summary>Days on requests still awaiting a decision.</summary>
+    public int PendingDays { get; set; }
+
+    /// <summary>
+    /// What is actually left to book. Pending days are subtracted because they are already
+    /// spoken for — showing them as available is what let the same entitlement be claimed
+    /// twice, and the entitlement check now counts them too.
+    /// </summary>
+    public int RemainingDays => Math.Max(0, TotalAllowed - UsedDays - PendingDays);
 }

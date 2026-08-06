@@ -72,4 +72,25 @@ public class LeaveRepository : Repository<LeaveRequest>, ILeaveRepository
                              && l.FromDate.Year == year
                              && l.Status == LeaveStatus.Approved)
                     .SumAsync(l => l.TotalDays);
+
+    public async Task<int> GetCommittedLeaveDaysAsync(int employeeId, int leaveTypeId, int year,
+                                                      int? excludeRequestId = null) =>
+        await _dbSet.Where(l => l.EmployeeId == employeeId
+                             && l.LeaveTypeId == leaveTypeId
+                             && l.FromDate.Year == year
+                             && (l.Status == LeaveStatus.Approved || l.Status == LeaveStatus.Pending)
+                             && (excludeRequestId == null || l.Id != excludeRequestId))
+                    .SumAsync(l => l.TotalDays);
+
+    public async Task<IEnumerable<LeaveRequest>> GetOverlappingAsync(
+        int employeeId, DateTime from, DateTime to, int? excludeRequestId = null) =>
+        // Standard overlap test: two ranges intersect when each starts on or before the
+        // other ends. Cancelled and rejected requests hold no dates and are excluded.
+        await _dbSet.Include(l => l.LeaveType)
+                    .Where(l => l.EmployeeId == employeeId
+                             && (l.Status == LeaveStatus.Approved || l.Status == LeaveStatus.Pending)
+                             && l.FromDate.Date <= to.Date
+                             && l.ToDate.Date >= from.Date
+                             && (excludeRequestId == null || l.Id != excludeRequestId))
+                    .ToListAsync();
 }

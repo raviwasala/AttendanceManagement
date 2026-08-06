@@ -155,12 +155,34 @@ public class LeaveService : ILeaveService
             var leaveType = await _uow.LeaveTypes.GetByIdAsync(dto.LeaveTypeId);
             if (leaveType == null) return Result<LeaveRequestDto>.Failure("Leave type not found.");
 
-            var totalDays = (int)(dto.ToDate.Date - dto.FromDate.Date).TotalDays + 1;
+            var totalDays = await CountWorkingDaysAsync(dto.EmployeeId, dto.FromDate, dto.ToDate);
 
-            // Check balance
-            var usedDays = await _uow.Leaves.GetUsedLeaveDaysAsync(dto.EmployeeId, dto.LeaveTypeId, dto.FromDate.Year);
-            if (usedDays + totalDays > leaveType.TotalDays)
-                return Result<LeaveRequestDto>.Failure($"Insufficient leave balance. Available: {leaveType.TotalDays - usedDays} day(s).");
+            // A range made entirely of days off costs nothing and is almost certainly a
+            // mistake, so it is refused rather than stored as a zero-day request.
+            if (totalDays == 0)
+                return Result<LeaveRequestDto>.Failure(
+                    "Those dates are all weekly off days or holidays, so no leave would be used. " +
+                    "Check the dates.");
+
+            // Booking the same days twice was possible: nothing compared a new request against
+            // the ones already holding those dates, so an employee could apply for the same
+            // week repeatedly and have each approved separately.
+            var clashes = await _uow.Leaves.GetOverlappingAsync(dto.EmployeeId, dto.FromDate, dto.ToDate);
+            var clash = clashes.FirstOrDefault();
+            if (clash != null)
+                return Result<LeaveRequestDto>.Failure(
+                    $"These dates overlap an existing {clash.Status.ToString().ToLowerInvariant()} request " +
+                    $"({clash.FromDate:dd-MMM-yyyy} – {clash.ToDate:dd-MMM-yyyy}" +
+                    (clash.LeaveType != null ? $", {clash.LeaveType.Name}" : "") + ").");
+
+            // Committed, not just approved: a pending request has to reserve its days, or two
+            // undecided requests each pass the check and together exceed the entitlement.
+            var committed = await _uow.Leaves.GetCommittedLeaveDaysAsync(
+                dto.EmployeeId, dto.LeaveTypeId, dto.FromDate.Year);
+            if (committed + totalDays > leaveType.TotalDays)
+                return Result<LeaveRequestDto>.Failure(
+                    $"Insufficient leave balance. Available: {Math.Max(0, leaveType.TotalDays - committed)} day(s) " +
+                    "(including requests already awaiting approval).");
 
             var entity = new LeaveRequest
             {
@@ -242,17 +264,75 @@ public class LeaveService : ILeaveService
             var balances = new List<LeaveBalanceDto>();
             foreach (var lt in leaveTypes.Where(l => l.IsActive))
             {
-                var used = await _uow.Leaves.GetUsedLeaveDaysAsync(employeeId, lt.Id, DateTime.Now.Year);
+                var year = DateTime.Now.Year;
+                var used = await _uow.Leaves.GetUsedLeaveDaysAsync(employeeId, lt.Id, year);
+                var committed = await _uow.Leaves.GetCommittedLeaveDaysAsync(employeeId, lt.Id, year);
                 balances.Add(new LeaveBalanceDto
                 {
                     EmployeeId = employeeId,
                     EmployeeName = $"{emp.FirstName} {emp.LastName}",
-                    LeaveTypeName = lt.Name, TotalAllowed = lt.TotalDays, UsedDays = used
+                    LeaveTypeName = lt.Name, TotalAllowed = lt.TotalDays,
+                    UsedDays = used, PendingDays = committed - used
                 });
             }
             return Result<IEnumerable<LeaveBalanceDto>>.Success(balances);
         }
         catch (Exception ex) { return Result<IEnumerable<LeaveBalanceDto>>.Failure(ex.Message); }
+    }
+
+    /// <summary>
+    /// Days actually deducted for a leave range: calendar days, less the employee's weekly
+    /// off days and any holidays.
+    ///
+    /// This used to be a plain inclusive day count, so applying Friday to Monday cost four
+    /// days when only two were working ones — the system knew about weekly offs and holidays
+    /// and consulted neither, quietly overcharging every request that spanned a weekend.
+    ///
+    /// Weekly-off membership is read through <see cref="AttendanceCalculator.IsWeeklyOff"/>
+    /// rather than reimplemented, so leave and attendance cannot disagree about which days
+    /// the shift runs. An employee with no shift assignment has no known off days, so only
+    /// holidays are excluded for them.
+    /// </summary>
+    private async Task<int> CountWorkingDaysAsync(int employeeId, DateTime from, DateTime to)
+    {
+        var fromDate = from.Date;
+        var toDate = to.Date;
+
+        var holidays = await _uow.Holidays.GetHolidayDatesAsync(fromDate, toDate);
+
+        // Every assignment overlapping the range, fetched once — a leave request can span a
+        // shift change, and the off days differ either side of it.
+        var assignments = (await _uow.EmployeeShifts.FindAsync(
+                es => es.EmployeeId == employeeId && !es.IsDeleted
+                   && es.EffectiveFrom <= toDate
+                   && (es.EffectiveTo == null || es.EffectiveTo >= fromDate)))
+            .OrderByDescending(es => es.EffectiveFrom)
+            .ToList();
+
+        var shiftCache = new Dictionary<int, Shift?>();
+        var days = 0;
+
+        for (var day = fromDate; day <= toDate; day = day.AddDays(1))
+        {
+            if (holidays.Contains(day)) continue;
+
+            var assignment = assignments.FirstOrDefault(
+                es => es.EffectiveFrom.Date <= day && (es.EffectiveTo == null || es.EffectiveTo.Value.Date >= day));
+
+            if (assignment != null)
+            {
+                if (!shiftCache.TryGetValue(assignment.ShiftId, out var shift))
+                {
+                    shift = await _uow.Shifts.GetByIdAsync(assignment.ShiftId);
+                    shiftCache[assignment.ShiftId] = shift;
+                }
+                if (shift != null && AttendanceCalculator.IsWeeklyOff(shift, day)) continue;
+            }
+
+            days++;
+        }
+
+        return days;
     }
 
     private static LeaveTypeDto MapType(LeaveType l) =>

@@ -29,6 +29,50 @@ public class HolidayRepository : Repository<Holiday>, IHolidayRepository
              h.HolidayDate.Year <= date.Year));
 
     /// <summary>
+    /// The holiday dates falling inside a range, with recurring entries projected onto the
+    /// years the range covers.
+    ///
+    /// Exists so callers that need to test many dates — counting the working days in a leave
+    /// request, for one — do not issue a query per day, and more importantly do not reimplement
+    /// the recurrence rule. That rule has already been wrong once here; one copy of it is the
+    /// point.
+    /// </summary>
+    public async Task<HashSet<DateTime>> GetHolidayDatesAsync(DateTime from, DateTime to)
+    {
+        var fromDate = from.Date;
+        var toDate = to.Date;
+
+        var candidates = await _dbSet.Where(h =>
+                (h.HolidayDate.Date >= fromDate && h.HolidayDate.Date <= toDate) ||
+                (h.IsRecurring && h.HolidayDate.Year <= toDate.Year))
+            .ToListAsync();
+
+        var dates = new HashSet<DateTime>();
+        foreach (var h in candidates)
+        {
+            if (h.HolidayDate.Date >= fromDate && h.HolidayDate.Date <= toDate)
+                dates.Add(h.HolidayDate.Date);
+
+            if (!h.IsRecurring) continue;
+
+            // Projected onto each year the range touches, but never before the year it was
+            // declared — the same rule IsHolidayAsync applies.
+            for (var year = fromDate.Year; year <= toDate.Year; year++)
+            {
+                if (year < h.HolidayDate.Year) continue;
+
+                // 29 February recurs only in leap years; DateTime would otherwise throw.
+                if (h.HolidayDate.Month == 2 && h.HolidayDate.Day == 29 && !DateTime.IsLeapYear(year))
+                    continue;
+
+                var projected = new DateTime(year, h.HolidayDate.Month, h.HolidayDate.Day);
+                if (projected >= fromDate && projected <= toDate) dates.Add(projected);
+            }
+        }
+        return dates;
+    }
+
+    /// <summary>
     /// Holidays in force for a year: those actually dated in it, plus recurring ones declared
     /// in an earlier year. The second group is returned with its original date — the caller
     /// projects it forward, so the stored row is never mistaken for a row of its own.
