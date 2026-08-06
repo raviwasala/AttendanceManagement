@@ -101,8 +101,10 @@
                         <th class="text-center">Expected</th>
                         <th class="text-center">In</th>
                         <th class="text-center">Out</th>
-                        <th class="text-center">Late</th>
-                        <th class="text-center">Early</th>
+                        @* One column, not two. Late and early leave are mutually rare on the
+                           same row, so two columns spent most of their width showing a dash
+                           each while the time inputs beside them were cramped. *@
+                        <th class="text-center">Late / Early</th>
                         <th class="text-center">Hours</th>
                         <th class="text-center">OT</th>
                         <th>Status</th>
@@ -135,7 +137,21 @@
             box-shadow: 0 6px 18px rgba(0,0,0,.22);
         }
 
-        .ar-time { width: 92px; text-align: center; font-variant-numeric: tabular-nums; }
+        /* 92px left no room for the value and the browser's clock button together, so the
+           digits sat hard against the edge and "--:--" was clipped. The width the merged
+           Late/Early column gave back pays for this. */
+        .ar-time {
+            width: 118px;
+            min-width: 118px;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            padding-left: .35rem;
+            padding-right: .35rem;
+        }
+
+        /* Wide enough for "Late 15m" and "Early 20m" without either wrapping mid-badge. */
+        .ar-flag-col { min-width: 92px; }
+        .ar-flag-col .badge { display: inline-block; }
         .ar-dirty { background: #fff9db !important; }
         .ar-row-noshift { background: #fff5f5; }
     </style>
