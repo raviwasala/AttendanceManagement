@@ -96,8 +96,11 @@ public class LeaveService : ILeaveService
     {
         try
         {
+            var scope = await _scopes.GetDataScopeAsync();
+
             var (items, total) = await _uow.Leaves.GetPagedAsync(
-                search, status, departmentId, employeeId, from, to, page.Skip, page.PageSize);
+                search, status, departmentId, employeeId, from, to, page.Skip, page.PageSize,
+                scope.DepartmentFilter, scope.EmployeeFilter);
 
             return Result<PagedResult<LeaveRequestDto>>.Success(new PagedResult<LeaveRequestDto>
             {

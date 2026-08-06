@@ -364,7 +364,9 @@
     </div>
 }
 
-<div class="row g-3" data-widget="quicklinks">
+@* Named "todayattendance", not "quicklinks": this block holds the attendance breakdown and
+   the recent-punch table, which name individual employees. *@
+<div class="row g-3" data-widget="todayattendance">
     <!-- Attendance % card -->
     <div class="col-xl-4 col-md-6">
         <div class="card h-100">
@@ -429,7 +431,7 @@
 </div>
 
 <!-- Quick Links -->
-<div class="row g-3 mt-1">
+<div class="row g-3 mt-1" data-widget="quicklinks">
     <div class="col-12">
         <div class="card">
             <div class="card-header"><strong>Quick Links</strong></div>

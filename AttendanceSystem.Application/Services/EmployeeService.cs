@@ -14,19 +14,28 @@ public class EmployeeService : IEmployeeService
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
     private readonly ICurrentUserContext _currentUser;
+    private readonly IApprovalScopeService _scopes;
 
-    public EmployeeService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser)
+    public EmployeeService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser,
+                           IApprovalScopeService scopes)
     {
         _uow = uow;
         _audit = audit;
         _currentUser = currentUser;
+        _scopes = scopes;
     }
 
     public async Task<Result<IEnumerable<EmployeeListItemDto>>> GetAllAsync()
     {
         try
         {
-            var employees = await _uow.Employees.GetActiveEmployeesAsync();
+            // Feeds dropdowns as well as lists, so it is scoped too — an unscoped picker
+            // would name every employee in the company to a department head.
+            var scope = await _scopes.GetDataScopeAsync();
+
+            var employees = (await _uow.Employees.GetActiveEmployeesAsync())
+                .Where(e => scope.Allows(e.Id, e.DepartmentId));
+
             return Result<IEnumerable<EmployeeListItemDto>>.Success(employees.Select(MapToListDto));
         }
         catch (Exception ex)
@@ -42,8 +51,11 @@ public class EmployeeService : IEmployeeService
     {
         try
         {
+            var scope = await _scopes.GetDataScopeAsync();
+
             var (items, total) = await _uow.Employees.GetPagedAsync(
-                search, departmentId, designationId, branchId, isActive, page.Skip, page.PageSize);
+                search, departmentId, designationId, branchId, isActive, page.Skip, page.PageSize,
+                scope.DepartmentFilter, scope.EmployeeFilter);
 
             return Result<PagedResult<EmployeeListItemDto>>.Success(new PagedResult<EmployeeListItemDto>
             {

@@ -289,12 +289,12 @@ async function loadOperations() {
         </div>`;
 }
 
+/* Nothing is fetched here any more. Every loader below hits an endpoint gated on a module
+   permission, so firing them all on load meant a plain employee's dashboard issued five
+   requests that each came back 403. The widget list says what this user may see; the
+   loaders now run from that answer instead of ahead of it. */
 document.addEventListener('DOMContentLoaded', function () {
-    loadDashboard();
-    loadTrend(7);
-    loadPunctuality();
-    loadLeaveOverview();
-    loadOperations();
+    loadWidgetPrefs();
 });
 
 /* ── Widget visibility ────────────────────────────────────────────────────────
@@ -303,7 +303,8 @@ document.addEventListener('DOMContentLoaded', function () {
    widget's data endpoint enforces its own permission regardless. */
 var dashWidgets = [];
 
-$(function () { loadWidgetPrefs(); });
+// Initialised from the DOMContentLoaded handler above — a second call here would fetch the
+// widget list twice and run every loader twice with it.
 
 function loadWidgetPrefs() {
     $.getJSON('/api/dashboard-widgets', function (list) {
@@ -312,10 +313,28 @@ function loadWidgetPrefs() {
     });
 }
 
+/* Deny by default, matching the server.
+
+   This used to iterate the returned widgets and toggle each one — but the server *filters
+   out* widgets the user has no permission for rather than returning them as hidden. A block
+   the user was not allowed to see therefore appeared in neither the show nor the hide pass,
+   and simply stayed rendered. Every block is now hidden unless the server named it. */
 function applyWidgetVisibility() {
-    dashWidgets.forEach(function (w) {
-        $('[data-widget="' + w.Key + '"]').toggle(!!w.IsVisible);
+    var allowed = {};
+    dashWidgets.forEach(function (w) { allowed[w.Key] = !!w.IsVisible; });
+
+    $('[data-widget]').each(function () {
+        var key = $(this).attr('data-widget');
+        $(this).toggle(Object.prototype.hasOwnProperty.call(allowed, key) && allowed[key]);
     });
+
+    // Each loader runs only when a block that displays its data survived. The endpoints
+    // enforce this too — skipping the call just avoids a pointless 403 and an empty card.
+    if (allowed.stats || allowed.todayattendance) loadDashboard();
+    if (allowed.trend) loadTrend(7);
+    if (allowed.punctuality || allowed.toplate) loadPunctuality();
+    if (allowed.pendingleave || allowed.leaveutil) loadLeaveOverview();
+    if (allowed.datahealth) loadOperations();
 }
 
 function openCustomise() {

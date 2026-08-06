@@ -24,8 +24,12 @@ public class AttendanceApiController : ApiControllerBase
         return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
     }
 
+    // Employees.View, for exactly the reason given above "today": this returns company
+    // headcount and RecentAttendance, which names individual employees and their times.
+    // It was gated on Dashboard.View — a permission the Employee role holds — so every
+    // member of staff could read the whole company's daily attendance roll.
     [HttpGet("dashboard")]
-    [SessionAuthorize(Modules.Dashboard, Actions.View)]
+    [SessionAuthorize(Modules.Employees, Actions.View)]
     public async Task<IActionResult> Dashboard()
     {
         var r = await _svc.GetDashboardStatsAsync();

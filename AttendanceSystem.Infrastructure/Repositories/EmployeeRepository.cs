@@ -19,13 +19,21 @@ public class EmployeeRepository : Repository<Employee>, IEmployeeRepository
 
     public async Task<(IEnumerable<Employee> Items, int TotalCount)> GetPagedAsync(
         string? search, int? departmentId, int? designationId, int? branchId,
-        bool? isActive, int skip, int take)
+        bool? isActive, int skip, int take,
+        IReadOnlyCollection<int>? scopeDepartmentIds = null, int? scopeEmployeeId = null)
     {
         var query = _dbSet.AsNoTracking()
             .Include(e => e.Department)
             .Include(e => e.Designation)
             .Include(e => e.Branch)
             .AsQueryable();
+
+        // Applied before every other filter and before paging, so the count and the page both
+        // describe only rows this user may see.
+        if (scopeEmployeeId.HasValue)
+            query = query.Where(e => e.Id == scopeEmployeeId.Value);
+        else if (scopeDepartmentIds is { Count: > 0 })
+            query = query.Where(e => scopeDepartmentIds.Contains(e.DepartmentId));
 
         if (isActive.HasValue) query = query.Where(e => e.IsActive == isActive.Value);
         if (departmentId.HasValue) query = query.Where(e => e.DepartmentId == departmentId.Value);

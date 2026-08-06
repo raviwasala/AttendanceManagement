@@ -318,11 +318,18 @@ public class OvertimeService : IOvertimeService
 
             // Department lives on the employee, not the claim, so it is resolved to ids first
             // and pushed into the query rather than filtered out after the fact.
+            // The requested department filter is intersected with what this user may see, so
+            // asking for a department outside their scope narrows the result rather than
+            // widening it — a filter must never be a way around the restriction.
+            var scope = await _scopes.GetDataScopeAsync();
+
             IReadOnlyCollection<int>? departmentEmployeeIds = null;
-            if (departmentId.HasValue)
+            if (departmentId.HasValue || !scope.IsCompanyWide)
             {
                 departmentEmployeeIds = (await _uow.Employees.FindAsync(
-                        e => !e.IsDeleted && e.DepartmentId == departmentId.Value))
+                        e => !e.IsDeleted
+                          && (departmentId == null || e.DepartmentId == departmentId.Value)))
+                    .Where(e => scope.Allows(e.Id, e.DepartmentId))
                     .Select(e => e.Id)
                     .ToList();
             }

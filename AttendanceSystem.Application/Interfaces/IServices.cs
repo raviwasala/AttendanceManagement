@@ -160,6 +160,12 @@ public interface IApprovalScopeService
 {
     Task<Services.LeaveApprovalScope> GetForCurrentUserAsync();
     Task<Services.LeaveApprovalScope> GetForAsync(int userId);
+
+    /// <summary>
+    /// Which records the signed-in user may read. Built from the same department
+    /// configuration as approval so the two cannot drift apart.
+    /// </summary>
+    Task<Services.DataScope> GetDataScopeAsync();
 }
 
 /// <summary>Holiday service contract.</summary>

@@ -43,9 +43,13 @@ public static class DashboardWidgetCatalogue
 {
     public static readonly IReadOnlyList<DashboardWidgetDto> All =
     [
+        // Employees.View, not Dashboard.View. These are company headcount figures, and
+        // Dashboard.View is held by every role including plain employees — so classifying
+        // them as "dashboard" showed the whole company's daily attendance to everyone who
+        // could log in. The permission has to describe the data, not the page it sits on.
         new() { Key = "stats", Title = "Summary tiles",
                 Description = "Total employees, present, absent and on leave today.",
-                Module = AppConstants.Modules.Dashboard, Action = AppConstants.Actions.View,
+                Module = AppConstants.Modules.Employees, Action = AppConstants.Actions.View,
                 IsDefault = true },
 
         new() { Key = "trend", Title = "Attendance trend",
@@ -78,6 +82,16 @@ public static class DashboardWidgetCatalogue
                 Module = AppConstants.Modules.Employees, Action = AppConstants.Actions.View,
                 IsDefault = true },
 
+        // Today's percentage, the breakdown chart and the recent-attendance table. This block
+        // was carrying the "quicklinks" key, so a named list of who was present, absent and
+        // late today was gated on Dashboard.View along with the harmless shortcuts.
+        new() { Key = "todayattendance", Title = "Today's attendance",
+                Description = "Attendance percentage, the present/absent/late breakdown and today's recent punches.",
+                Module = AppConstants.Modules.Attendance, Action = AppConstants.Actions.View,
+                IsDefault = true },
+
+        // Genuinely just links. Every destination gates itself, so a shortcut to a screen the
+        // user cannot open is harmless — it stops at that screen's own permission check.
         new() { Key = "quicklinks", Title = "Quick links",
                 Description = "Shortcuts to the screens used most often.",
                 Module = AppConstants.Modules.Dashboard, Action = AppConstants.Actions.View,

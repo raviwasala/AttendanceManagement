@@ -29,9 +29,18 @@ public interface IEmployeeRepository : IRepository<Employee>
     /// old GetActiveEmployeesAsync could only ever answer the first — which is why choosing
     /// "Inactive" returned nothing at all.
     /// </summary>
+    /// <summary>
+    /// One page of employees.
+    ///
+    /// <paramref name="scopeDepartmentIds"/> and <paramref name="scopeEmployeeId"/> carry the
+    /// caller's visibility, and are applied in SQL rather than after paging — filtering a page
+    /// once it has been fetched produces short pages and a total count that describes rows the
+    /// user cannot see. Both null means unrestricted.
+    /// </summary>
     Task<(IEnumerable<Employee> Items, int TotalCount)> GetPagedAsync(
         string? search, int? departmentId, int? designationId, int? branchId,
-        bool? isActive, int skip, int take);
+        bool? isActive, int skip, int take,
+        IReadOnlyCollection<int>? scopeDepartmentIds = null, int? scopeEmployeeId = null);
 }
 
 public interface IAttendanceRepository : IRepository<AttendanceLog>
@@ -73,9 +82,15 @@ public interface ILeaveRepository : IRepository<LeaveRequest>
     /// The generic GetAllAsync this replaced included none of those navigations, so every
     /// request came back with a blank employee name and department.
     /// </summary>
+    /// <summary>
+    /// One page of requests. <paramref name="scopeDepartmentIds"/> and
+    /// <paramref name="scopeEmployeeId"/> carry the caller's visibility and are applied in
+    /// SQL, before paging. Both null means unrestricted.
+    /// </summary>
     Task<(IEnumerable<LeaveRequest> Items, int TotalCount)> GetPagedAsync(
         string? search, LeaveStatus? status, int? departmentId, int? employeeId,
-        DateTime? from, DateTime? to, int skip, int take);
+        DateTime? from, DateTime? to, int skip, int take,
+        IReadOnlyCollection<int>? scopeDepartmentIds = null, int? scopeEmployeeId = null);
 }
 
 /// <summary>Totals for a filtered set of overtime claims, computed in SQL over the whole range.</summary>

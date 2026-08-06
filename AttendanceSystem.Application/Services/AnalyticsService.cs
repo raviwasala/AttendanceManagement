@@ -22,8 +22,28 @@ public class AnalyticsService : IAnalyticsService
     private const int MaxTrendDays = 90;
 
     private readonly IUnitOfWork _uow;
+    private readonly IApprovalScopeService _scopes;
 
-    public AnalyticsService(IUnitOfWork uow) => _uow = uow;
+    public AnalyticsService(IUnitOfWork uow, IApprovalScopeService scopes)
+    {
+        _uow = uow;
+        _scopes = scopes;
+    }
+
+    /// <summary>
+    /// The employees this user may see, for the analytics below.
+    ///
+    /// Every chart here is an aggregate over a population, so scoping the population scopes
+    /// the chart. A department head's punctuality figures describe their department; without
+    /// this they described the company and were indistinguishable from an administrator's.
+    /// </summary>
+    private async Task<List<Employee>> VisibleEmployeesAsync(bool activeOnly = true)
+    {
+        var scope = await _scopes.GetDataScopeAsync();
+        return (await _uow.Employees.FindAsync(e => !e.IsDeleted && (!activeOnly || e.IsActive)))
+            .Where(e => scope.Allows(e.Id, e.DepartmentId))
+            .ToList();
+    }
 
     // ── Trend ─────────────────────────────────────────────────────────────────
 
@@ -36,13 +56,21 @@ public class AnalyticsService : IAnalyticsService
             var today = DateTime.Today;
             var from = today.AddDays(-(days - 1));
 
-            var employees = (await _uow.Employees.FindAsync(e => e.IsActive && !e.IsDeleted)).ToList();
+            var employees = await VisibleEmployeesAsync();
+
+            // Records are restricted to the visible population as well as the counts derived
+            // from it. Scoping the employee list alone would still leave Present and Late
+            // counting the whole company against a departmental headcount.
+            var visibleIds = employees.Select(e => e.Id).ToHashSet();
+
             var logs = (await _uow.Attendance.FindAsync(
-                a => a.AttendanceDate >= from && a.AttendanceDate <= today && !a.IsDeleted)).ToList();
+                a => a.AttendanceDate >= from && a.AttendanceDate <= today && !a.IsDeleted))
+                .Where(a => visibleIds.Contains(a.EmployeeId)).ToList();
 
             var leaves = (await _uow.Leaves.FindAsync(
                 l => l.Status == LeaveStatus.Approved && !l.IsDeleted
-                     && l.FromDate.Date <= today && l.ToDate.Date >= from)).ToList();
+                     && l.FromDate.Date <= today && l.ToDate.Date >= from))
+                .Where(l => visibleIds.Contains(l.EmployeeId)).ToList();
 
             var holidays = (await _uow.Holidays.FindAsync(
                 h => h.HolidayDate >= from && h.HolidayDate <= today && !h.IsDeleted))
@@ -126,11 +154,14 @@ public class AnalyticsService : IAnalyticsService
             to = to.Date;
             if (to < from) (from, to) = (to, from);
 
+            var employees = await VisibleEmployeesAsync(activeOnly: false);
+            var visibleIds = employees.Select(e => e.Id).ToHashSet();
+
             var logs = (await _uow.Attendance.FindAsync(
                 a => a.AttendanceDate >= from && a.AttendanceDate <= to && !a.IsDeleted
-                     && (a.Status == AttendanceStatus.Present || a.Status == AttendanceStatus.Late))).ToList();
+                     && (a.Status == AttendanceStatus.Present || a.Status == AttendanceStatus.Late)))
+                .Where(a => visibleIds.Contains(a.EmployeeId)).ToList();
 
-            var employees = (await _uow.Employees.FindAsync(e => !e.IsDeleted)).ToList();
             var departments = (await _uow.Departments.GetAllAsync()).ToDictionary(d => d.Id, d => d.Name);
 
             var empById = employees.ToDictionary(e => e.Id);
@@ -233,10 +264,13 @@ public class AnalyticsService : IAnalyticsService
             var monthStart = new DateTime(today.Year, today.Month, 1);
             var horizon = today.AddDays(30);
 
-            var employees = (await _uow.Employees.FindAsync(e => e.IsActive && !e.IsDeleted)).ToList();
+            var employees = await VisibleEmployeesAsync();
             var departments = (await _uow.Departments.GetAllAsync()).ToDictionary(d => d.Id, d => d.Name);
             var leaveTypes = (await _uow.LeaveTypes.GetAllAsync()).Where(t => t.IsActive).ToList();
-            var allRequests = (await _uow.Leaves.FindAsync(l => !l.IsDeleted)).ToList();
+
+            var visibleIds = employees.Select(e => e.Id).ToHashSet();
+            var allRequests = (await _uow.Leaves.FindAsync(l => !l.IsDeleted))
+                .Where(l => visibleIds.Contains(l.EmployeeId)).ToList();
 
             var empById = employees.ToDictionary(e => e.Id);
             string NameOf(int id) => empById.TryGetValue(id, out var e) ? $"{e.FirstName} {e.LastName}" : $"#{id}";
@@ -331,10 +365,13 @@ public class AnalyticsService : IAnalyticsService
 
             var today = DateTime.Today;
 
-            var employees = (await _uow.Employees.FindAsync(e => e.IsActive && !e.IsDeleted)).ToList();
+            var employees = await VisibleEmployeesAsync();
             var departments = (await _uow.Departments.GetAllAsync()).ToDictionary(d => d.Id, d => d.Name);
+
+            var visibleIds = employees.Select(e => e.Id).ToHashSet();
             var logs = (await _uow.Attendance.FindAsync(
-                a => a.AttendanceDate >= from && a.AttendanceDate <= to && !a.IsDeleted)).ToList();
+                a => a.AttendanceDate >= from && a.AttendanceDate <= to && !a.IsDeleted))
+                .Where(a => visibleIds.Contains(a.EmployeeId)).ToList();
 
             var empById = employees.ToDictionary(e => e.Id);
             string DeptOf(int deptId) => departments.TryGetValue(deptId, out var n) ? n : string.Empty;

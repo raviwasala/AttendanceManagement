@@ -57,4 +57,37 @@ public class ApprovalScopeService : IApprovalScopeService
 
         return new LeaveApprovalScope(isCompanyWide, departments, ownEmployeeId);
     }
+
+    /// <summary>
+    /// Which records the signed-in user may read.
+    ///
+    /// Built from the same department configuration as approval, so the two cannot disagree —
+    /// a manager who approves for Bakery sees Bakery. The one extra input is
+    /// <c>Employees.View</c>: without it the user is an ordinary employee and sees only
+    /// themselves, whatever departments they may be listed against.
+    /// </summary>
+    public async Task<DataScope> GetDataScopeAsync()
+    {
+        var userId = _currentUser.UserId;
+        if (!userId.HasValue) return DataScope.Nothing;
+
+        var approval = await GetForAsync(userId.Value);
+
+        // Permission first: it decides whether this user reads other people's records at all.
+        var canSeeOthers = _currentUser.HasPermission(
+            Common.Constants.AppConstants.Modules.Employees,
+            Common.Constants.AppConstants.Actions.View);
+
+        if (!canSeeOthers)
+        {
+            // Self only. OwnEmployeeId of -1 when the user has no employee record matches
+            // nothing, which is the safe reading of "we cannot tell who you are".
+            return new DataScope(false, new HashSet<int>(),
+                                 approval.OwnEmployeeId ?? -1);
+        }
+
+        return new DataScope(approval.IsCompanyWide,
+                             approval.DepartmentIds.ToHashSet(),
+                             approval.OwnEmployeeId);
+    }
 }

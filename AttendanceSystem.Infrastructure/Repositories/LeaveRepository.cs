@@ -27,12 +27,19 @@ public class LeaveRepository : Repository<LeaveRequest>, ILeaveRepository
 
     public async Task<(IEnumerable<LeaveRequest> Items, int TotalCount)> GetPagedAsync(
         string? search, LeaveStatus? status, int? departmentId, int? employeeId,
-        DateTime? from, DateTime? to, int skip, int take)
+        DateTime? from, DateTime? to, int skip, int take,
+        IReadOnlyCollection<int>? scopeDepartmentIds = null, int? scopeEmployeeId = null)
     {
         var query = _dbSet.AsNoTracking()
             .Include(l => l.LeaveType)
             .Include(l => l.Employee).ThenInclude(e => e.Department)
             .AsQueryable();
+
+        // Visibility first, before paging, so the total count matches what is shown.
+        if (scopeEmployeeId.HasValue)
+            query = query.Where(l => l.EmployeeId == scopeEmployeeId.Value);
+        else if (scopeDepartmentIds is { Count: > 0 })
+            query = query.Where(l => scopeDepartmentIds.Contains(l.Employee.DepartmentId));
 
         if (status.HasValue) query = query.Where(l => l.Status == status.Value);
         if (employeeId.HasValue) query = query.Where(l => l.EmployeeId == employeeId.Value);

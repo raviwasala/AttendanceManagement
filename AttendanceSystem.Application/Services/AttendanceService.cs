@@ -17,11 +17,12 @@ public class AttendanceService : IAttendanceService
     private readonly IAuditService _audit;
     private readonly ICurrentUserContext _currentUser;
     private readonly IAttendanceLockService _locks;
+    private readonly IApprovalScopeService _scopes;
 
     public AttendanceService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser,
-                             IAttendanceLockService locks)
+                             IAttendanceLockService locks, IApprovalScopeService scopes)
     {
-        _uow = uow; _audit = audit; _currentUser = currentUser; _locks = locks;
+        _uow = uow; _audit = audit; _currentUser = currentUser; _locks = locks; _scopes = scopes;
     }
 
     /// <summary>
@@ -356,19 +357,40 @@ public class AttendanceService : IAttendanceService
         try
         {
             var today = DateTime.Today;
-            var allEmp = await _uow.Employees.FindAsync(e => e.IsActive && !e.IsDeleted);
-            int totalEmployees = allEmp.Count();
-            var presentToday = await _uow.Attendance.GetPresentCountTodayAsync(today);
-            var lateToday    = await _uow.Attendance.GetLateCountTodayAsync(today);
+
+            // Every figure below is counted over this set, so a department head's dashboard
+            // describes their department rather than the company. Previously all of it was
+            // company-wide for anyone who could open the page, which made the headline
+            // numbers meaningless to everyone except an administrator.
+            var scope = await _scopes.GetDataScopeAsync();
+
+            var allEmp = (await _uow.Employees.FindAsync(e => e.IsActive && !e.IsDeleted))
+                .Where(e => scope.Allows(e.Id, e.DepartmentId))
+                .ToList();
+
+            // Filtered in memory rather than through the repository's count methods, which
+            // have no scope parameter. A few hundred employees and one day of punches is a
+            // small set; a date range would need the filter pushed into SQL.
+            var visibleIds = allEmp.Select(e => e.Id).ToHashSet();
+            int totalEmployees = allEmp.Count;
+
+            var todayLogs = (await _uow.Attendance.GetByDateAsync(today))
+                .Where(a => visibleIds.Contains(a.EmployeeId))
+                .ToList();
+
+            var presentToday = todayLogs.Count(a => a.CheckIn.HasValue);
+            var lateToday    = todayLogs.Count(a => a.IsLate);
+
             var onLeave = (await _uow.Leaves.FindAsync(
                     l => l.Status == LeaveStatus.Approved
-                         && l.FromDate.Date <= today && l.ToDate.Date >= today && !l.IsDeleted)).Count();
+                         && l.FromDate.Date <= today && l.ToDate.Date >= today && !l.IsDeleted))
+                .Count(l => visibleIds.Contains(l.EmployeeId));
+
             var absentToday = Math.Max(0, totalEmployees - presentToday - onLeave);
             var pct = totalEmployees > 0 ? Math.Round((double)presentToday / totalEmployees * 100, 1) : 0;
 
-            var recentLogs = await _uow.Attendance.GetByDateAsync(today);
             var dtos = new List<AttendanceLogDto>();
-            foreach (var log in recentLogs.Take(10)) dtos.Add(await BuildLogDtoAsync(log));
+            foreach (var log in todayLogs.Take(10)) dtos.Add(await BuildLogDtoAsync(log));
 
             return Result<DashboardStatsDto>.Success(new DashboardStatsDto
             {

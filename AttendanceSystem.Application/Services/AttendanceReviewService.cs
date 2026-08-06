@@ -38,15 +38,17 @@ public class AttendanceReviewService : IAttendanceReviewService
     private readonly IAuditService _audit;
     private readonly ICurrentUserContext _currentUser;
     private readonly IAttendanceLockService _locks;
+    private readonly IApprovalScopeService _scopes;
 
     public AttendanceReviewService(
         IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser,
-        IAttendanceLockService locks)
+        IAttendanceLockService locks, IApprovalScopeService scopes)
     {
         _uow = uow;
         _audit = audit;
         _currentUser = currentUser;
         _locks = locks;
+        _scopes = scopes;
     }
 
     public Task<Result<AttendanceReviewDto>> GetDailyReviewAsync(DateTime date, int? departmentId = null) =>
@@ -80,10 +82,16 @@ public class AttendanceReviewService : IAttendanceReviewService
                 return Result<AttendanceReviewDto>.Failure($"Range cannot exceed {MaxRangeDays} days.");
 
             // ── Load everything once; the grid is assembled in memory ────────────
+            // Every row below is built from this list, so scoping it here scopes the whole
+            // grid — a department head reviews their own department rather than the company.
+            var scope = await _scopes.GetDataScopeAsync();
+
             var employees = (await _uow.Employees.FindAsync(e =>
                 e.IsActive && !e.IsDeleted &&
                 (employeeId == null || e.Id == employeeId) &&
-                (departmentId == null || e.DepartmentId == departmentId))).ToList();
+                (departmentId == null || e.DepartmentId == departmentId)))
+                .Where(e => scope.Allows(e.Id, e.DepartmentId))
+                .ToList();
 
             if (employees.Count == 0)
                 return Result<AttendanceReviewDto>.Success(EmptyResult(from, to, dayCount));
