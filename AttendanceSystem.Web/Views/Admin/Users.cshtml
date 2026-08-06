@@ -26,10 +26,10 @@
     <div class="card-body p-0">
         <div class="table-responsive"><table class="table table-hover table-sm mb-0">
             <thead class="table-light">
-                <tr><th>Username</th><th>Full Name</th><th>Email</th><th>Role</th><th>Employee</th><th>Last Login</th><th>Status</th><th>Actions</th></tr>
+                <tr><th>Username</th><th>Full Name</th><th>Email</th><th>Role</th><th>Employee</th><th>Approves For</th><th>Last Login</th><th>Status</th><th>Actions</th></tr>
             </thead>
             <tbody id="tbody">
-                <tr><td colspan="8" class="text-center py-3 text-muted">Loading...</td></tr>
+                <tr><td colspan="9" class="text-center py-3 text-muted">Loading...</td></tr>
             </tbody>
         </table></div>
     </div>
@@ -47,7 +47,35 @@
                     <div class="col-md-6 mb-2"><label class="form-label">Full Name <span class="text-danger">*</span></label><input type="text" id="uFullName" class="form-control" maxlength="200"></div>
                     <div class="col-md-6 mb-2"><label class="form-label">Email <span class="text-danger">*</span></label><input type="email" id="uEmail" class="form-control" maxlength="200"></div>
                     <div class="col-md-6 mb-2"><label class="form-label">Role <span class="text-danger">*</span></label><select id="uRole" class="form-select"></select></div>
-                    <div class="col-md-6 mb-2"><label class="form-label">Link to Employee</label><select id="uEmployee" class="form-select"></select></div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">
+                            Link to Employee <span class="text-danger d-none" id="uEmployeeReq">*</span>
+                        </label>
+                        <select id="uEmployee" class="form-select"></select>
+                        <div class="form-text small d-none" id="uEmployeeHint">
+                            Required for this role — approval needs to know which employee this
+                            user is, so they cannot approve their own requests.
+                        </div>
+                    </div>
+                    @* Stated on the user, not inferred from whether they appear in a
+                       department. Inferring it made company-wide approval invisible and meant
+                       naming somebody for one department silently stripped it.
+
+                       Hidden entirely for roles that cannot approve: the answer is meaningless
+                       for them, and a mandatory-looking dropdown invites a wrong one. *@
+                    <div class="col-md-6 mb-2 d-none" id="uScopeWrap">
+                        <label class="form-label">Approves For</label>
+                        <select id="uApprovalScope" class="form-select">
+                            <option value="1">All departments</option>
+                            <option value="2">Assigned departments only</option>
+                        </select>
+                        <div class="form-text small">
+                            Only matters if this user can approve leave or overtime.
+                            <strong>All departments</strong> suits HR and administrators;
+                            <strong>Assigned</strong> restricts them to departments they head
+                            or are named an approver of, on the Departments screen.
+                        </div>
+                    </div>
                     <div class="col-md-6 mb-2" id="passwordField">
                         <label class="form-label">Password <span class="text-danger">*</span></label>
                         <input type="password" id="uPassword" class="form-control" minlength="8">

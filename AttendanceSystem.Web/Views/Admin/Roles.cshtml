@@ -116,6 +116,16 @@
                         <label class="form-label fw-semibold">Description</label>
                         <textarea class="form-control" id="roleDescription" rows="3" placeholder="Description of permissions granted to this role..."></textarea>
                     </div>
+                    @* There is deliberately no "role type" field here. What a role may do comes
+                       from the permission matrix and nowhere else, so a type picked here could
+                       disagree with the ticked boxes — and then neither would be trustworthy. *@
+                    <div class="alert alert-light border small mb-0">
+                        <i class="fa fa-info-circle me-1"></i>
+                        This creates the role with no permissions. Grant them on the matrix after
+                        saving. Ticking any <strong>Authorise</strong> box is what makes a role an
+                        approving one — users on that role are then asked which departments they
+                        approve for.
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">

@@ -705,6 +705,55 @@ a:hover { color: var(--ams-primary-d); }
   .ams-pager-info { width: 100%; text-align: center; }
 }
 
+/* ── Dialogs ──────────────────────────────────────────────────────────────────
+   The Departments dialog's look, applied to every modal.
+
+   Done as a rule rather than by adding utility classes to each of the 28 modals:
+   one place to change, no chance of a typo in the twenty-third file, and any
+   dialog added later matches without anybody remembering to style it.
+
+   Deliberately unset rather than !important, so a modal that genuinely needs a
+   different header — the coloured ones on Roles and Import — still wins with its
+   own inline style. */
+.modal-content {
+  border: 0;
+  border-radius: .75rem;
+  box-shadow: 0 1rem 3rem rgba(20, 32, 48, .225);
+}
+
+.modal-header {
+  background-color: #f8f9fa;
+  border-bottom: 0;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  border-top-left-radius: .75rem;
+  border-top-right-radius: .75rem;
+}
+
+.modal-header .modal-title {
+  font-weight: 700;
+  font-size: .95rem;
+}
+
+.modal-body { padding: 1.5rem; }
+
+.modal-footer {
+  background-color: #f8f9fa;
+  border-top: 0;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  border-bottom-left-radius: .75rem;
+  border-bottom-right-radius: .75rem;
+}
+
+/* Field labels inside dialogs: the smaller, semibold label the Departments form
+   uses, so every form reads the same way. */
+.modal-body .form-label { font-weight: 600; font-size: .82rem; }
+
+/* A modal body that scrolls its own content — the punch preview, the restore
+   table — sets its padding itself; do not fight it. */
+.modal-body.p-0 { padding: 0 !important; }
+
 /* ── Idle lock warning ────────────────────────────────────────────────────────
    Bottom-right, above content but below modals: it is a heads-up, not a dialog,
    and it must not block the very click that would dismiss it. */

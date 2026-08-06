@@ -54,4 +54,35 @@ public class DepartmentsApiController : ApiControllerBase
         var r = await _svc.DeleteAsync(id, CurrentUserId);
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
+
+    // ── Approvers ─────────────────────────────────────────────────────────────
+    //
+    // Departments.Edit, not Leave.Approve: this decides *who* may approve, which is
+    // administering the organisation rather than approving anything. Someone who can approve
+    // leave should not be able to widen their own scope.
+
+    [HttpGet("{id:int}/approvers")]
+    [SessionAuthorize(Modules.Departments, Actions.View)]
+    public async Task<IActionResult> Approvers(int id)
+    {
+        var r = await _svc.GetApproversAsync(id);
+        return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
+    }
+
+    [HttpPost("approvers")]
+    [SessionAuthorize(Modules.Departments, Actions.Edit)]
+    public async Task<IActionResult> AddApprover([FromBody] SaveDepartmentApproverDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        var r = await _svc.AddApproverAsync(dto);
+        return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
+    }
+
+    [HttpDelete("approvers/{approverId:int}")]
+    [SessionAuthorize(Modules.Departments, Actions.Edit)]
+    public async Task<IActionResult> RemoveApprover(int approverId)
+    {
+        var r = await _svc.RemoveApproverAsync(approverId);
+        return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
+    }
 }

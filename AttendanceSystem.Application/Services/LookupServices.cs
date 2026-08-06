@@ -57,7 +57,7 @@ public class DepartmentService : IDepartmentService
 
             if (dto.Id == 0)
             {
-                var entity = new Department { Name = dto.Name.Trim(), Description = dto.Description?.Trim(), IsActive = dto.IsActive, CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now };
+                var entity = new Department { Name = dto.Name.Trim(), Description = dto.Description?.Trim(), IsActive = dto.IsActive, HeadEmployeeId = dto.HeadEmployeeId, CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now };
                 await _uow.Departments.AddAsync(entity);
                 await _uow.SaveChangesAsync();
                 await _audit.LogAsync("Departments", "Create", _currentUser.UserId, "Department", entity.Id);
@@ -68,6 +68,7 @@ public class DepartmentService : IDepartmentService
                 var entity = await _uow.Departments.GetByIdAsync(dto.Id);
                 if (entity == null) return Result<DepartmentDto>.Failure("Department not found.");
                 entity.Name = dto.Name.Trim(); entity.Description = dto.Description?.Trim(); entity.IsActive = dto.IsActive;
+                entity.HeadEmployeeId = dto.HeadEmployeeId;
                 entity.ModifiedBy = _currentUser.UserId; entity.ModifiedAt = DateTime.Now;
                 await _uow.Departments.UpdateAsync(entity);
                 await _uow.SaveChangesAsync();
@@ -107,7 +108,92 @@ public class DepartmentService : IDepartmentService
         catch (Exception ex) { AppLogger.Error("DepartmentService.SearchAsync", ex); return Result<IEnumerable<DepartmentDto>>.Failure(ex.Message); }
     }
 
-    private static DepartmentDto Map(Department d) => new() { Id = d.Id, Name = d.Name, Description = d.Description, IsActive = d.IsActive };
+    private static DepartmentDto Map(Department d) => new() { Id = d.Id, Name = d.Name, Description = d.Description, IsActive = d.IsActive, HeadEmployeeId = d.HeadEmployeeId };
+
+    // ── Approvers ─────────────────────────────────────────────────────────────
+
+    public async Task<Result<IEnumerable<DepartmentApproverDto>>> GetApproversAsync(int departmentId)
+    {
+        try
+        {
+            var rows = await _uow.DepartmentApprovers.FindAsync(a => a.DepartmentId == departmentId && !a.IsDeleted);
+            var userIds = rows.Select(a => a.UserId).ToList();
+            var users = (await _uow.Users.FindAsync(u => userIds.Contains(u.Id)))
+                .ToDictionary(u => u.Id);
+
+            var dtos = rows.Select(a => new DepartmentApproverDto
+            {
+                Id = a.Id, UserId = a.UserId,
+                UserName = users.TryGetValue(a.UserId, out var u) ? u.Username : "(deleted user)",
+                FullName = users.TryGetValue(a.UserId, out var u2) ? u2.FullName : ""
+            }).OrderBy(a => a.FullName).ToList();
+
+            return Result<IEnumerable<DepartmentApproverDto>>.Success(dtos);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("DepartmentService.GetApproversAsync", ex);
+            return Result<IEnumerable<DepartmentApproverDto>>.Failure(ex.Message);
+        }
+    }
+
+    public async Task<Result> AddApproverAsync(SaveDepartmentApproverDto dto)
+    {
+        try
+        {
+            if (!await _uow.Departments.ExistsAsync(dto.DepartmentId))
+                return Result.Failure("Department not found.");
+
+            var user = await _uow.Users.GetByIdAsync(dto.UserId);
+            if (user == null) return Result.Failure("User not found.");
+
+            // Naming somebody an approver restricts them to this department. Saying so here
+            // is the difference between granting access and quietly taking it away — an HR
+            // Manager who approved company-wide yesterday would otherwise silently stop.
+            var existing = await _uow.DepartmentApprovers.FindAsync(
+                a => a.DepartmentId == dto.DepartmentId && a.UserId == dto.UserId && !a.IsDeleted);
+            if (existing.Any()) return Result.Failure($"{user.FullName} is already an approver for this department.");
+
+            await _uow.DepartmentApprovers.AddAsync(new DepartmentApprover
+            {
+                DepartmentId = dto.DepartmentId, UserId = dto.UserId,
+                CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now
+            });
+            await _uow.SaveChangesAsync();
+
+            await _audit.LogAsync("Departments", "AddApprover", _currentUser.UserId,
+                "DepartmentApprover", dto.DepartmentId, null, $"User {user.Username}");
+
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("DepartmentService.AddApproverAsync", ex);
+            return Result.Failure(ex.Message);
+        }
+    }
+
+    public async Task<Result> RemoveApproverAsync(int approverId)
+    {
+        try
+        {
+            var row = await _uow.DepartmentApprovers.GetByIdAsync(approverId);
+            if (row == null) return Result.Failure("That approver was not found.");
+
+            await _uow.DepartmentApprovers.DeleteAsync(row.Id);
+            await _uow.SaveChangesAsync();
+
+            await _audit.LogAsync("Departments", "RemoveApprover", _currentUser.UserId,
+                "DepartmentApprover", row.DepartmentId);
+
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("DepartmentService.RemoveApproverAsync", ex);
+            return Result.Failure(ex.Message);
+        }
+    }
 }
 
 /// <summary>Designation CRUD service.</summary>

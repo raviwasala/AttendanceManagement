@@ -50,6 +50,7 @@ public class AttendanceDbContext : DbContext
     public DbSet<AttendancePeriodLock> AttendancePeriodLocks { get; set; } = null!;
     public DbSet<DashboardPreference> DashboardPreferences { get; set; } = null!;
     public DbSet<UserDashboardTile> UserDashboardTiles { get; set; } = null!;
+    public DbSet<DepartmentApprover> DepartmentApprovers { get; set; } = null!;
 
     // ── Auto-timestamp & Soft-Delete interception ─────────────────────────────
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -161,6 +162,12 @@ public class AttendanceDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Name).IsRequired().HasMaxLength(200);
             e.HasIndex(x => x.Name).IsUnique();
+
+            // NoAction, not Restrict or Cascade: the head is an employee *in* a department,
+            // so cascading either way gives SQL Server a cycle it refuses to create.
+            e.HasOne(x => x.HeadEmployee).WithMany()
+             .HasForeignKey(x => x.HeadEmployeeId).OnDelete(DeleteBehavior.NoAction);
+
             e.HasQueryFilter(x => !x.IsDeleted);
         });
 
@@ -290,6 +297,24 @@ public class AttendanceDbContext : DbContext
             e.HasOne(x => x.Branch).WithMany()
              .HasForeignKey(x => x.BranchId).OnDelete(DeleteBehavior.Restrict);
 
+            e.HasIndex(x => x.UserId);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        // ── DepartmentApprover ────────────────────────────────────────────────
+        modelBuilder.Entity<DepartmentApprover>(e =>
+        {
+            e.HasKey(x => x.Id);
+
+            e.HasOne(x => x.Department).WithMany(d => d.Approvers)
+             .HasForeignKey(x => x.DepartmentId).OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict on the user: deleting an account must not silently remove the approval
+            // rights that were configured around it — that should be a deliberate decision.
+            e.HasOne(x => x.User).WithMany()
+             .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+
+            e.HasIndex(x => new { x.DepartmentId, x.UserId }).IsUnique();
             e.HasIndex(x => x.UserId);
             e.HasQueryFilter(x => !x.IsDeleted);
         });

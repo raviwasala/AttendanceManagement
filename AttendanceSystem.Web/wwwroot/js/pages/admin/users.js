@@ -7,11 +7,15 @@ $(function () {
         $.getJSON('/api/users/roles', function (d) { roles = d || []; }),
         $.getJSON('/api/employees', function (d) { employees = d || []; })
     ).always(function () { loadItems(); });
+
+    // Delegated and bound once: Select2 re-creates the element, so binding inside
+    // buildDropdowns would stack a fresh handler on every modal open.
+    $(document).on('change', '#uRole', syncApprovalFields);
 });
 
 function loadItems() {
     $.getJSON('/api/users', function (d) { allItems = d || []; filterTable(); })
-     .fail(function () { $('#tbody').html('<tr><td colspan="8" class="text-danger text-center py-3">Failed to load users.</td></tr>'); });
+     .fail(function () { $('#tbody').html('<tr><td colspan="9" class="text-danger text-center py-3">Failed to load users.</td></tr>'); });
 }
 
 function filterTable() {
@@ -45,6 +49,7 @@ function renderTable(data) {
             + '<td class="text-muted small">' + esc(email) + '</td>'
             + '<td><span class="badge bg-primary">' + esc(roleName) + '</span></td>'
             + '<td class="text-muted small">' + esc(employeeName) + '</td>'
+            + '<td class="text-muted small">' + esc(u.ApprovalScopeDisplay || u.approvalScopeDisplay || '—') + '</td>'
             + '<td class="text-muted small">' + (lastLogin ? new Date(lastLogin).toLocaleString() : 'Never') + '</td>'
             + '<td>' + status + '</td>'
             + '<td>'
@@ -53,7 +58,7 @@ function renderTable(data) {
             + (isLocked ? '<button class="btn btn-sm btn-outline-success me-1" onclick="unlock(' + id + ')" title="Unlock"><i class="fa fa-unlock"></i></button>' : '')
             + '<button class="btn btn-sm btn-outline-danger" onclick="deleteUser(' + id + ')" title="Delete"><i class="fa fa-trash"></i></button>'
             + '</td></tr>';
-    }, { colspan: 8, empty: 'No users found.', label: 'user' });
+    }, { colspan: 9, empty: 'No users found.', label: 'user' });
 }
 
 function buildDropdowns() {
@@ -74,39 +79,87 @@ function buildDropdowns() {
     $('#uEmployee').html(eOpts);
 }
 
+/* Approval scope and the employee link only matter for roles that can approve something.
+   Driven off the role dropdown so the form re-shapes as soon as the role changes, rather
+   than asking everyone a question that applies to a handful of people. */
+function roleCanApprove() {
+    var rid = parseInt($('#uRole').val()) || 0;
+    var r = roles.find(function (x) { return (x.Id !== undefined ? x.Id : x.id) === rid; });
+    return !!(r && (r.CanApprove !== undefined ? r.CanApprove : r.canApprove));
+}
+
+function syncApprovalFields() {
+    var can = roleCanApprove();
+    $('#uScopeWrap').toggleClass('d-none', !can);
+    $('#uEmployeeReq').toggleClass('d-none', !can);
+    $('#uEmployeeHint').toggleClass('d-none', !can);
+    // A hidden picker must not keep a narrowed value: dropping the approve permission and
+    // leaving the user silently restricted is the confusing half of this.
+    if (!can) $('#uApprovalScope').val('1');
+}
+
+/* Re-reads roles before showing the modal. Whether a role can approve is decided on the
+   Roles screen, so a set cached at page load goes stale the moment somebody ticks an
+   Authorise box — and the stale answer decides whether this form asks for approval scope
+   at all. Falls back to what is already cached if the refresh fails. */
+function withFreshRoles(then) {
+    $.getJSON('/api/users/roles')
+        .done(function (d) { if (d) roles = d; })
+        .always(then);
+}
+
 function openModal() {
-    buildDropdowns();
-    $('#userId').val(0); $('#uUsername').val('').prop('disabled', false); $('#uFullName').val('');
-    $('#uEmail').val(''); $('#uPassword').val(''); $('#uActive').prop('checked', true);
-    $('#passwordField').show(); $('#modalTitle').text('Add User');
-    new bootstrap.Modal('#editModal').show();
+    withFreshRoles(function () {
+        buildDropdowns();
+        $('#userId').val(0); $('#uUsername').val('').prop('disabled', false); $('#uFullName').val('');
+        $('#uEmail').val(''); $('#uPassword').val(''); $('#uActive').prop('checked', true);
+        $('#uApprovalScope').val('1'); syncApprovalFields();
+        $('#passwordField').show(); $('#modalTitle').text('Add User');
+        new bootstrap.Modal('#editModal').show();
+    });
 }
 
 function editUser(id) {
     var u = allItems.find(function(x){ return (x.Id !== undefined ? x.Id : x.id) === id; });
     if (!u) return;
-    buildDropdowns();
-    var uid = u.Id !== undefined ? u.Id : u.id;
-    var username = u.Username || u.username || '';
-    var fullName = u.FullName || u.fullName || '';
-    var email = u.Email || u.email || '';
-    var roleId = u.RoleId !== undefined ? u.RoleId : u.roleId;
-    var employeeId = u.EmployeeId !== undefined ? u.EmployeeId : u.employeeId;
-    var isActive = u.IsActive !== undefined ? u.IsActive : u.isActive;
+    withFreshRoles(function () {
+        buildDropdowns();
+        var uid = u.Id !== undefined ? u.Id : u.id;
+        var username = u.Username || u.username || '';
+        var fullName = u.FullName || u.fullName || '';
+        var email = u.Email || u.email || '';
+        var roleId = u.RoleId !== undefined ? u.RoleId : u.roleId;
+        var employeeId = u.EmployeeId !== undefined ? u.EmployeeId : u.employeeId;
+        var isActive = u.IsActive !== undefined ? u.IsActive : u.isActive;
 
-    $('#userId').val(uid); $('#uUsername').val(username).prop('disabled', true);
-    $('#uFullName').val(fullName); $('#uEmail').val(email);
-    $('#uRole').val(roleId); $('#uEmployee').val(employeeId || '');
-    $('#uActive').prop('checked', isActive); $('#passwordField').hide();
-    $('#modalTitle').text('Edit User');
-    new bootstrap.Modal('#editModal').show();
+        $('#userId').val(uid); $('#uUsername').val(username).prop('disabled', true);
+        $('#uFullName').val(fullName); $('#uEmail').val(email);
+        $('#uRole').val(roleId); $('#uEmployee').val(employeeId || '');
+        $('#uActive').prop('checked', isActive);
+        $('#uApprovalScope').val(String(u.ApprovalScope !== undefined ? u.ApprovalScope : (u.approvalScope || 1)));
+        syncApprovalFields();
+        $('#passwordField').hide();
+        $('#modalTitle').text('Edit User');
+        new bootstrap.Modal('#editModal').show();
+    });
+}
+
+/* Mirrors the server rule so the message arrives before the round trip. The server still
+   enforces it — this check only exists to be quicker, not to be the only guard. */
+function employeeLinkOk(employeeId) {
+    if (employeeId || !roleCanApprove()) return true;
+    notifyError('This role can approve leave or overtime, so the user must be linked to an '
+        + 'employee. Without it the system cannot tell whose requests are their own.',
+        'Employee Required');
+    return false;
 }
 
 function saveUser() {
     var id = parseInt($('#userId').val()) || 0;
     if (id) {
-        var dto = { Id: id, Email: $('#uEmail').val().trim(), FullName: $('#uFullName').val().trim(), RoleId: parseInt($('#uRole').val()), EmployeeId: parseInt($('#uEmployee').val())||null, IsActive: $('#uActive').is(':checked') };
+        var dto = { Id: id, Email: $('#uEmail').val().trim(), FullName: $('#uFullName').val().trim(), RoleId: parseInt($('#uRole').val()), EmployeeId: parseInt($('#uEmployee').val())||null, IsActive: $('#uActive').is(':checked'), ApprovalScope: parseInt($('#uApprovalScope').val()) || 1 };
         if (!dto.Email || !dto.FullName || !dto.RoleId) { notifyError('Email, Full Name and Role are required.', 'Validation Error'); return; }
+        if (!employeeLinkOk(dto.EmployeeId)) return;
         $.ajax({ url: '/api/users/' + id, type: 'PUT', contentType: 'application/json', data: JSON.stringify(dto),
             success: function () { 
                 bootstrap.Modal.getInstance('#editModal').hide(); 
@@ -116,8 +169,9 @@ function saveUser() {
             error: function (xhr) { notifyError(xhr.responseText || 'Save failed.'); }
         });
     } else {
-        var dto = { Username: $('#uUsername').val().trim(), FullName: $('#uFullName').val().trim(), Email: $('#uEmail').val().trim(), Password: $('#uPassword').val(), RoleId: parseInt($('#uRole').val()), EmployeeId: parseInt($('#uEmployee').val())||null, IsActive: $('#uActive').is(':checked') };
+        var dto = { Username: $('#uUsername').val().trim(), FullName: $('#uFullName').val().trim(), Email: $('#uEmail').val().trim(), Password: $('#uPassword').val(), RoleId: parseInt($('#uRole').val()), EmployeeId: parseInt($('#uEmployee').val())||null, IsActive: $('#uActive').is(':checked'), ApprovalScope: parseInt($('#uApprovalScope').val()) || 1 };
         if (!dto.Username || !dto.Email || !dto.FullName || !dto.Password || !dto.RoleId) { notifyError('All fields are required.', 'Validation Error'); return; }
+        if (!employeeLinkOk(dto.EmployeeId)) return;
         $.ajax({ url: '/api/users', type: 'POST', contentType: 'application/json', data: JSON.stringify(dto),
             success: function () { 
                 bootstrap.Modal.getInstance('#editModal').hide(); 

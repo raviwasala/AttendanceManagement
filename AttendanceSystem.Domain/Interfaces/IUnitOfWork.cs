@@ -14,6 +14,9 @@ public interface IUnitOfWork : IDisposable, IAsyncDisposable
 
     // Generic repositories for lookup entities
     IRepository<Department> Departments { get; }
+
+    /// <summary>Users named as leave approvers for a department. See <c>LeaveApprovalScope</c>.</summary>
+    IRepository<DepartmentApprover> DepartmentApprovers { get; }
     IRepository<Designation> Designations { get; }
     IRepository<Branch> Branches { get; }
     IRepository<Shift> Shifts { get; }

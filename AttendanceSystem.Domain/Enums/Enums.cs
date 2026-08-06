@@ -80,6 +80,31 @@ public enum EmployeeChangeType
     Rejoin = 5
 }
 
+/// <summary>
+/// How far a user's approval rights reach.
+///
+/// Separate from the <c>Leave.Approve</c> permission, which says *whether* somebody may
+/// approve. This says *for whom* — a dimension the permission model has no way to express,
+/// since a permission is a capability with no scope attached.
+///
+/// Stated explicitly on the user rather than inferred from whether they appear in any
+/// department. Inferring it made company-wide approval invisible — you could only tell by
+/// noticing an absence of rows — and meant naming somebody for one department silently
+/// demoted them from approving everywhere.
+/// </summary>
+public enum ApprovalScope
+{
+    /// <summary>Approves for every department. The default, and what HR and administrators need.</summary>
+    CompanyWide = 1,
+
+    /// <summary>
+    /// Approves only for departments they head or are named an approver of. A user set to
+    /// this with no departments assigned approves nothing — which is a real state, not a
+    /// mistake, and is reported as such rather than silently behaving like company-wide.
+    /// </summary>
+    AssignedDepartments = 2
+}
+
 public enum EmployeeDocumentType
 {
     Nic = 1,

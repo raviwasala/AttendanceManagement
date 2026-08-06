@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using AttendanceSystem.Domain.Enums;
 
 namespace AttendanceSystem.Application.DTOs;
 
@@ -38,6 +39,11 @@ public class UserDto
     public bool IsLocked { get; set; }
     public DateTime? LastLoginAt { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>How far this user's approvals reach. See <c>ApprovalScope</c>.</summary>
+    public ApprovalScope ApprovalScope { get; set; } = ApprovalScope.CompanyWide;
+    public string ApprovalScopeDisplay =>
+        ApprovalScope == ApprovalScope.CompanyWide ? "All departments" : "Assigned departments";
 }
 
 /// <summary>
@@ -71,6 +77,9 @@ public class CreateUserDto
     [Required] public int RoleId { get; set; }
     public int? EmployeeId { get; set; }
     public bool IsActive { get; set; } = true;
+
+    /// <summary>Defaults to company-wide, matching how every user behaved before this existed.</summary>
+    public ApprovalScope ApprovalScope { get; set; } = ApprovalScope.CompanyWide;
 }
 
 public class UpdateUserDto
@@ -81,6 +90,7 @@ public class UpdateUserDto
     [Required] public int RoleId { get; set; }
     public int? EmployeeId { get; set; }
     public bool IsActive { get; set; }
+    public ApprovalScope ApprovalScope { get; set; } = ApprovalScope.CompanyWide;
 }
 
 // ── Role & Permission ──────────────────────────────────────────────────────────
@@ -91,6 +101,15 @@ public class RoleDto
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public List<string> Permissions { get; set; } = new();
+
+    /// <summary>
+    /// True when this role holds any <c>*.Approve</c> permission.
+    ///
+    /// Exists so the Users screen can hide approval scope for the roles it means nothing for —
+    /// most people cannot approve anything, and asking every one of them which departments
+    /// they approve for invites a wrong answer to a question that was never theirs.
+    /// </summary>
+    public bool CanApprove { get; set; }
 }
 
 public class PermissionDto

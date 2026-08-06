@@ -20,6 +20,7 @@ public class UnitOfWork : IUnitOfWork
     private IAuditLogRepository? _auditLogs;
 
     private IRepository<Department>? _departments;
+    private IRepository<DepartmentApprover>? _departmentApprovers;
     private IRepository<Designation>? _designations;
     private IRepository<Branch>? _branches;
     private IRepository<Shift>? _shifts;
@@ -44,6 +45,7 @@ public class UnitOfWork : IUnitOfWork
     public IAuditLogRepository AuditLogs => _auditLogs     ??= new AuditLogRepository(_context);
 
     public IRepository<Department>       Departments       => _departments       ??= new Repository<Department>(_context);
+    public IRepository<DepartmentApprover> DepartmentApprovers => _departmentApprovers ??= new Repository<DepartmentApprover>(_context);
     public IRepository<Designation>      Designations      => _designations      ??= new Repository<Designation>(_context);
     public IRepository<Branch>           Branches          => _branches          ??= new Repository<Branch>(_context);
     public IRepository<Shift>            Shifts            => _shifts            ??= new Repository<Shift>(_context);

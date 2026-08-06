@@ -61,6 +61,11 @@ public interface IDepartmentService
     Task<Result<DepartmentDto>> SaveAsync(SaveDepartmentDto dto);
     Task<Result> DeleteAsync(int id, int deletedBy);
     Task<Result<IEnumerable<DepartmentDto>>> SearchAsync(string keyword);
+
+    /// <summary>Users who may decide leave and overtime for this department.</summary>
+    Task<Result<IEnumerable<DepartmentApproverDto>>> GetApproversAsync(int departmentId);
+    Task<Result> AddApproverAsync(SaveDepartmentApproverDto dto);
+    Task<Result> RemoveApproverAsync(int approverId);
 }
 
 /// <summary>Designation service contract.</summary>
@@ -143,6 +148,18 @@ public interface ILeaveService
     Task<Result> ApproveRejectAsync(ApproveRejectLeaveDto dto, int actionBy);
     Task<Result> CancelAsync(int leaveRequestId, int cancelledBy);
     Task<Result<IEnumerable<LeaveBalanceDto>>> GetBalancesAsync(int employeeId);
+}
+
+/// <summary>
+/// Which departments a user may approve requests for.
+///
+/// Shared by leave and overtime: both ask the same question, and two implementations of it
+/// would eventually disagree about who may decide what.
+/// </summary>
+public interface IApprovalScopeService
+{
+    Task<Services.LeaveApprovalScope> GetForCurrentUserAsync();
+    Task<Services.LeaveApprovalScope> GetForAsync(int userId);
 }
 
 /// <summary>Holiday service contract.</summary>

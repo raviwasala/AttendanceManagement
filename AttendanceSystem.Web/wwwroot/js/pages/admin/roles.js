@@ -56,11 +56,23 @@ function renderRoleList(roles) {
 
         var activeClass = (rid === currentRoleId) ? 'active' : '';
         var bgStyle = (rid === currentRoleId) ? 'background:#01a9ac !important;color:#fff !important;' : '';
+
+        /* Whether a role can approve is not a property anyone sets — it follows from ticking
+           any Authorise box in the matrix. Shown here because that consequence is otherwise
+           invisible: it decides whether the Users screen asks for approval scope, and the
+           only place to see it was the matrix itself. */
+        var canApprove = (r.CanApprove !== undefined ? r.CanApprove : r.canApprove);
+        var approveBadge = canApprove
+            ? '<small class="badge bg-warning text-dark ms-1" title="This role can authorise ' +
+              'leave or overtime, so its users are asked which departments they approve for.">' +
+              'Authorises</small>'
+            : '';
+
         html += `
             <a href="#" class="list-group-item list-group-item-action ${activeClass}" style="${bgStyle}" onclick="selectRole(${rid}); return false;">
                 <div class="d-flex w-100 justify-content-between align-items-center">
                     <h6 class="mb-1 fw-bold">${rname}</h6>
-                    <small class="badge bg-secondary">ID: ${rid}</small>
+                    <span class="text-nowrap">${approveBadge}<small class="badge bg-secondary ms-1">ID: ${rid}</small></span>
                 </div>
                 <p class="mb-0 text-truncate" style="font-size:.82rem;opacity:.9;">${rdesc}</p>
             </a>
@@ -259,6 +271,9 @@ function saveRolePermissions() {
     .then(res => {
         if (res.ok) {
             showAlert('success', 'Transaction & page access rules updated successfully!');
+            // Ticking or clearing an Authorise box changes the "Authorises" badge, so the
+            // list has to be re-read rather than left showing the state from page load.
+            loadRoles();
         } else {
             showAlert('danger', 'Failed to update permissions.');
         }

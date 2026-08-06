@@ -15,7 +15,11 @@ public class LeaveService : ILeaveService
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
     private readonly ICurrentUserContext _currentUser;
-    public LeaveService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser) { _uow = uow; _audit = audit; _currentUser = currentUser; }
+    private readonly IApprovalScopeService _scopes;
+
+    public LeaveService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser,
+                        IApprovalScopeService scopes)
+    { _uow = uow; _audit = audit; _currentUser = currentUser; _scopes = scopes; }
 
     // ── Leave Types ────────────────────────────────────────────────────────────
     public async Task<Result<IEnumerable<LeaveTypeDto>>> GetLeaveTypesAsync()
@@ -124,11 +128,22 @@ public class LeaveService : ILeaveService
     {
         try
         {
-            var list = await _uow.Leaves.GetPendingAsync();
+            var list = (await _uow.Leaves.GetPendingAsync()).ToList();
+
+            // Narrowed to what this approver can actually act on. Listing requests they will
+            // be refused on would be a queue of work they cannot do — and their own request
+            // sitting in their approval list invites exactly the click the policy forbids.
+            var scope = await BuildApprovalScopeAsync(_currentUser.UserId ?? 0);
+            list = list.Where(l =>
+                l.Employee != null &&
+                scope.CanApprove(l.EmployeeId, l.Employee.DepartmentId, out _)).ToList();
+
             return Result<IEnumerable<LeaveRequestDto>>.Success(list.Select(MapRequest));
         }
         catch (Exception ex) { return Result<IEnumerable<LeaveRequestDto>>.Failure(ex.Message); }
     }
+
+    private Task<LeaveApprovalScope> BuildApprovalScopeAsync(int userId) => _scopes.GetForAsync(userId);
 
     public async Task<Result<LeaveRequestDto>> ApplyLeaveAsync(ApplyLeaveDto dto)
     {
@@ -171,6 +186,16 @@ public class LeaveService : ILeaveService
             var entity = await _uow.Leaves.GetByIdAsync(dto.LeaveRequestId);
             if (entity == null) return Result.Failure("Leave request not found.");
             if (entity.Status != LeaveStatus.Pending) return Result.Failure("Only pending requests can be approved or rejected.");
+
+            // Leave.Approve says this person may approve; the scope says for whom. Checked
+            // here rather than only in the UI — the endpoint is the authoritative gate, and a
+            // hidden button is not a permission.
+            var applicant = await _uow.Employees.GetByIdAsync(entity.EmployeeId);
+            if (applicant == null) return Result.Failure("The employee on this request no longer exists.");
+
+            var scope = await BuildApprovalScopeAsync(actionBy);
+            if (!scope.CanApprove(entity.EmployeeId, applicant.DepartmentId, out var refusal))
+                return Result.Failure(refusal!);
 
             var before = AuditSnapshot.Capture(entity);
 

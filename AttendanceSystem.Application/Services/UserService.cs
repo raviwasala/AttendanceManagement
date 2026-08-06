@@ -49,6 +49,9 @@ public class UserService : IUserService
             var (isValid, msg) = PasswordHelper.ValidateStrength(dto.Password);
             if (!isValid) return Result<UserDto>.Failure(msg);
 
+            var linkError = await ValidateEmployeeLinkAsync(dto.RoleId, dto.EmployeeId);
+            if (linkError != null) return Result<UserDto>.Failure(linkError);
+
             var user = new User
             {
                 Username = dto.Username.Trim().ToLower(),
@@ -57,7 +60,7 @@ public class UserService : IUserService
                 PasswordHash = PasswordHelper.HashPassword(dto.Password),
                 RoleId = dto.RoleId,
                 EmployeeId = dto.EmployeeId,
-                IsActive = dto.IsActive,
+                IsActive = dto.IsActive, ApprovalScope = dto.ApprovalScope,
                 CreatedBy = _currentUser.UserId, CreatedAt = DateTime.Now
             };
             await _uow.Users.AddAsync(user);
@@ -71,6 +74,47 @@ public class UserService : IUserService
         catch (Exception ex) { AppLogger.Error("UserService.CreateAsync", ex); return Result<UserDto>.Failure(ex.Message); }
     }
 
+    /// <summary>
+    /// Rejects an approver with no employee record behind them; returns null when the pairing
+    /// is fine.
+    ///
+    /// Linking a user to an employee is optional in general — a pure administrator or a service
+    /// login has no employee record and should not need a fake one. But approval leans on that
+    /// link twice: blocking self-approval needs to know which employee this user *is*, and
+    /// department-head scope is recorded against the employee, not the user. An approver
+    /// without it silently gets neither check, which is the failure that matters — they would
+    /// be able to sign off their own request.
+    /// </summary>
+    private async Task<string?> ValidateEmployeeLinkAsync(int roleId, int? employeeId)
+    {
+        if (employeeId.HasValue) return null;
+
+        var roles = await GetRolesCanApproveAsync();
+        if (!roles.Contains(roleId)) return null;
+
+        return "This role can approve leave or overtime, so the user must be linked to an " +
+               "employee. Without it the system cannot tell whose requests are their own, " +
+               "and they could approve their own.";
+    }
+
+    /// <summary>
+    /// Ids of roles holding any <c>*.Approve</c> permission. Role 1 is Administrator, which
+    /// holds every permission implicitly rather than through RolePermissions rows.
+    /// </summary>
+    private async Task<HashSet<int>> GetRolesCanApproveAsync()
+    {
+        var approveIds = (await _uow.Permissions.FindAsync(p => p.Action == AppConstants.Actions.Approve))
+            .Select(p => p.Id).ToHashSet();
+
+        var ids = new HashSet<int> { 1 };
+        foreach (var r in await _uow.Roles.GetAllAsync())
+        {
+            if ((await _uow.GetRolePermissionsAsync(r.Id)).Any(rp => approveIds.Contains(rp.PermissionId)))
+                ids.Add(r.Id);
+        }
+        return ids;
+    }
+
     public async Task<Result> UpdateAsync(UpdateUserDto dto)
     {
         try
@@ -78,11 +122,14 @@ public class UserService : IUserService
             var user = await _uow.Users.GetByIdAsync(dto.Id);
             if (user == null) return Result.Failure("User not found.");
 
+            var linkError = await ValidateEmployeeLinkAsync(dto.RoleId, dto.EmployeeId);
+            if (linkError != null) return Result.Failure(linkError);
+
             // RoleId changes are the interesting ones here — this is how somebody gains rights.
             var before = AuditSnapshot.Capture(user);
 
             user.Email = dto.Email.Trim(); user.FullName = dto.FullName.Trim();
-            user.RoleId = dto.RoleId; user.EmployeeId = dto.EmployeeId; user.IsActive = dto.IsActive;
+            user.RoleId = dto.RoleId; user.EmployeeId = dto.EmployeeId; user.IsActive = dto.IsActive; user.ApprovalScope = dto.ApprovalScope;
             user.ModifiedBy = _currentUser.UserId; user.ModifiedAt = DateTime.Now;
             await _uow.Users.UpdateAsync(user);
             await _uow.SaveChangesAsync();
@@ -147,7 +194,7 @@ public class UserService : IUserService
         RoleId = u.RoleId, RoleName = u.Role?.Name ?? string.Empty,
         EmployeeId = u.EmployeeId,
         EmployeeName = u.Employee != null ? $"{u.Employee.FirstName} {u.Employee.LastName}".Trim() : null,
-        IsActive = u.IsActive, IsLocked = u.IsLocked,
+        IsActive = u.IsActive, IsLocked = u.IsLocked, ApprovalScope = u.ApprovalScope,
         LastLoginAt = u.LastLoginAt, CreatedAt = u.CreatedAt
     };
 }
@@ -170,8 +217,29 @@ public class RoleService : IRoleService
     {
         try
         {
-            var list = await _uow.Roles.GetAllAsync();
-            return Result<IEnumerable<RoleDto>>.Success(list.Select(r => new RoleDto { Id = r.Id, Name = r.Name, Description = r.Description }));
+            var list = (await _uow.Roles.GetAllAsync()).ToList();
+
+            // Which roles can approve anything at all. Roles are a handful of rows, so the
+            // per-role lookup costs nothing; the alternative is exposing RolePermissions to
+            // the Users screen, which would leak far more than the one bit it needs.
+            var approveIds = (await _uow.Permissions.FindAsync(p => p.Action == AppConstants.Actions.Approve))
+                .Select(p => p.Id).ToHashSet();
+
+            var dtos = new List<RoleDto>();
+            foreach (var r in list)
+            {
+                // Role 1 is Administrator, which holds every permission implicitly rather than
+                // through rows in RolePermissions — the same rule GetPermissionsAsync applies.
+                var canApprove = r.Id == 1 ||
+                    (await _uow.GetRolePermissionsAsync(r.Id)).Any(rp => approveIds.Contains(rp.PermissionId));
+
+                dtos.Add(new RoleDto
+                {
+                    Id = r.Id, Name = r.Name, Description = r.Description, CanApprove = canApprove
+                });
+            }
+
+            return Result<IEnumerable<RoleDto>>.Success(dtos);
         }
         catch (Exception ex) { return Result<IEnumerable<RoleDto>>.Failure(ex.Message); }
     }

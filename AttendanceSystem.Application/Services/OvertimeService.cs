@@ -29,11 +29,15 @@ public class OvertimeService : IOvertimeService
     private readonly IAuditService _audit;
     private readonly ICurrentUserContext _currentUser;
 
-    public OvertimeService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser)
+    private readonly IApprovalScopeService _scopes;
+
+    public OvertimeService(IUnitOfWork uow, IAuditService audit, ICurrentUserContext currentUser,
+                           IApprovalScopeService scopes)
     {
         _uow = uow;
         _audit = audit;
         _currentUser = currentUser;
+        _scopes = scopes;
     }
 
     // ── Rules ────────────────────────────────────────────────────────────────────
@@ -422,6 +426,24 @@ public class OvertimeService : IOvertimeService
             var records = (await _uow.OvertimeRecords.FindAsync(r => !r.IsDeleted && ids.Contains(r.Id)))
                 .ToList();
             if (records.Count == 0) return Result<int>.Failure("No matching overtime claims found.");
+
+            // Same rule as leave: nobody decides their own claim, and an approver named for
+            // particular departments acts only on those. Checked before anything is written —
+            // a bulk decision must not half-apply because one claim in the selection was out
+            // of scope.
+            var scope = await _scopes.GetForCurrentUserAsync();
+            var employeeIds = records.Select(r => r.EmployeeId).Distinct().ToList();
+            var employees = (await _uow.Employees.FindAsync(e => employeeIds.Contains(e.Id)))
+                .ToDictionary(e => e.Id, e => e.DepartmentId);
+
+            foreach (var r in records)
+            {
+                if (!employees.TryGetValue(r.EmployeeId, out var deptId))
+                    return Result<int>.Failure("An employee on this selection no longer exists.");
+
+                if (!scope.CanApprove(r.EmployeeId, deptId, out var refusal, "overtime claim"))
+                    return Result<int>.Failure(refusal!);
+            }
 
             var now = DateTime.Now;
             var changed = 0;
