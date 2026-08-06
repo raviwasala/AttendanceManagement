@@ -4,6 +4,7 @@ using AttendanceSystem.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AttendanceSystem.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AttendanceDbContext))]
-    partial class AttendanceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260806035724_AddSmtpSettings")]
+    partial class AddSmtpSettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -366,35 +369,6 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.Property<int>("ScreenLockMinutes")
                         .HasColumnType("int");
 
-                    b.Property<string>("SmsApiKeyEncrypted")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SmsApiUrl")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SmsAuthHeader")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SmsContentType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("SmsEnabled")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("SmsHttpMethod")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SmsProvider")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SmsRequestTemplate")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SmsSenderId")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<bool>("SmtpEnableSsl")
                         .HasColumnType("bit");
 
@@ -448,9 +422,6 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                             IsDeleted = false,
                             MaxLateMinutes = 15,
                             ScreenLockMinutes = 15,
-                            SmsContentType = "application/json",
-                            SmsEnabled = false,
-                            SmsHttpMethod = "POST",
                             SmtpEnableSsl = true,
                             SmtpEnabled = false,
                             SmtpPort = 587,

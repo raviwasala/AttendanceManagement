@@ -3,33 +3,125 @@ using System.Net.Mail;
 using AttendanceSystem.Application.Interfaces;
 using AttendanceSystem.Common.Logging;
 using AttendanceSystem.Common.Models;
+using AttendanceSystem.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 namespace AttendanceSystem.Infrastructure.Services;
 
 /// <summary>
-/// Email notification service implementation via SMTP with logger fallback.
+/// Outgoing mail over SMTP.
+///
+/// Settings are read from the database first and fall back to configuration, so an
+/// administrator can fix mail without server access while an existing deployment that
+/// configured appsettings keeps working untouched.
 /// </summary>
 public class EmailService : IEmailService
 {
     private readonly IConfiguration _config;
+    private readonly AttendanceDbContext _db;
+    private readonly Application.Interfaces.ISecretProtector _secrets;
 
-    public EmailService(IConfiguration config)
+    public EmailService(IConfiguration config, AttendanceDbContext db,
+                        Application.Interfaces.ISecretProtector secrets)
     {
         _config = config;
+        _db = db;
+        _secrets = secrets;
     }
+
+    /// <summary>Resolved mail settings, and whether they are usable at all.</summary>
+    private sealed record MailConfig(
+        string? Host, int Port, string? Username, string? Password,
+        bool EnableSsl, string FromAddress, string FromName, bool Enabled);
+
+    /// <summary>
+    /// Database settings win when a host is stored there; configuration fills the gaps.
+    /// </summary>
+    private async Task<MailConfig> ResolveAsync()
+    {
+        var s = await _db.CompanySettings.AsNoTracking().FirstOrDefaultAsync();
+
+        var dbHasHost = !string.IsNullOrWhiteSpace(s?.SmtpHost);
+
+        var host = dbHasHost ? s!.SmtpHost : _config["Smtp:Host"];
+        var port = dbHasHost ? s!.SmtpPort
+                             : (int.TryParse(_config["Smtp:Port"], out var p) ? p : 587);
+        var username = dbHasHost ? s!.SmtpUsername : _config["Smtp:Username"];
+
+        var password = dbHasHost
+            ? _secrets.Unprotect(s!.SmtpPasswordEncrypted)
+            : _config["Smtp:Password"];
+
+        var ssl = dbHasHost ? s!.SmtpEnableSsl
+                            : bool.TryParse(_config["Smtp:EnableSsl"], out var e) && e;
+
+        var from = (dbHasHost ? s!.SmtpFromAddress : _config["Smtp:FromAddress"])
+                   ?? username ?? "noreply@attendancesystem.com";
+
+        var fromName = (dbHasHost ? s!.SmtpFromName : null)
+                       ?? (string.IsNullOrWhiteSpace(s?.CompanyName)
+                            ? "Attendance Management System" : s!.CompanyName);
+
+        // The database switch only governs database settings. A deployment configured purely
+        // through appsettings has no row to enable and must not be switched off by its absence.
+        var enabled = dbHasHost ? s!.SmtpEnabled : !string.IsNullOrWhiteSpace(host);
+
+        return new MailConfig(host, port, username, password, ssl, from, fromName, enabled);
+    }
+
+    /// <summary>
+    /// Delivers one message, reporting real failures.
+    ///
+    /// Every path used to return success — an unconfigured host skipped sending entirely and
+    /// a thrown SmtpException was caught and swallowed. Combined with the deliberately vague
+    /// "check your email" on the forgot-password screen, that meant a site with no mail server
+    /// silently never sent a single reset, and nothing anywhere said so.
+    /// </summary>
+    private async Task<Result> SendAsync(string toEmail, string subject, string bodyHtml)
+    {
+        var cfg = await ResolveAsync();
+
+        if (!cfg.Enabled)
+            return Result.Failure("Email sending is switched off in Settings.");
+
+        if (string.IsNullOrWhiteSpace(cfg.Host))
+            return Result.Failure(
+                "No mail server is configured. Set the SMTP details under Settings → Email.");
+
+        try
+        {
+            using var message = new MailMessage();
+            message.From = new MailAddress(cfg.FromAddress, cfg.FromName);
+            message.To.Add(toEmail);
+            message.Subject = subject;
+            message.Body = bodyHtml;
+            message.IsBodyHtml = true;
+
+            using var client = new SmtpClient(cfg.Host, cfg.Port) { EnableSsl = cfg.EnableSsl };
+            if (!string.IsNullOrWhiteSpace(cfg.Username) && !string.IsNullOrWhiteSpace(cfg.Password))
+                client.Credentials = new NetworkCredential(cfg.Username, cfg.Password);
+
+            await client.SendMailAsync(message);
+            return Result.Success();
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error($"EmailService.SendAsync to {toEmail}", ex);
+            return Result.Failure($"The mail server rejected the message: {ex.Message}");
+        }
+    }
+
+    public Task<Result> SendTestEmailAsync(string toEmail) =>
+        SendAsync(toEmail, "Test message — Attendance Management System",
+            "<p>This is a test message from your Attendance Management System.</p>" +
+            "<p>If you are reading it, outgoing mail is working and password reset " +
+            "messages will reach your staff.</p>");
 
     public async Task<Result> SendPasswordResetEmailAsync(string toEmail, string resetLink, string token)
     {
         try
         {
-            var host = _config["Smtp:Host"];
-            var portStr = _config["Smtp:Port"];
-            var fromEmail = _config["Smtp:FromAddress"] ?? _config["Smtp:Username"] ?? "noreply@attendancesystem.com";
-            var username = _config["Smtp:Username"];
-            var password = _config["Smtp:Password"];
-            var enableSsl = bool.TryParse(_config["Smtp:EnableSsl"], out var ssl) && ssl;
-
             var bodyHtml = $@"
 <!DOCTYPE html>
 <html>
@@ -73,32 +165,22 @@ public class EmailService : IEmailService
             // log files take over an account. Record only that a mail was attempted.
             AppLogger.Info($"[PasswordResetEmail] Sending password reset mail to {toEmail}.");
 
-            if (!string.IsNullOrWhiteSpace(host) && int.TryParse(portStr, out var port))
-            {
-                using var message = new MailMessage();
-                message.From = new MailAddress(fromEmail, "Attendance Management System");
-                message.To.Add(toEmail);
-                message.Subject = "Password Reset Request - Attendance Management System";
-                message.Body = bodyHtml;
-                message.IsBodyHtml = true;
+            var result = await SendAsync(
+                toEmail, "Password Reset Request - Attendance Management System", bodyHtml);
 
-                using var client = new SmtpClient(host, port);
-                if (!string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
-                {
-                    client.Credentials = new NetworkCredential(username, password);
-                }
-                client.EnableSsl = enableSsl;
+            // Logged at error level when it fails. The caller still tells the requester
+            // nothing — saying "no account" would turn the screen into a username oracle —
+            // so this log is the only place the failure is visible to anyone.
+            if (!result.IsSuccess)
+                AppLogger.Error($"[PasswordResetEmail] Could not send to {toEmail}: {result.ErrorMessage}",
+                    new InvalidOperationException(result.ErrorMessage ?? "Send failed."));
 
-                await client.SendMailAsync(message);
-            }
-
-            return Result.Success();
+            return result;
         }
         catch (Exception ex)
         {
             AppLogger.Error($"EmailService.SendPasswordResetEmailAsync to {toEmail}", ex);
-            // Log fallback so password reset flow is resilient even if SMTP server fails or is unconfigured
-            return Result.Success();
+            return Result.Failure(ex.Message);
         }
     }
 }

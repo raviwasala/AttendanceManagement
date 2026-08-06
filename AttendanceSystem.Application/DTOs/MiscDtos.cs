@@ -58,6 +58,57 @@ public class CompanySettingsDto
 
     /// <summary>Minutes of inactivity before the screen locks. 0 disables it.</summary>
     public int ScreenLockMinutes { get; set; } = 15;
+
+    // ── Outgoing mail ──────────────────────────────────────────────────────────
+
+    public bool SmtpEnabled { get; set; }
+    public string? SmtpHost { get; set; }
+    public int SmtpPort { get; set; } = 587;
+    public string? SmtpUsername { get; set; }
+    public bool SmtpEnableSsl { get; set; } = true;
+    public string? SmtpFromAddress { get; set; }
+    public string? SmtpFromName { get; set; }
+
+    /// <summary>
+    /// Write-only. Sent up to change the password; never populated on the way down.
+    ///
+    /// Leave it blank when saving and the stored password is kept — otherwise editing any
+    /// unrelated setting would wipe the mail password, since the form never had it to send
+    /// back.
+    /// </summary>
+    public string? SmtpPassword { get; set; }
+
+    /// <summary>Read-only signal for the screen: whether a password is stored at all.</summary>
+    public bool HasSmtpPassword { get; set; }
+
+    // ── Outgoing SMS ───────────────────────────────────────────────────────────
+
+    public bool SmsEnabled { get; set; }
+    public string? SmsProvider { get; set; }
+    public string? SmsApiUrl { get; set; }
+    public string SmsHttpMethod { get; set; } = "POST";
+    public string SmsContentType { get; set; } = "application/json";
+    public string? SmsSenderId { get; set; }
+    public string? SmsRequestTemplate { get; set; }
+    public string? SmsAuthHeader { get; set; }
+
+    /// <summary>Write-only, same rule as the SMTP password: blank on save keeps the stored key.</summary>
+    public string? SmsApiKey { get; set; }
+
+    /// <summary>Read-only signal for the screen: whether a key is stored at all.</summary>
+    public bool HasSmsApiKey { get; set; }
+}
+
+/// <summary>A trial SMS, to prove the gateway settings actually work.</summary>
+public class SendTestSmsDto
+{
+    [Required] public string ToNumber { get; set; } = string.Empty;
+}
+
+/// <summary>A trial message, to prove the mail settings actually work.</summary>
+public class SendTestEmailDto
+{
+    [Required, EmailAddress] public string ToEmail { get; set; } = string.Empty;
 }
 
 public class AuditLogDto

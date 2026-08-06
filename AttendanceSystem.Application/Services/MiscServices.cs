@@ -127,11 +127,13 @@ public class SettingsService : ISettingsService
 {
     private readonly IUnitOfWork _uow;
     private readonly IAuditService _audit;
+    private readonly ISecretProtector _secrets;
 
-    public SettingsService(IUnitOfWork uow, IAuditService audit)
+    public SettingsService(IUnitOfWork uow, IAuditService audit, ISecretProtector secrets)
     {
         _uow = uow;
         _audit = audit;
+        _secrets = secrets;
     }
 
     public async Task<Result<CompanySettingsDto>> GetAsync()
@@ -177,6 +179,37 @@ public class SettingsService : ISettingsService
             // working value, and anything under about 5 will be fought by the people it is
             // meant to protect.
             entity.ScreenLockMinutes = dto.ScreenLockMinutes <= 0 ? 0 : Math.Clamp(dto.ScreenLockMinutes, 1, 240);
+
+            entity.SmtpEnabled = dto.SmtpEnabled;
+            entity.SmtpHost = dto.SmtpHost?.Trim();
+            entity.SmtpPort = dto.SmtpPort <= 0 ? 587 : Math.Clamp(dto.SmtpPort, 1, 65535);
+            entity.SmtpUsername = dto.SmtpUsername?.Trim();
+            entity.SmtpEnableSsl = dto.SmtpEnableSsl;
+            entity.SmtpFromAddress = dto.SmtpFromAddress?.Trim();
+            entity.SmtpFromName = dto.SmtpFromName?.Trim();
+
+            // A blank password means "leave it alone", not "clear it". The screen never
+            // receives the stored password, so it cannot send it back — treating blank as a
+            // deletion would wipe the mail credentials every time somebody edited the
+            // company address. Clearing it is done by switching mail off.
+            if (!string.IsNullOrWhiteSpace(dto.SmtpPassword))
+                entity.SmtpPasswordEncrypted = _secrets.Protect(dto.SmtpPassword);
+
+            entity.SmsEnabled = dto.SmsEnabled;
+            entity.SmsProvider = dto.SmsProvider?.Trim();
+            entity.SmsApiUrl = dto.SmsApiUrl?.Trim();
+            entity.SmsHttpMethod = string.Equals(dto.SmsHttpMethod, "GET", StringComparison.OrdinalIgnoreCase)
+                ? "GET" : "POST";
+            entity.SmsContentType = dto.SmsContentType?.Contains("json", StringComparison.OrdinalIgnoreCase) == true
+                ? "application/json" : "application/x-www-form-urlencoded";
+            entity.SmsSenderId = dto.SmsSenderId?.Trim();
+            entity.SmsRequestTemplate = dto.SmsRequestTemplate?.Trim();
+            entity.SmsAuthHeader = dto.SmsAuthHeader?.Trim();
+
+            // Same rule as the SMTP password: blank keeps the stored key.
+            if (!string.IsNullOrWhiteSpace(dto.SmsApiKey))
+                entity.SmsApiKeyEncrypted = _secrets.Protect(dto.SmsApiKey);
+
             entity.ModifiedBy = modifiedBy; entity.ModifiedAt = DateTime.Now;
             await _uow.CompanySettings.UpdateAsync(entity);
             await _uow.SaveChangesAsync();
@@ -197,7 +230,21 @@ public class SettingsService : ISettingsService
         WorkStartTime = s.WorkStartTime, WorkEndTime = s.WorkEndTime,
         WeekendDays = s.WeekendDays, MaxLateMinutes = s.MaxLateMinutes,
         DefaultPageSize = s.DefaultPageSize, ConfirmBeforeDelete = s.ConfirmBeforeDelete,
-        ScreenLockMinutes = s.ScreenLockMinutes
+        ScreenLockMinutes = s.ScreenLockMinutes,
+
+        SmtpEnabled = s.SmtpEnabled, SmtpHost = s.SmtpHost, SmtpPort = s.SmtpPort,
+        SmtpUsername = s.SmtpUsername, SmtpEnableSsl = s.SmtpEnableSsl,
+        SmtpFromAddress = s.SmtpFromAddress, SmtpFromName = s.SmtpFromName,
+
+        // The password itself is deliberately absent — only whether one exists. Settings.View
+        // is a much weaker permission than "may read the company's mail credentials".
+        HasSmtpPassword = !string.IsNullOrWhiteSpace(s.SmtpPasswordEncrypted),
+
+        SmsEnabled = s.SmsEnabled, SmsProvider = s.SmsProvider, SmsApiUrl = s.SmsApiUrl,
+        SmsHttpMethod = s.SmsHttpMethod, SmsContentType = s.SmsContentType,
+        SmsSenderId = s.SmsSenderId, SmsRequestTemplate = s.SmsRequestTemplate,
+        SmsAuthHeader = s.SmsAuthHeader,
+        HasSmsApiKey = !string.IsNullOrWhiteSpace(s.SmsApiKeyEncrypted)
     };
 }
 

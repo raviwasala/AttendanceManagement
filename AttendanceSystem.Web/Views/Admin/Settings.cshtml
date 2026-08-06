@@ -5,6 +5,40 @@
 <h5 class="mb-3">Company Settings</h5>
 <div id="settingsAlert"></div>
 
+@* Tabbed rather than one long scroll: company details are edited occasionally, mail and SMS
+   are touched once at setup and then only when something breaks. Keeping the gateways off the
+   main page also stops an unrelated edit drawing attention to credentials.
+
+   One Save button serves every tab — the settings are a single record, and per-tab saves
+   would let somebody fill in the SMS tab, press Save on another, and lose it. *@
+<ul class="nav nav-tabs mb-3" id="settingsTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab">
+            <i class="feather icon-home me-1"></i>General
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-system" type="button" role="tab">
+            <i class="feather icon-sliders me-1"></i>System
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-email" type="button" role="tab">
+            <i class="feather icon-mail me-1"></i>Email
+            <span class="badge bg-secondary ms-1 d-none" id="emailStatusBadge">Off</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-sms" type="button" role="tab">
+            <i class="feather icon-message-square me-1"></i>SMS
+            <span class="badge bg-secondary ms-1 d-none" id="smsStatusBadge">Off</span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+<div class="tab-pane fade show active" id="tab-general" role="tabpanel">
+
 <!-- Company Logo Upload Card -->
 <div class="card mb-4 border-0 shadow-sm">
     <div class="card-header bg-white py-3 border-bottom">
@@ -80,7 +114,11 @@
     </div>
 </div>
 
-<div class="card mt-4 border-0 shadow-sm">
+</div><!-- /tab-general -->
+
+<div class="tab-pane fade" id="tab-system" role="tabpanel">
+
+<div class="card border-0 shadow-sm">
     <div class="card-header bg-white py-3 border-bottom">
         <h6 class="mb-0 fw-bold text-dark">
             <i class="feather icon-sliders text-primary me-2"></i>System Configuration
@@ -134,10 +172,205 @@
     </div>
 </div>
 
+</div><!-- /tab-system -->
+
+<div class="tab-pane fade" id="tab-email" role="tabpanel">
+
+@* Password reset is the only thing that mails, and it deliberately says "check your email"
+   whether or not the account exists — so an unconfigured mail server fails invisibly. The
+   test button is the only way to find out before a locked-out user does. *@
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="mb-0 fw-bold text-dark">
+            <i class="feather icon-mail text-primary me-2"></i>Email (SMTP)
+        </h6>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-light border py-2 small">
+            <i class="feather icon-info me-1"></i>
+            Used to send <strong>password reset</strong> messages. Without a working mail
+            server, staff who forget their password cannot recover it themselves — and the
+            reset screen still says "check your email", so nothing reports the failure.
+            Send a test message after saving.
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label d-block">Status</label>
+                <div class="form-check form-switch mt-2">
+                    <input class="form-check-input" type="checkbox" id="smtpEnabled">
+                    <label class="form-check-label" for="smtpEnabled">Send email</label>
+                </div>
+                <div class="form-text">Off means no mail is attempted.</div>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">SMTP Host</label>
+                <input type="text" id="smtpHost" class="form-control" placeholder="smtp.gmail.com" maxlength="200">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Port</label>
+                <input type="number" id="smtpPort" class="form-control" value="587" min="1" max="65535">
+                <div class="form-text">587 with SSL/TLS, 25 without.</div>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Username</label>
+                <input type="text" id="smtpUsername" class="form-control" autocomplete="off" maxlength="200">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Password</label>
+                @* Never populated from the server. It is stored encrypted and cannot be read
+                   back, so blank means "keep the existing one". *@
+                <input type="password" id="smtpPassword" class="form-control" autocomplete="new-password"
+                       placeholder="Leave blank to keep current">
+                <div class="form-text" id="smtpPasswordState">No password saved.</div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label d-block">Encryption</label>
+                <div class="form-check form-switch mt-2">
+                    <input class="form-check-input" type="checkbox" id="smtpSsl" checked>
+                    <label class="form-check-label" for="smtpSsl">Use SSL/TLS</label>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">From Address</label>
+                <input type="email" id="smtpFrom" class="form-control" placeholder="noreply@yourcompany.com" maxlength="200">
+                <div class="form-text">Defaults to the username when blank.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">From Name</label>
+                <input type="text" id="smtpFromName" class="form-control" placeholder="Attendance System" maxlength="200">
+            </div>
+        </div>
+
+        <hr class="my-3">
+
+        <div class="row g-2 align-items-end">
+            <div class="col-md-6">
+                <label class="form-label">Send a test message to</label>
+                <input type="email" id="testEmailTo" class="form-control" placeholder="you@yourcompany.com">
+            </div>
+            <div class="col-md-6">
+                <button class="btn btn-outline-primary" onclick="sendTestEmail()" id="testEmailBtn">
+                    <i class="feather icon-send me-1"></i>Save &amp; Send Test
+                </button>
+                <div class="form-text">Settings are saved first, so the test proves what you just typed.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div><!-- /tab-email -->
+
+<div class="tab-pane fade" id="tab-sms" role="tabpanel">
+
+@* Deliberately a generic HTTP gateway rather than one vendor's fields. Text.lk, Notify.lk,
+   Dialog and Mobitel are all plain HTTP that disagree only about parameter names, so a
+   template keeps switching provider a settings change instead of a code change. *@
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="mb-0 fw-bold text-dark">
+            <i class="feather icon-message-square text-primary me-2"></i>SMS Gateway
+        </h6>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning py-2 small">
+            <i class="feather icon-alert-triangle me-1"></i>
+            <strong>Nothing sends SMS automatically yet.</strong> You can configure and test the
+            gateway here, but no event in the system triggers a message. Tell me which events
+            should notify by SMS — leave decisions are the usual choice — and I will wire them up.
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label d-block">Status</label>
+                <div class="form-check form-switch mt-2">
+                    <input class="form-check-input" type="checkbox" id="smsEnabled">
+                    <label class="form-check-label" for="smsEnabled">Send SMS</label>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Provider</label>
+                <input type="text" id="smsProvider" class="form-control" placeholder="Text.lk" maxlength="100">
+                <div class="form-text">A label for your reference only.</div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Sender ID</label>
+                <input type="text" id="smsSenderId" class="form-control" placeholder="MyCompany" maxlength="50">
+                <div class="form-text">Registered sender name or short code.</div>
+            </div>
+
+            <div class="col-md-8">
+                <label class="form-label">API URL</label>
+                <input type="text" id="smsApiUrl" class="form-control" placeholder="https://app.text.lk/api/v3/sms/send">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Method</label>
+                <select id="smsMethod" class="form-select">
+                    <option value="POST">POST</option>
+                    <option value="GET">GET</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Format</label>
+                <select id="smsContentType" class="form-select">
+                    <option value="application/json">JSON</option>
+                    <option value="application/x-www-form-urlencoded">Form</option>
+                </select>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">API Key / Token</label>
+                <input type="password" id="smsApiKey" class="form-control" autocomplete="new-password"
+                       placeholder="Leave blank to keep current">
+                <div class="form-text" id="smsApiKeyState">No API key saved.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Authorization Header <small class="text-muted">(optional)</small></label>
+                <input type="text" id="smsAuthHeader" class="form-control" placeholder="Bearer {apikey}">
+                <div class="form-text">Leave blank if the key goes in the request instead.</div>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Request Template</label>
+                <textarea id="smsTemplate" class="form-control font-monospace" rows="4"
+                          placeholder='{"recipient":"{to}","sender_id":"{sender}","message":"{message}"}'></textarea>
+                <div class="form-text">
+                    Request body for POST, or query string for GET. Placeholders:
+                    <code>{to}</code>, <code>{message}</code>, <code>{apikey}</code>, <code>{sender}</code>.
+                    Values are escaped for you, so a message containing quotes or
+                    <code>&amp;</code> will not break the request.
+                </div>
+            </div>
+        </div>
+
+        <hr class="my-3">
+
+        <div class="row g-2 align-items-end">
+            <div class="col-md-6">
+                <label class="form-label">Send a test SMS to</label>
+                <input type="text" id="testSmsTo" class="form-control" placeholder="+94771234567">
+                <div class="form-text">Use the format your gateway expects.</div>
+            </div>
+            <div class="col-md-6">
+                <button class="btn btn-outline-primary" onclick="sendTestSms()" id="testSmsBtn">
+                    <i class="feather icon-send me-1"></i>Save &amp; Send Test
+                </button>
+                <div class="form-text">A real message is sent and will be charged by your provider.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div><!-- /tab-sms -->
+</div><!-- /tab-content -->
+
 <div class="mt-3 mb-4">
     <button class="btn btn-primary px-4" onclick="saveSettings()">
         <i class="feather icon-save me-1"></i>Save Settings
     </button>
+    <span class="text-muted small ms-2">Saves every tab.</span>
 </div>
 
 @section Scripts {

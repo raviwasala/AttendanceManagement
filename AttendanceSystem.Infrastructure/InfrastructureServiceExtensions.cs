@@ -35,7 +35,15 @@ public static class InfrastructureServiceExtensions
         services.AddSingleton<DapperContext>();
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IBiometricImportService, BiometricImportService>();
+        // Registered before EmailService, which depends on it to read the stored SMTP password.
+        services.AddDataProtection();
+        services.AddScoped<ISecretProtector, SecretProtector>();
         services.AddScoped<IEmailService, EmailService>();
+
+        // Factory rather than a new HttpClient per send: the gateway is called repeatedly and
+        // fresh instances exhaust sockets under load.
+        services.AddHttpClient();
+        services.AddScoped<ISmsService, SmsService>();
         services.AddScoped<IDataTransferService, DataTransferService>();
         services.AddScoped<IEmployeeImportService, EmployeeImportService>();
         services.AddScoped<IEmployeeLifecycleService, EmployeeLifecycleService>();

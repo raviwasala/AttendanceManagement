@@ -12,7 +12,15 @@ namespace AttendanceSystem.Web.Controllers.Api;
 public class SettingsApiController : ApiControllerBase
 {
     private readonly ISettingsService _svc;
-    public SettingsApiController(ISettingsService svc) => _svc = svc;
+    private readonly IEmailService _email;
+    private readonly ISmsService _sms;
+
+    public SettingsApiController(ISettingsService svc, IEmailService email, ISmsService sms)
+    {
+        _svc = svc;
+        _email = email;
+        _sms = sms;
+    }
 
     [HttpGet]
     [SessionAuthorize(Modules.Settings, Actions.View)]
@@ -28,6 +36,35 @@ public class SettingsApiController : ApiControllerBase
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
         var r = await _svc.SaveAsync(dto, CurrentUserId);
+        return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
+    }
+
+    /// <summary>
+    /// Sends a trial message so mail can be proven to work before anyone needs it.
+    ///
+    /// Gated on Edit rather than View: it sends real mail through the configured server, and
+    /// an endpoint that sends to any address given to it is not a read.
+    /// </summary>
+    [HttpPost("test-email")]
+    [SessionAuthorize(Modules.Settings, Actions.Edit)]
+    public async Task<IActionResult> TestEmail([FromBody] SendTestEmailDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        // Save first, then test — otherwise the test proves the *old* settings work while
+        // the administrator reads it as confirming what they just typed.
+        var r = await _email.SendTestEmailAsync(dto.ToEmail.Trim());
+        return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
+    }
+
+    /// <summary>Sends a trial SMS. Edit-gated for the same reason as the mail test.</summary>
+    [HttpPost("test-sms")]
+    [SessionAuthorize(Modules.Settings, Actions.Edit)]
+    public async Task<IActionResult> TestSms([FromBody] SendTestSmsDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var r = await _sms.SendTestSmsAsync(dto.ToNumber.Trim());
         return r.IsSuccess ? Ok() : BadRequest(r.ErrorMessage);
     }
 
