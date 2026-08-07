@@ -45,6 +45,32 @@ public class AttendanceDbContext : DbContext
     public DbSet<DeviceSyncLog> DeviceSyncLogs { get; set; } = null!;
     public DbSet<OvertimeRule> OvertimeRules { get; set; } = null!;
     public DbSet<OvertimeRecord> OvertimeRecords { get; set; } = null!;
+
+    // ── Payroll ────────────────────────────────────────────────────────────────
+    public DbSet<Bank> Banks { get; set; } = null!;
+    public DbSet<BankBranch> BankBranches { get; set; } = null!;
+    public DbSet<SalaryGrade> SalaryGrades { get; set; } = null!;
+    public DbSet<SalaryGroup> SalaryGroups { get; set; } = null!;
+    public DbSet<SubDepartment> SubDepartments { get; set; } = null!;
+    public DbSet<SalaryComponent> SalaryComponents { get; set; } = null!;
+    public DbSet<EmployeeSalaryComponent> EmployeeSalaryComponents { get; set; } = null!;
+    public DbSet<MonthlyTransaction> MonthlyTransactions { get; set; } = null!;
+    public DbSet<EmployeePayrollInfo> EmployeePayrollInfos { get; set; } = null!;
+    public DbSet<EpfEtfRate> EpfEtfRates { get; set; } = null!;
+    public DbSet<ApitTaxTable> ApitTaxTables { get; set; } = null!;
+    public DbSet<ApitTaxBracket> ApitTaxBrackets { get; set; } = null!;
+    public DbSet<EmploymentCategory> EmploymentCategories { get; set; } = null!;
+    public DbSet<LoanType> LoanTypes { get; set; } = null!;
+    public DbSet<ThirdParty> ThirdParties { get; set; } = null!;
+    public DbSet<BranchPayrollSettings> BranchPayrollSettings { get; set; } = null!;
+    public DbSet<EpfAdjustment> EpfAdjustments { get; set; } = null!;
+    public DbSet<EmployeeLeaveEntitlement> EmployeeLeaveEntitlements { get; set; } = null!;
+    public DbSet<EmployeeLoan> EmployeeLoans { get; set; } = null!;
+    public DbSet<LoanGuarantor> LoanGuarantors { get; set; } = null!;
+    public DbSet<LoanTransaction> LoanTransactions { get; set; } = null!;
+    public DbSet<PayrollPeriod> PayrollPeriods { get; set; } = null!;
+    public DbSet<Payslip> Payslips { get; set; } = null!;
+    public DbSet<PayslipLine> PayslipLines { get; set; } = null!;
     public DbSet<EmployeeHistory> EmployeeHistories { get; set; } = null!;
     public DbSet<EmployeeDocument> EmployeeDocuments { get; set; } = null!;
     public DbSet<AttendancePeriodLock> AttendancePeriodLocks { get; set; } = null!;
@@ -377,6 +403,7 @@ public class AttendanceDbContext : DbContext
             // decimal(5,2) covers 0.00–999.99: enough for any realistic multiplier and
             // precise enough that 1.5 and 2.25 are stored exactly.
             e.Property(x => x.RateMultiplier).HasColumnType("decimal(5,2)");
+            e.Property(x => x.Code).HasMaxLength(20);
             e.HasIndex(x => x.Name).IsUnique();
             // Scope references use NoAction: deleting a department must not silently take
             // the overtime policy with it.
@@ -410,6 +437,380 @@ public class AttendanceDbContext : DbContext
             e.HasOne(x => x.Shift).WithMany().HasForeignKey(x => x.ShiftId)
                 .OnDelete(DeleteBehavior.NoAction);
             e.HasOne(x => x.OvertimeRule).WithMany().HasForeignKey(x => x.OvertimeRuleId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        // ── Payroll setup ─────────────────────────────────────────────────────
+        // Money is decimal(18,2) throughout. Percentages are decimal(5,2) — enough for
+        // 100.00 and no more, which is the point: a rate that will not fit is a mistake.
+
+        modelBuilder.Entity<Bank>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(150);
+            e.Property(x => x.Code).IsRequired().HasMaxLength(20);
+            e.HasIndex(x => x.Code).IsUnique().HasFilter("[IsDeleted] = 0");
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<BankBranch>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(150);
+            e.Property(x => x.Code).IsRequired().HasMaxLength(20);
+            // Branch codes repeat across banks, so uniqueness is per bank, not global.
+            e.HasIndex(x => new { x.BankId, x.Code }).IsUnique().HasFilter("[IsDeleted] = 0");
+            e.HasOne(x => x.Bank).WithMany(x => x.Branches).HasForeignKey(x => x.BankId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<SalaryGrade>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Code).IsRequired().HasMaxLength(20);
+            e.Property(x => x.BasicSalary).HasColumnType("decimal(18,2)");
+            e.HasIndex(x => x.Code).IsUnique().HasFilter("[IsDeleted] = 0");
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<SalaryGroup>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Description).HasMaxLength(300);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<SubDepartment>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(150);
+            e.HasIndex(x => new { x.DepartmentId, x.Name }).IsUnique().HasFilter("[IsDeleted] = 0");
+            e.HasOne(x => x.Department).WithMany().HasForeignKey(x => x.DepartmentId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<SalaryComponent>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Code).IsRequired().HasMaxLength(20);
+            e.Property(x => x.DefaultValue).HasColumnType("decimal(18,2)");
+            e.HasIndex(x => x.Code).IsUnique().HasFilter("[IsDeleted] = 0");
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<EmployeeSalaryComponent>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Value).HasColumnType("decimal(18,2)");
+            e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.SalaryComponent).WithMany().HasForeignKey(x => x.SalaryComponentId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(x => new { x.EmployeeId, x.SalaryComponentId, x.EffectiveFrom });
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<MonthlyTransaction>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+            e.Property(x => x.Hours).HasColumnType("decimal(9,2)");
+            e.Property(x => x.Remarks).HasMaxLength(250);
+            e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.SalaryComponent).WithMany().HasForeignKey(x => x.SalaryComponentId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // Unique, so one employee cannot end up with two Travelling Incentive figures for
+            // August and a payslip that depends on which row is read first. The screens upsert
+            // against this; the index is what makes that guarantee rather than a convention.
+            e.HasIndex(x => new { x.EmployeeId, x.SalaryComponentId, x.YearMonth })
+                .IsUnique().HasFilter("[IsDeleted] = 0");
+
+            // The payroll run reads a whole month at once.
+            e.HasIndex(x => new { x.YearMonth, x.SalaryComponentId });
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<EmployeePayrollInfo>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.EpfNumber).HasMaxLength(30);
+            e.Property(x => x.EtfNumber).HasMaxLength(30);
+            e.Property(x => x.AccountNumber).HasMaxLength(30);
+            e.Property(x => x.AccountName).HasMaxLength(150);
+            e.Property(x => x.EpfStatus).HasMaxLength(10);
+            e.Property(x => x.AdditionalTaxAmount).HasColumnType("decimal(18,2)");
+            e.Property(x => x.OtLimitHours).HasColumnType("decimal(9,2)");
+            e.Property(x => x.BasicSalaryOverride).HasColumnType("decimal(18,2)");
+            e.Property(x => x.EmployeeEpfPercentOverride).HasColumnType("decimal(5,2)");
+            e.Property(x => x.EmployerEpfPercentOverride).HasColumnType("decimal(5,2)");
+            e.Property(x => x.EmployerEtfPercentOverride).HasColumnType("decimal(5,2)");
+
+            e.HasOne(x => x.ApitTaxTable).WithMany().HasForeignKey(x => x.ApitTaxTableId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.EmploymentCategory).WithMany().HasForeignKey(x => x.EmploymentCategoryId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.EpfRegistrationBranch).WithMany().HasForeignKey(x => x.EpfRegistrationBranchId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // One payroll record per employee.
+            e.HasIndex(x => x.EmployeeId).IsUnique().HasFilter("[IsDeleted] = 0");
+
+            e.HasOne(x => x.Employee).WithOne().HasForeignKey<EmployeePayrollInfo>(x => x.EmployeeId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.SalaryGrade).WithMany(x => x.Employees).HasForeignKey(x => x.SalaryGradeId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.SalaryGroup).WithMany().HasForeignKey(x => x.SalaryGroupId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.SubDepartment).WithMany().HasForeignKey(x => x.SubDepartmentId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.BankBranch).WithMany().HasForeignKey(x => x.BankBranchId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<EpfEtfRate>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.EmployeeEpfPercent).HasColumnType("decimal(5,2)");
+            e.Property(x => x.EmployerEpfPercent).HasColumnType("decimal(5,2)");
+            e.Property(x => x.EmployerEtfPercent).HasColumnType("decimal(5,2)");
+            e.Property(x => x.Notes).HasMaxLength(300);
+            e.HasIndex(x => x.EffectiveFrom);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<ApitTaxTable>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Code).IsRequired().HasMaxLength(20);
+            e.Property(x => x.Description).HasMaxLength(300);
+            e.HasIndex(x => x.Code).IsUnique().HasFilter("[IsDeleted] = 0");
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<EmployeeLoan>(e =>
+        {
+            e.HasKey(x => x.Id);
+            foreach (var money in new[] { nameof(EmployeeLoan.LoanAmount), nameof(EmployeeLoan.InterestAmount),
+                                          nameof(EmployeeLoan.TotalPayable), nameof(EmployeeLoan.MonthlyInstallment) })
+                e.Property(money).HasColumnType("decimal(18,2)");
+
+            e.Property(x => x.InterestRate).HasColumnType("decimal(5,2)");
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.HasIndex(x => new { x.EmployeeId, x.Status });
+
+            e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.LoanType).WithMany().HasForeignKey(x => x.LoanTypeId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<LoanGuarantor>(e =>
+        {
+            e.HasKey(x => x.Id);
+            // One person cannot guarantee the same loan twice.
+            e.HasIndex(x => new { x.EmployeeLoanId, x.GuarantorEmployeeId }).IsUnique()
+                .HasFilter("[IsDeleted] = 0");
+
+            // Cascade: a guarantor row has no meaning without its loan.
+            e.HasOne(x => x.EmployeeLoan).WithMany(x => x.Guarantors)
+                .HasForeignKey(x => x.EmployeeLoanId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.GuarantorEmployee).WithMany().HasForeignKey(x => x.GuarantorEmployeeId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<LoanTransaction>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.HasIndex(x => new { x.EmployeeLoanId, x.Year, x.Month });
+
+            e.HasOne(x => x.EmployeeLoan).WithMany(x => x.Transactions)
+                .HasForeignKey(x => x.EmployeeLoanId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.PayrollPeriod).WithMany().HasForeignKey(x => x.PayrollPeriodId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<EpfAdjustment>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+            e.Property(x => x.Reason).IsRequired().HasMaxLength(300);
+            e.HasIndex(x => new { x.Year, x.Month, x.EmployeeId });
+            e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.AppliedInPayrollPeriod).WithMany()
+                .HasForeignKey(x => x.AppliedInPayrollPeriodId).OnDelete(DeleteBehavior.NoAction);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<EmployeeLeaveEntitlement>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Notes).HasMaxLength(300);
+            e.Ignore(x => x.TotalDays);
+
+            // One row per employee, per type, per year. Two would make the entitlement
+            // depend on which was read first.
+            e.HasIndex(x => new { x.EmployeeId, x.LeaveTypeId, x.Year }).IsUnique()
+                .HasFilter("[IsDeleted] = 0");
+
+            e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.LeaveType).WithMany().HasForeignKey(x => x.LeaveTypeId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<BranchPayrollSettings>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.EpfDCode).HasMaxLength(10);
+            e.Property(x => x.EpfContactPerson).HasMaxLength(150);
+            e.Property(x => x.EpfContactPhone).HasMaxLength(30);
+            e.Property(x => x.PayeRegistrationNo).HasMaxLength(50);
+            e.Property(x => x.AccountNumber).HasMaxLength(30);
+            e.Property(x => x.EmployeeEpfPercent).HasColumnType("decimal(5,2)");
+            e.Property(x => x.EmployerEpfPercent).HasColumnType("decimal(5,2)");
+            e.Property(x => x.EmployerEtfPercent).HasColumnType("decimal(5,2)");
+            e.Property(x => x.HoursPerDay).HasColumnType("decimal(5,2)");
+            e.Property(x => x.GratuityPercentOfBasic).HasColumnType("decimal(5,2)");
+            e.Property(x => x.RoundNearest).HasColumnType("decimal(9,2)");
+
+            // One row per branch — two would make "which parameters apply" depend on row order.
+            e.HasIndex(x => x.BranchId).IsUnique().HasFilter("[IsDeleted] = 0");
+
+            e.HasOne(x => x.Branch).WithMany().HasForeignKey(x => x.BranchId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne(x => x.BankBranch).WithMany().HasForeignKey(x => x.BankBranchId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<ThirdParty>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Code).IsRequired().HasMaxLength(20);
+            e.Property(x => x.CompanyName).IsRequired().HasMaxLength(200);
+            e.Property(x => x.Address).HasMaxLength(500);
+            e.HasIndex(x => x.Code).IsUnique().HasFilter("[IsDeleted] = 0");
+            e.HasOne(x => x.SalaryComponent).WithMany().HasForeignKey(x => x.SalaryComponentId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<LoanType>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Code).IsRequired().HasMaxLength(20);
+            e.Property(x => x.Description).IsRequired().HasMaxLength(150);
+            e.Property(x => x.InterestRate).HasColumnType("decimal(5,2)");
+            e.HasIndex(x => x.Code).IsUnique().HasFilter("[IsDeleted] = 0");
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<EmploymentCategory>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Code).IsRequired().HasMaxLength(20);
+            e.HasIndex(x => x.Code).IsUnique().HasFilter("[IsDeleted] = 0");
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<ApitTaxBracket>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.FromAmount).HasColumnType("decimal(18,2)");
+            e.Property(x => x.ToAmount).HasColumnType("decimal(18,2)");
+            e.Property(x => x.Rate).HasColumnType("decimal(5,2)");
+            e.Property(x => x.Relief).HasColumnType("decimal(18,2)");
+            // Table first: a band is only meaningful within its table and date.
+            e.HasIndex(x => new { x.ApitTaxTableId, x.EffectiveFrom, x.SortOrder });
+            e.HasOne(x => x.ApitTaxTable).WithMany(x => x.Brackets)
+                .HasForeignKey(x => x.ApitTaxTableId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        // ── Payroll runs ──────────────────────────────────────────────────────
+
+        modelBuilder.Entity<PayrollPeriod>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.EmployeeEpfPercent).HasColumnType("decimal(5,2)");
+            e.Property(x => x.EmployerEpfPercent).HasColumnType("decimal(5,2)");
+            e.Property(x => x.EmployerEtfPercent).HasColumnType("decimal(5,2)");
+            e.Property(x => x.Notes).HasMaxLength(500);
+
+            // One run per month per branch. Without this a second run would produce a second
+            // set of payslips for the same people and nothing would say which was paid.
+            e.HasIndex(x => new { x.Year, x.Month, x.BranchId }).IsUnique()
+                .HasFilter("[IsDeleted] = 0");
+
+            e.HasOne(x => x.Branch).WithMany().HasForeignKey(x => x.BranchId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<Payslip>(e =>
+        {
+            e.HasKey(x => x.Id);
+
+            foreach (var money in new[]
+                     {
+                         nameof(Payslip.NoPayDays), nameof(Payslip.OvertimeHours),
+                         nameof(Payslip.BasicSalary), nameof(Payslip.NoPayDeduction),
+                         nameof(Payslip.TotalFixedAllowances), nameof(Payslip.TotalVariableAllowances),
+                         nameof(Payslip.OvertimeAmount), nameof(Payslip.GrossPay),
+                         nameof(Payslip.EpfLiableEarnings), nameof(Payslip.EmployeeEpf),
+                         nameof(Payslip.EmployerEpf), nameof(Payslip.EmployerEtf),
+                         nameof(Payslip.ApitLiableEarnings), nameof(Payslip.Apit),
+                         nameof(Payslip.TotalOtherDeductions), nameof(Payslip.TotalDeductions),
+                         nameof(Payslip.NetPay), nameof(Payslip.CostToCompany)
+                     })
+            {
+                e.Property(money).HasColumnType("decimal(18,2)");
+            }
+
+            e.Property(x => x.BankName).HasMaxLength(150);
+            e.Property(x => x.BankBranchName).HasMaxLength(150);
+            e.Property(x => x.AccountNumber).HasMaxLength(30);
+            e.Property(x => x.EpfNumber).HasMaxLength(30);
+
+            e.HasIndex(x => new { x.PayrollPeriodId, x.EmployeeId }).IsUnique()
+                .HasFilter("[IsDeleted] = 0");
+
+            e.HasOne(x => x.PayrollPeriod).WithMany(x => x.Payslips)
+                .HasForeignKey(x => x.PayrollPeriodId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
+        modelBuilder.Entity<PayslipLine>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ComponentName).IsRequired().HasMaxLength(100);
+            e.Property(x => x.ComponentCode).HasMaxLength(20);
+            e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+
+            // Cascade: a line has no meaning without its payslip.
+            e.HasOne(x => x.Payslip).WithMany(x => x.Lines).HasForeignKey(x => x.PayslipId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.SalaryComponent).WithMany().HasForeignKey(x => x.SalaryComponentId)
                 .OnDelete(DeleteBehavior.NoAction);
             e.HasQueryFilter(x => !x.IsDeleted);
         });

@@ -1,0 +1,73 @@
+@{
+    ViewData["Title"] = "Employee Bank Accounts";
+}
+
+<div class="mb-3">
+    <h5 class="mb-0">Employee Bank Accounts</h5>
+    <div class="text-muted small">
+        Where each employee's salary is sent. Edit in the grid — every row saves as you leave it.
+    </div>
+</div>
+
+<div id="baAlert"></div>
+
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small mb-1">Search</label>
+                <input type="text" id="baSearch" class="form-control form-control-sm"
+                       placeholder="Name, code or account number…" oninput="baFilter()">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Department</label>
+                <select id="baDept" class="form-select form-select-sm" onchange="baFilter()">
+                    <option value="">All departments</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Show</label>
+                <select id="baIncomplete" class="form-select form-select-sm" onchange="baFilter()">
+                    <option value="">Everyone</option>
+                    <option value="1">Missing bank details</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">&nbsp;</label>
+                <button class="btn btn-sm btn-outline-secondary w-100" onclick="baLoad()">
+                    <i class="feather icon-refresh-cw me-1"></i>Reload
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-light border py-2 small" id="baSummary"></div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Code</th>
+                        <th>Employee</th>
+                        <th>Department</th>
+                        <th style="min-width:220px;">Bank Branch</th>
+                        <th style="min-width:150px;">Account No.</th>
+                        <th style="min-width:170px;">Account Name</th>
+                        <th class="text-center">Transfer</th>
+                        <th class="text-center pe-3">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="baBody">
+                    <tr><td colspan="8" class="text-center py-4 text-muted">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/admin/employee-bank-accounts.js" asp-append-version="true"></script>
+}

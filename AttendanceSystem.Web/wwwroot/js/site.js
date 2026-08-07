@@ -17,6 +17,40 @@ window.esc = function (value) {
         .replace(/'/g, '&#39;');
 };
 
+/*
+ * Enum comparison for values that came from the API.
+ *
+ * A JsonStringEnumConverter is registered globally, so an enum crosses the wire as its
+ * name — "Earning", not 1. Comparing to the number matches nothing, and it fails
+ * silently: a filter returns an empty list and a dropdown simply renders empty, with no
+ * error to follow. Both forms are accepted so a page keeps working whichever way the
+ * converter is configured.
+ */
+window.enumIs = function (value, number, name) {
+    return value === number || value === name;
+};
+
+window.isEarning     = function (c) { return enumIs(c.ComponentType, 1, 'Earning'); };
+window.isDeduction   = function (c) { return enumIs(c.ComponentType, 2, 'Deduction'); };
+window.isPctOfBasic  = function (c) { return enumIs(c.CalculationType, 2, 'PercentOfBasic'); };
+window.isOneOff      = function (c) { return enumIs(c.Recurrence, 2, 'OneOff'); };
+window.isLoanActive  = function (l) { return enumIs(l.Status, 1, 'Active'); };
+window.isLoanSettled = function (l) { return enumIs(l.Status, 2, 'Settled'); };
+window.isFlatRate    = function (t) { return enumIs(t.InterestType, 1, 'Fixed'); };
+
+/*
+ * The numeric value of an enum that arrived as a name.
+ *
+ * Dropdowns carry the numbers, so an edit form preselects nothing when the API sends
+ * "Deduction" — and saving then writes back whichever option happened to be first.
+ * `names` is the enum's members in declaration order; these enums all start at 1.
+ */
+window.enumNum = function (value, names) {
+    if (typeof value === 'number') return value;
+    var i = names.indexOf(value);
+    return i < 0 ? value : i + 1;
+};
+
 /* ── Toastr Global Configuration & Notification Helpers ── */
 if (typeof toastr !== 'undefined') {
     toastr.options = {

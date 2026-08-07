@@ -64,6 +64,14 @@
                 <i class="feather icon-clock me-1"></i>History</a></li>
             <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#pf-documents" role="tab">
                 <i class="feather icon-file-text me-1"></i>Documents</a></li>
+            @* Only rendered for users who may see pay. The API enforces it too — this just
+               avoids showing a tab that would answer with 403. *@
+            @if (ViewContext.HasPermission(AttendanceSystem.Common.Constants.AppConstants.Modules.Payroll,
+                                           AttendanceSystem.Common.Constants.AppConstants.Actions.View))
+            {
+                <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#pf-payroll" role="tab">
+                    <i class="feather icon-credit-card me-1"></i>Payroll</a></li>
+            }
         </ul>
 
         <div class="tab-content">
@@ -120,6 +128,207 @@
                     </div>
                 </div>
             </div>
+
+            @if (ViewContext.HasPermission(AttendanceSystem.Common.Constants.AppConstants.Modules.Payroll,
+                                           AttendanceSystem.Common.Constants.AppConstants.Actions.View))
+            {
+            <div class="tab-pane fade" id="pf-payroll" role="tabpanel">
+                <div id="pfPayrollWarnings"></div>
+
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center py-2">
+                        <strong class="small">Payroll Details</strong>
+                        <button class="btn btn-sm btn-primary" onclick="pfSavePayroll()">
+                            <i class="feather icon-save me-1"></i>Save
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label small">Salary Grade</label>
+                                <select id="pfGrade" class="form-select form-select-sm"></select>
+                                <div class="form-text small" id="pfBasicHint">Basic salary comes from the grade.</div>
+                            </div>
+                            @* Blank means "follow the grade", so a grade revision still moves
+                               this person. A figure here detaches them from it. *@
+                            <div class="col-md-4">
+                                <label class="form-label small">Own Salary <span class="text-muted">(optional)</span></label>
+                                <input type="number" step="0.01" id="pfOwnSalary"
+                                       class="form-control form-control-sm" placeholder="Follows the grade">
+                                <div class="form-text small" id="pfSalaryHint"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Salary Group</label>
+                                <select id="pfGroup" class="form-select form-select-sm"></select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Sub-department</label>
+                                <select id="pfSubDept" class="form-select form-select-sm"></select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label small">Employment Category</label>
+                                <select id="pfCategory" class="form-select form-select-sm"></select>
+                                <div class="form-text small" id="pfCategoryHint">
+                                    Sets whether EPF/ETF apply by default.
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">OT Limit (hours / month)</label>
+                                <input type="number" step="0.5" id="pfOtLimit" class="form-control form-control-sm">
+                                <div class="form-text small">0 means no cap.</div>
+                            </div>
+
+                            @* ── EPF / ETF ──────────────────────────────────────── *@
+                            <div class="col-12"><hr class="my-2">
+                                <div class="small fw-semibold text-muted">EPF &amp; ETF</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small d-block">Membership</label>
+                                <div class="form-check form-check-inline form-switch">
+                                    <input class="form-check-input" type="checkbox" id="pfEpfMember">
+                                    <label class="form-check-label small" for="pfEpfMember">EPF member</label>
+                                </div>
+                                <div class="form-check form-check-inline form-switch">
+                                    <input class="form-check-input" type="checkbox" id="pfEtfMember">
+                                    <label class="form-check-label small" for="pfEtfMember">ETF member</label>
+                                </div>
+                                <div class="form-text small">
+                                    Switch off for staff outside the scheme — the calculation skips them entirely.
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">EPF Number</label>
+                                <input type="text" id="pfEpfNo" class="form-control form-control-sm" maxlength="30">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">ETF Number</label>
+                                <input type="text" id="pfEtfNo" class="form-control form-control-sm" maxlength="30">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label small">EPF Registration</label>
+                                <select id="pfEpfRegBranch" class="form-select form-select-sm"></select>
+                                <div class="form-text small">Which branch's registration this person is filed under.</div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small">EPF Status</label>
+                                <input type="text" id="pfEpfStatus" class="form-control form-control-sm" maxlength="10" placeholder="E">
+                            </div>
+
+                            @* Blank keeps the company rate, so who is on the standard rate
+                               stays visible rather than every employee carrying a copy. *@
+                            <div class="col-md-7">
+                                <label class="form-label small d-block">
+                                    Rate overrides
+                                    <span class="text-muted">— leave blank to use the company rates</span>
+                                </label>
+                                <div class="row g-1">
+                                    <div class="col-4">
+                                        <input type="number" step="0.01" id="pfEpfEmpPct"
+                                               class="form-control form-control-sm" placeholder="EPF employee %">
+                                    </div>
+                                    <div class="col-4">
+                                        <input type="number" step="0.01" id="pfEpfErPct"
+                                               class="form-control form-control-sm" placeholder="EPF employer %">
+                                    </div>
+                                    <div class="col-4">
+                                        <input type="number" step="0.01" id="pfEtfPct"
+                                               class="form-control form-control-sm" placeholder="ETF employer %">
+                                    </div>
+                                </div>
+                                <div class="form-text small" id="pfRateHint"></div>
+                            </div>
+
+                            @* ── Tax ────────────────────────────────────────────── *@
+                            <div class="col-12"><hr class="my-2">
+                                <div class="small fw-semibold text-muted">APIT (PAYE)</div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label small d-block">&nbsp;</label>
+                                <div class="form-check form-switch mt-1">
+                                    <input class="form-check-input" type="checkbox" id="pfApit">
+                                    <label class="form-check-label small" for="pfApit">APIT deducted</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Tax Table</label>
+                                <select id="pfTaxTable" class="form-select form-select-sm"></select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Additional Tax</label>
+                                <input type="number" step="0.01" id="pfAddTax" class="form-control form-control-sm">
+                                <div class="form-text small">Added to the computed tax.</div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small d-block">&nbsp;</label>
+                                <div class="form-check form-switch mt-1">
+                                    <input class="form-check-input" type="checkbox" id="pfTaxOnTax">
+                                    <label class="form-check-label small" for="pfTaxOnTax">Tax on tax</label>
+                                </div>
+                                <div class="form-text small">Employer bears the tax; pay is grossed up.</div>
+                            </div>
+
+                            <div class="col-12"><hr class="my-2">
+                                <div class="small fw-semibold text-muted">Bank</div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label small">Bank Branch</label>
+                                <select id="pfBankBranch" class="form-select form-select-sm"></select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Account Number</label>
+                                <input type="text" id="pfAccountNo" class="form-control form-control-sm" maxlength="30">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Account Name</label>
+                                <input type="text" id="pfAccountName" class="form-control form-control-sm" maxlength="150">
+                                <div class="form-text small">Only if it differs from the employee's name.</div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small d-block">&nbsp;</label>
+                                <div class="form-check form-switch mt-1">
+                                    <input class="form-check-input" type="checkbox" id="pfBankTransfer">
+                                    <label class="form-check-label small" for="pfBankTransfer">Bank transfer</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @* Shows the default alongside the employee's value, so an override is
+                   visible as a deliberate difference rather than just a number. *@
+                <div class="card">
+                    <div class="card-header py-2">
+                        <strong class="small">Allowances &amp; Deductions</strong>
+                        <span class="text-muted small ms-1">
+                            Blank uses the default. Enter a value to override it for this employee.
+                        </span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-3">Component</th>
+                                        <th>Type</th>
+                                        <th class="text-end">Default</th>
+                                        <th class="text-end" style="width:150px;">This Employee</th>
+                                        <th class="text-end pe-3">Effective</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pfComponentBody">
+                                    <tr><td colspan="5" class="text-center py-4 text-muted">Loading…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            }
         </div>
     </div>
 </div>
@@ -301,4 +510,10 @@
         };
     </script>
     <script src="~/js/pages/admin/employee-profile.js" asp-append-version="true"></script>
+    @* Only sent to users who can see the tab it drives. *@
+    @if (ViewContext.HasPermission(AttendanceSystem.Common.Constants.AppConstants.Modules.Payroll,
+                                   AttendanceSystem.Common.Constants.AppConstants.Actions.View))
+    {
+        <script src="~/js/pages/admin/employee-payroll.js" asp-append-version="true"></script>
+    }
 }

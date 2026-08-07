@@ -68,6 +68,10 @@ public class CompanySettings : BaseEntity
     /// <summary>Display name on outgoing mail.</summary>
     public string? SmtpFromName { get; set; }
 
+    // The overtime hours divisor used to live here as a single number. It is now derived from
+    // days × hours, held on the branch parameters and overridable per overtime rule — which is
+    // how the figure is actually reasoned about, and avoids a third place for it to disagree.
+
     // ── Outgoing SMS ───────────────────────────────────────────────────────────
     // Deliberately generic rather than modelled on one vendor. The gateways used in this
     // market — Text.lk, Notify.lk, Dialog, Mobitel — are all plain HTTP with different

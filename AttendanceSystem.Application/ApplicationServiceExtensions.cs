@@ -32,6 +32,10 @@ public static class ApplicationServiceExtensions
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<ISelfServiceService, SelfServiceService>();
         services.AddScoped<IOvertimeService, OvertimeService>();
+        services.AddScoped<IPayrollSetupService, PayrollSetupService>();
+        services.AddScoped<IEmployeePayrollService, EmployeePayrollService>();
+        services.AddScoped<IMonthlyTransactionService, MonthlyTransactionService>();
+        services.AddScoped<ILoanService, LoanService>();
         return services;
     }
 }

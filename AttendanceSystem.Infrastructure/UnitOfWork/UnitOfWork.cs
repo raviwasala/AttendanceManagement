@@ -22,6 +22,64 @@ public class UnitOfWork : IUnitOfWork
     private IRepository<Department>? _departments;
     private IRepository<DepartmentApprover>? _departmentApprovers;
     private IRepository<Designation>? _designations;
+
+    // Payroll. Lazily constructed like the rest, so a request that never touches payroll
+    // pays nothing for it.
+    private IRepository<Bank>? _banks;
+    private IRepository<BankBranch>? _bankBranches;
+    private IRepository<SalaryGrade>? _salaryGrades;
+    private IRepository<SalaryGroup>? _salaryGroups;
+    private IRepository<SubDepartment>? _subDepartments;
+    private IRepository<SalaryComponent>? _salaryComponents;
+    private IRepository<EmployeeSalaryComponent>? _employeeSalaryComponents;
+    private IRepository<MonthlyTransaction>? _monthlyTransactions;
+    private IRepository<EmployeePayrollInfo>? _employeePayrollInfos;
+    private IRepository<EpfEtfRate>? _epfEtfRates;
+    private IRepository<ApitTaxBracket>? _apitTaxBrackets;
+    private IRepository<PayrollPeriod>? _payrollPeriods;
+    private IRepository<Payslip>? _payslips;
+    private IRepository<PayslipLine>? _payslipLines;
+
+    public IRepository<Bank> Banks => _banks ??= new Repository<Bank>(_context);
+    public IRepository<BankBranch> BankBranches => _bankBranches ??= new Repository<BankBranch>(_context);
+    public IRepository<SalaryGrade> SalaryGrades => _salaryGrades ??= new Repository<SalaryGrade>(_context);
+    public IRepository<SalaryGroup> SalaryGroups => _salaryGroups ??= new Repository<SalaryGroup>(_context);
+    public IRepository<SubDepartment> SubDepartments => _subDepartments ??= new Repository<SubDepartment>(_context);
+    public IRepository<SalaryComponent> SalaryComponents => _salaryComponents ??= new Repository<SalaryComponent>(_context);
+    public IRepository<EmployeeSalaryComponent> EmployeeSalaryComponents => _employeeSalaryComponents ??= new Repository<EmployeeSalaryComponent>(_context);
+    public IRepository<MonthlyTransaction> MonthlyTransactions => _monthlyTransactions ??= new Repository<MonthlyTransaction>(_context);
+    public IRepository<EmployeePayrollInfo> EmployeePayrollInfos => _employeePayrollInfos ??= new Repository<EmployeePayrollInfo>(_context);
+    public IRepository<EpfEtfRate> EpfEtfRates => _epfEtfRates ??= new Repository<EpfEtfRate>(_context);
+    public IRepository<ApitTaxBracket> ApitTaxBrackets => _apitTaxBrackets ??= new Repository<ApitTaxBracket>(_context);
+
+    private IRepository<ApitTaxTable>? _apitTaxTables;
+    private IRepository<EmploymentCategory>? _employmentCategories;
+    public IRepository<ApitTaxTable> ApitTaxTables => _apitTaxTables ??= new Repository<ApitTaxTable>(_context);
+    public IRepository<EmploymentCategory> EmploymentCategories => _employmentCategories ??= new Repository<EmploymentCategory>(_context);
+
+    private IRepository<LoanType>? _loanTypes;
+    public IRepository<LoanType> LoanTypes => _loanTypes ??= new Repository<LoanType>(_context);
+
+    private IRepository<ThirdParty>? _thirdParties;
+    public IRepository<ThirdParty> ThirdParties => _thirdParties ??= new Repository<ThirdParty>(_context);
+
+    private IRepository<BranchPayrollSettings>? _branchPayrollSettings;
+    public IRepository<BranchPayrollSettings> BranchPayrollSettings => _branchPayrollSettings ??= new Repository<BranchPayrollSettings>(_context);
+
+    private IRepository<EpfAdjustment>? _epfAdjustments;
+    private IRepository<EmployeeLeaveEntitlement>? _employeeLeaveEntitlements;
+    public IRepository<EpfAdjustment> EpfAdjustments => _epfAdjustments ??= new Repository<EpfAdjustment>(_context);
+    public IRepository<EmployeeLeaveEntitlement> EmployeeLeaveEntitlements => _employeeLeaveEntitlements ??= new Repository<EmployeeLeaveEntitlement>(_context);
+
+    private IRepository<EmployeeLoan>? _employeeLoans;
+    private IRepository<LoanGuarantor>? _loanGuarantors;
+    private IRepository<LoanTransaction>? _loanTransactions;
+    public IRepository<EmployeeLoan> EmployeeLoans => _employeeLoans ??= new Repository<EmployeeLoan>(_context);
+    public IRepository<LoanGuarantor> LoanGuarantors => _loanGuarantors ??= new Repository<LoanGuarantor>(_context);
+    public IRepository<LoanTransaction> LoanTransactions => _loanTransactions ??= new Repository<LoanTransaction>(_context);
+    public IRepository<PayrollPeriod> PayrollPeriods => _payrollPeriods ??= new Repository<PayrollPeriod>(_context);
+    public IRepository<Payslip> Payslips => _payslips ??= new Repository<Payslip>(_context);
+    public IRepository<PayslipLine> PayslipLines => _payslipLines ??= new Repository<PayslipLine>(_context);
     private IRepository<Branch>? _branches;
     private IRepository<Shift>? _shifts;
     private IRepository<EmployeeShift>? _employeeShifts;

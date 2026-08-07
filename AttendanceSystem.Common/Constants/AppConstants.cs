@@ -26,6 +26,17 @@ public static class AppConstants
         public const string Devices = "Devices";
         public const string AuditLogs = "AuditLogs";
         public const string Overtime = "Overtime";
+
+        /// <summary>Running payroll and reading payslips — the money itself.</summary>
+        public const string Payroll = "Payroll";
+
+        /// <summary>
+        /// The payroll master data: grades, components, banks, statutory rates.
+        ///
+        /// Separate from <see cref="Payroll"/> because the people who configure a salary
+        /// structure are rarely the people who may see what an individual is paid.
+        /// </summary>
+        public const string PayrollSetup = "PayrollSetup";
     }
 
     public static class Actions

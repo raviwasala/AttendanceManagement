@@ -1,0 +1,134 @@
+@{
+    ViewData["Title"] = "Loan Settlement";
+}
+
+<div class="mb-3">
+    <h5 class="mb-0">Loan Settlement</h5>
+    <div class="text-muted small">Settle a loan early, in part or in full.</div>
+</div>
+
+<div id="lsAlert"></div>
+
+<div class="card mb-3">
+    <div class="card-body py-3">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label small">Employee <span class="text-danger">*</span></label>
+                <select id="lsEmployee" class="form-select" onchange="lsEmployeeChanged()"></select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label small">Loan <span class="text-danger">*</span></label>
+                <select id="lsLoan" class="form-select" onchange="lsLoanChanged()">
+                    <option value="">— choose an employee first —</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="lsThisMonth" checked>
+                    <label class="form-check-label small" for="lsThisMonth">Reduce this month</label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="lsPanels" class="d-none">
+    <div class="row g-3">
+        @* Current position first. Nobody should type a settlement figure without seeing what
+           is actually outstanding — the commonest way to overpay is not knowing. *@
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header py-2"><strong class="small">Current Status</strong></div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small text-muted mb-0">Loan Date</label>
+                            <div class="fw-semibold" id="lsCurDate">—</div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small text-muted mb-0">Interest Amount</label>
+                            <div class="fw-semibold" id="lsCurInterest">—</div>
+                        </div>
+                        <div class="col-6 mt-2">
+                            <label class="form-label small text-muted mb-0">Loan Amount</label>
+                            <div class="fw-semibold" id="lsCurAmount">—</div>
+                        </div>
+                        <div class="col-6 mt-2">
+                            <label class="form-label small text-muted mb-0">Recovered</label>
+                            <div class="fw-semibold text-success" id="lsCurRecovered">—</div>
+                        </div>
+                        <div class="col-6 mt-2">
+                            <label class="form-label small text-muted mb-0">No. of Instalments</label>
+                            <div class="fw-semibold" id="lsCurMonths">—</div>
+                        </div>
+                        <div class="col-6 mt-2">
+                            <label class="form-label small text-muted mb-0">Balance Instalments</label>
+                            <div class="fw-semibold" id="lsCurBalIns">—</div>
+                        </div>
+                        <div class="col-6 mt-2">
+                            <label class="form-label small text-muted mb-0">Monthly Instalment</label>
+                            <div class="fw-semibold" id="lsCurInstalment">—</div>
+                        </div>
+                        <div class="col-6 mt-2">
+                            <label class="form-label small text-muted mb-0">Balance</label>
+                            <div class="fw-bold fs-5" id="lsCurBalance">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header py-2"><strong class="small">Settlement Details</strong></div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label small">Date</label>
+                            <input type="date" id="lsDate" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Amount Paying <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" id="lsAmount" class="form-control"
+                                   oninput="lsPreview()">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">No. of Instalments</label>
+                            <input type="number" id="lsMonths" class="form-control"
+                                   placeholder="keep current" oninput="lsPreview()">
+                            <div class="form-text small">Blank keeps the present instalment.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Monthly Instalment</label>
+                            <input type="text" id="lsNewInstalment" class="form-control" readonly>
+                            <div class="form-text small">After settlement.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Balance After</label>
+                            <input type="text" id="lsNewBalance" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Notes</label>
+                            <input type="text" id="lsNotes" class="form-control" maxlength="500">
+                        </div>
+
+                        <div class="col-12">
+                            <div class="alert alert-light border py-2 mb-2 small" id="lsOutcome"></div>
+                            <button class="btn btn-primary w-100" id="lsSaveBtn" onclick="lsSettle()">
+                                <i class="feather icon-save me-1"></i>Record Settlement
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="lsEmpty" class="alert alert-light border py-3 text-center text-muted">
+    Choose an employee and one of their active loans.
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/admin/loan-settlement.js" asp-append-version="true"></script>
+}

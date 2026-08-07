@@ -2,6 +2,26 @@
 
 var allRules = [];
 
+/* Blank stays null so the branch figures apply. Zero would be a divide by zero in the
+   hourly rate, so it is treated as "not set" rather than accepted. */
+function ruleNum(sel, isInt) {
+    var v = ($(sel).val() || '').trim();
+    if (v === '') return null;
+    var n = isInt ? parseInt(v, 10) : parseFloat(v);
+    return (!n || n <= 0) ? null : n;
+}
+
+/* Shows the divisor the two boxes produce, so 30 × 8 = 240 is visible rather than implied.
+   Blank boxes read as "branch default" because the figure is not known on this screen. */
+function ruleUpdateDivisor() {
+    var d = ruleNum('#ruleDays', true);
+    var h = ruleNum('#ruleHours', false);
+
+    $('#ruleDivisor').val(d && h ? (d * h) : 'branch default');
+}
+
+$(document).on('input', '#ruleDays,#ruleHours', ruleUpdateDivisor);
+
 $(function () {
     $.when(
         $.getJSON('/api/departments', function (d) {
@@ -75,6 +95,14 @@ function openRule(id) {
         $('#ruleMin').val(30);
         $('#ruleRound').val('15');
         $('#ruleApproval,#ruleActive').prop('checked', true);
+        $('#ruleCode').val('');
+        $('#ruleDays').val('');
+        $('#ruleHours').val('');
+        // Matches the entity defaults. Whether overtime is EPF-liable varies by site — this
+        // is only a starting point, not a rule.
+        $('#ruleApit,#ruleGross').prop('checked', true);
+        $('#ruleEpf').prop('checked', false);
+        ruleUpdateDivisor();
         $('#ruleModalTitle').text('Add Overtime Rule');
         new bootstrap.Modal('#ruleModal').show();
         return;
@@ -94,6 +122,14 @@ function openRule(id) {
         $('#ruleRound').val(String(r.RoundToMinutes));
         $('#ruleApproval').prop('checked', r.RequiresApproval);
         $('#ruleActive').prop('checked', r.IsActive);
+        $('#ruleCode').val(r.Code || '');
+        // Blank means "use the branch figures", so nulls stay blank rather than showing 0.
+        $('#ruleDays').val(r.DaysPerMonth === null ? '' : r.DaysPerMonth);
+        $('#ruleHours').val(r.HoursPerDay === null ? '' : r.HoursPerDay);
+        $('#ruleApit').prop('checked', r.IsApitLiable);
+        $('#ruleEpf').prop('checked', r.IsEpfLiable);
+        $('#ruleGross').prop('checked', r.IncludeInGrossPay);
+        ruleUpdateDivisor();
         $('#ruleModalTitle').text('Edit Overtime Rule');
         new bootstrap.Modal('#ruleModal').show();
     }).fail(function (xhr) { notifyError(xhr.responseText || 'Failed to load the rule.'); });
@@ -118,7 +154,14 @@ function saveRule() {
         // Blank means no cap, which is null rather than 0 — 0 would read as "never allowed".
         MaxMinutesPerDay: max === '' ? null : (parseInt(max, 10) || null),
         RoundToMinutes: parseInt($('#ruleRound').val(), 10) || 0,
-        RequiresApproval: $('#ruleApproval').is(':checked')
+        RequiresApproval: $('#ruleApproval').is(':checked'),
+        Code: $('#ruleCode').val().trim() || null,
+        // Null, not 0 — blank means "use the branch figures", and 0 would be a divide by zero.
+        DaysPerMonth: ruleNum('#ruleDays', true),
+        HoursPerDay: ruleNum('#ruleHours', false),
+        IsApitLiable: $('#ruleApit').is(':checked'),
+        IsEpfLiable: $('#ruleEpf').is(':checked'),
+        IncludeInGrossPay: $('#ruleGross').is(':checked')
     };
 
     $.ajax({

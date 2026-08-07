@@ -21,6 +21,24 @@
     // fits on screen and the eye beats typing.
     var SEARCH_MIN_OPTIONS = 8;
 
+    /*
+     * Whether this select should carry a search box.
+     *
+     * Counted from the options it holds RIGHT NOW, which matters because almost every
+     * dropdown in this app is filled by AJAX after the page loads. Deciding once at
+     * init would decide while the select is still empty — 0 options is below the
+     * threshold, so a picker holding two hundred employees would never get a search
+     * box no matter how long the list grew. See refresh().
+     *
+     * data-search forces one on regardless: a list whose length depends on how much
+     * master data a site has entered should be searchable on day one, not once it
+     * happens to cross eight.
+     */
+    function needsSearch($el) {
+        if ($el.is('[data-search]')) return true;
+        return $el.find('option').length >= SEARCH_MIN_OPTIONS;
+    }
+
     function initOne(el) {
         var $el = $(el);
 
@@ -41,15 +59,18 @@
         // Carry the original width across so those rows stay on one line.
         var inlineWidth = el.style.width;
 
+        var search = needsSearch($el);
+
         var opts = {
             width: inlineWidth || '100%',
             // Adminty styles .select2-container; keeping the default theme lets
             // those overrides apply.
-            minimumResultsForSearch: $el.is('[data-search]') ? 0 : SEARCH_MIN_OPTIONS
+            minimumResultsForSearch: search ? 0 : Infinity
         };
         if ($modal.length) opts.dropdownParent = $modal;
 
         $el.select2(opts);
+        $el.data('amsSearch', search);   // what refresh() compares against
 
         if (inlineWidth) {
             // Passed as a custom property because the theme's rule is !important and would
@@ -65,12 +86,35 @@
         $(scope || document).find('select').each(function () { initOne(this); });
     };
 
+    // Guards against re-entering refresh from inside select2's own DOM work.
+    var refreshing = false;
+
     /** Redraws a select2 from its <select> after options or value changed. */
     function refresh($el) {
+        if (!$el.data('select2') || refreshing) return;
+
+        // minimumResultsForSearch is fixed when select2 initialises, so a dropdown that
+        // was empty at page load keeps "no search box" forever once the AJAX lands.
+        // Re-initialising is the only way to change it — done only when the answer
+        // actually flips, so an ordinary repopulate stays cheap.
+        if (needsSearch($el) !== $el.data('amsSearch')) {
+            refreshing = true;
+            try {
+                var value = $el.val();
+                $el.select2('destroy');
+                initOne($el[0]);
+                if (value !== null && value !== undefined) {
+                    $el[0].value = value;    // native, so the .val() hook cannot recurse
+                }
+            } finally {
+                refreshing = false;
+            }
+        }
+
         // The .select2 namespace updates the widget WITHOUT running the page's own
         // change handlers. A bare .trigger('change') here would re-enter caller
         // code — saving a form from inside a repopulate, for instance.
-        if ($el.data('select2')) $el.trigger('change.select2');
+        $el.trigger('change.select2');
     }
 
     $(function () {

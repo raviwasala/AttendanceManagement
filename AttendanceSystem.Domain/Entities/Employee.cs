@@ -33,6 +33,17 @@ public class Employee : BaseEntity
     public string? Phone { get; set; }
     public DateTime? DateOfBirth { get; set; }
     public DateTime JoiningDate { get; set; }
+
+    /// <summary>
+    /// When probation ended and employment was confirmed. Null while still on probation.
+    ///
+    /// Kept because entitlements commonly start from confirmation rather than joining —
+    /// gratuity and some leave types among them.
+    /// </summary>
+    public DateTime? ConfirmedDate { get; set; }
+
+    /// <summary>Married or Unmarried. Free text for the same reason as Gender.</summary>
+    public string? CivilStatus { get; set; }
     public string? Gender { get; set; }
     public string? Address { get; set; }
     public byte[]? Photo { get; set; }

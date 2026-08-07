@@ -1,0 +1,536 @@
+@{
+    ViewData["Title"] = "Payroll Setup";
+}
+
+<div class="mb-3">
+    <h5 class="mb-0">Payroll Setup</h5>
+    <div class="text-muted small">Grades, allowances, banks and the statutory tables payroll runs on.</div>
+</div>
+
+<div id="psAlert"></div>
+
+@* Tabbed because these are six small reference lists maintained together at setup and rarely
+   touched afterwards — six sidebar entries would bury the screens people use daily. *@
+<ul class="nav nav-tabs mb-3" id="psTabs" role="tablist">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#ps-grades">
+        <i class="feather icon-award me-1"></i>Grades</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ps-components">
+        <i class="feather icon-list me-1"></i>Allowances &amp; Deductions</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ps-groups">
+        <i class="feather icon-users me-1"></i>Groups</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ps-categories">
+        <i class="feather icon-tag me-1"></i>Categories</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ps-subdepts">
+        <i class="feather icon-share-2 me-1"></i>Sub-departments</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ps-loans">
+        <i class="feather icon-briefcase me-1"></i>Loan Types</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ps-thirdparty">
+        <i class="feather icon-external-link me-1"></i>Third Parties</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ps-banks">
+        <i class="feather icon-credit-card me-1"></i>Banks</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ps-branch">
+        <i class="feather icon-sliders me-1"></i>Branch Parameters</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ps-statutory">
+        <i class="feather icon-percent me-1"></i>EPF / ETF / APIT</a></li>
+</ul>
+
+<div class="tab-content">
+
+    <!-- ── Grades ── -->
+    <div class="tab-pane fade show active" id="ps-grades" role="tabpanel">
+        <div class="card">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>Salary Grades</strong>
+                    <div class="text-muted small">Basic salary lives here — changing a grade changes everyone on it.</div>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="psGradeModal()">+ Add Grade</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive"><table class="table table-hover table-sm mb-0">
+                    <thead class="table-light"><tr>
+                        <th class="ps-3">Code</th><th>Name</th>
+                        <th class="text-end">Basic Salary</th>
+                        <th class="text-center">Employees</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end pe-3">Actions</th>
+                    </tr></thead>
+                    <tbody id="psGradeBody"><tr><td colspan="6" class="text-center py-3 text-muted">Loading…</td></tr></tbody>
+                </table></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Components ── -->
+    <div class="tab-pane fade" id="ps-components" role="tabpanel">
+        <div class="card">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>Allowances &amp; Deductions</strong>
+                    <div class="text-muted small">
+                        Each flag is independent — an allowance can be taxable but outside EPF,
+                        or paid but excluded from the overtime rate.
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="psComponentModal()">+ Add Component</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive"><table class="table table-hover table-sm mb-0">
+                    <thead class="table-light"><tr>
+                        <th class="ps-3">Code</th><th>Name</th><th>Type</th>
+                        <th class="text-end">Rate</th>
+                        <th class="text-center">Recurs</th>
+                        <th class="text-center" title="Counts toward EPF / ETF">EPF</th>
+                        <th class="text-center" title="Counts toward tax">APIT</th>
+                        <th class="text-center" title="Part of the overtime rate base">OT</th>
+                        <th class="text-center" title="Counts toward the no-pay calculation">No-pay</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end pe-3">Actions</th>
+                    </tr></thead>
+                    <tbody id="psComponentBody"><tr><td colspan="11" class="text-center py-3 text-muted">Loading…</td></tr></tbody>
+                </table></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Groups ── -->
+    <div class="tab-pane fade" id="ps-groups" role="tabpanel">
+        <div class="card">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <div><strong>Salary Groups</strong>
+                    <div class="text-muted small">Executive, Non-Executive, Casual — for reporting and eligibility.</div></div>
+                <button class="btn btn-primary btn-sm" onclick="psGroupModal()">+ Add Group</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive"><table class="table table-hover table-sm mb-0">
+                    <thead class="table-light"><tr>
+                        <th class="ps-3">Name</th><th>Description</th>
+                        <th class="text-center">Employees</th><th class="text-center">Status</th>
+                        <th class="text-end pe-3">Actions</th>
+                    </tr></thead>
+                    <tbody id="psGroupBody"><tr><td colspan="5" class="text-center py-3 text-muted">Loading…</td></tr></tbody>
+                </table></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Employment categories ── -->
+    <div class="tab-pane fade" id="ps-categories" role="tabpanel">
+        <div class="card">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <div><strong>Employment Categories</strong>
+                    <div class="text-muted small">
+                        Permanent, Contract, Casual — drives eligibility, not pay.
+                    </div></div>
+                <button class="btn btn-primary btn-sm" onclick="psCategoryModal()">+ Add Category</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive"><table class="table table-hover table-sm mb-0">
+                    <thead class="table-light"><tr>
+                        <th class="ps-3">Code</th><th>Name</th>
+                        <th class="text-center">EPF / ETF by default</th>
+                        <th class="text-center">Employees</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end pe-3">Actions</th>
+                    </tr></thead>
+                    <tbody id="psCategoryBody"><tr><td colspan="6" class="text-center py-3 text-muted">Loading…</td></tr></tbody>
+                </table></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Sub-departments ── -->
+    <div class="tab-pane fade" id="ps-subdepts" role="tabpanel">
+        <div class="card">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <div><strong>Sub-departments</strong>
+                    <div class="text-muted small">One level under an existing department.</div></div>
+                <button class="btn btn-primary btn-sm" onclick="psSubDeptModal()">+ Add Sub-department</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive"><table class="table table-hover table-sm mb-0">
+                    <thead class="table-light"><tr>
+                        <th class="ps-3">Department</th><th>Sub-department</th>
+                        <th class="text-center">Employees</th><th class="text-center">Status</th>
+                        <th class="text-end pe-3">Actions</th>
+                    </tr></thead>
+                    <tbody id="psSubDeptBody"><tr><td colspan="5" class="text-center py-3 text-muted">Loading…</td></tr></tbody>
+                </table></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Third parties ── -->
+    <div class="tab-pane fade" id="ps-thirdparty" role="tabpanel">
+        <div class="card">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <div><strong>Third Party Deductions</strong>
+                    <div class="text-muted small">
+                        Who a deduction is paid over to — insurers, unions, finance companies.
+                    </div></div>
+                <button class="btn btn-primary btn-sm" onclick="psThirdPartyModal()">+ Add Third Party</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive"><table class="table table-hover table-sm mb-0">
+                    <thead class="table-light"><tr>
+                        <th class="ps-3">Code</th><th>Company</th>
+                        <th>Deduction</th><th>Address</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end pe-3">Actions</th>
+                    </tr></thead>
+                    <tbody id="psThirdPartyBody"><tr><td colspan="6" class="text-center py-3 text-muted">Loading…</td></tr></tbody>
+                </table></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Loan types ── -->
+    <div class="tab-pane fade" id="ps-loans" role="tabpanel">
+        <div class="alert alert-light border py-2 small">
+            <i class="feather icon-info me-1"></i>
+            These define the <em>kinds</em> of loan you grant. Issuing a loan to an employee and
+            deducting the instalments is a separate piece — not built yet, so nothing here
+            deducts anything on its own.
+        </div>
+        <div class="card">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <div><strong>Loan Types</strong>
+                    <div class="text-muted small">
+                        The rate here is the default — each loan records what it was actually granted at.
+                    </div></div>
+                <button class="btn btn-primary btn-sm" onclick="psLoanModal()">+ Add Loan Type</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive"><table class="table table-hover table-sm mb-0">
+                    <thead class="table-light"><tr>
+                        <th class="ps-3">Code</th><th>Description</th>
+                        <th>Interest Type</th>
+                        <th class="text-end">Rate</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end pe-3">Actions</th>
+                    </tr></thead>
+                    <tbody id="psLoanBody"><tr><td colspan="6" class="text-center py-3 text-muted">Loading…</td></tr></tbody>
+                </table></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Banks ── -->
+    <div class="tab-pane fade" id="ps-banks" role="tabpanel">
+        <div class="row g-3">
+            <div class="col-lg-5">
+                <div class="card h-100">
+                    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                        <strong>Banks</strong>
+                        <button class="btn btn-primary btn-sm" onclick="psBankModal()">+ Add</button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive"><table class="table table-hover table-sm mb-0">
+                            <thead class="table-light"><tr>
+                                <th class="ps-3">Code</th><th>Name</th>
+                                <th class="text-center">Branches</th><th class="text-end pe-3">Actions</th>
+                            </tr></thead>
+                            <tbody id="psBankBody"><tr><td colspan="4" class="text-center py-3 text-muted">Loading…</td></tr></tbody>
+                        </table></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-7">
+                <div class="card h-100">
+                    <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                        <div><strong>Bank Branches</strong>
+                            <div class="text-muted small">A transfer needs bank code and branch code together.</div></div>
+                        <button class="btn btn-primary btn-sm" onclick="psBankBranchModal()">+ Add</button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive"><table class="table table-hover table-sm mb-0">
+                            <thead class="table-light"><tr>
+                                <th class="ps-3">Bank</th><th>Branch</th><th>Code</th>
+                                <th class="text-end pe-3">Actions</th>
+                            </tr></thead>
+                            <tbody id="psBankBranchBody"><tr><td colspan="4" class="text-center py-3 text-muted">Loading…</td></tr></tbody>
+                        </table></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Branch parameters ── -->
+    @* Per branch, not per company: EPF and ETF are registered per branch, returns are filed
+       against those registrations, and salaries are commonly paid from a branch account. *@
+    <div class="tab-pane fade" id="ps-branch" role="tabpanel">
+        <div class="card mb-3">
+            <div class="card-body py-2">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-5">
+                        <label class="form-label small mb-1">Branch</label>
+                        <select id="bpBranch" class="form-select form-select-sm" onchange="psLoadBranchSettings()"></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1">&nbsp;</label>
+                        <button class="btn btn-primary btn-sm w-100" onclick="psSaveBranchSettings()">
+                            <i class="feather icon-save me-1"></i>Save Parameters
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="bpStatus"></div>
+
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header py-2"><strong class="small">Statutory registration</strong></div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-7">
+                                <label class="form-label small">EPF Registration No.</label>
+                                <input type="text" id="bpEpfReg" class="form-control form-control-sm" maxlength="50">
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small">D-Code</label>
+                                <input type="text" id="bpDCode" class="form-control form-control-sm" maxlength="10">
+                            </div>
+                            <div class="col-md-7">
+                                <label class="form-label small">ETF Registration No.</label>
+                                <input type="text" id="bpEtfReg" class="form-control form-control-sm" maxlength="50">
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small">PAYE Registration No.</label>
+                                <input type="text" id="bpPaye" class="form-control form-control-sm" maxlength="50">
+                            </div>
+                            <div class="col-md-7">
+                                <label class="form-label small">EPF Contact Person</label>
+                                <input type="text" id="bpContact" class="form-control form-control-sm" maxlength="150">
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small">Contact Phone</label>
+                                <input type="text" id="bpPhone" class="form-control form-control-sm" maxlength="30">
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small">Non-citizen Tax Years</label>
+                                <input type="number" id="bpNonCitizen" class="form-control form-control-sm">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header py-2"><strong class="small">Contribution rates &amp; the month</strong></div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <label class="form-label small d-block">
+                                    Rate overrides <span class="text-muted">— blank uses the company rates</span>
+                                </label>
+                                <div class="row g-1">
+                                    <div class="col-4"><input type="number" step="0.01" id="bpEpfEmp"
+                                        class="form-control form-control-sm" placeholder="EPF employee %"></div>
+                                    <div class="col-4"><input type="number" step="0.01" id="bpEpfEr"
+                                        class="form-control form-control-sm" placeholder="EPF employer %"></div>
+                                    <div class="col-4"><input type="number" step="0.01" id="bpEtf"
+                                        class="form-control form-control-sm" placeholder="ETF employer %"></div>
+                                </div>
+                                <div class="form-text small" id="bpRateHint"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Days per Month</label>
+                                <input type="number" id="bpDays" class="form-control form-control-sm">
+                                <div class="form-text small">Divisor for the daily rate. 30 is usual.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Hours per Day</label>
+                                <input type="number" step="0.5" id="bpHours" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Gratuity % of Basic</label>
+                                <input type="number" step="0.01" id="bpGratPct" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Gratuity Qualifying Years</label>
+                                <input type="number" id="bpGratYears" class="form-control form-control-sm">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header py-2">
+                        <strong class="small">Company bank account</strong>
+                        <div class="text-muted small">Where salaries are paid <em>from</em>.</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-7">
+                                <label class="form-label small">Bank Branch</label>
+                                <select id="bpBankBranch" class="form-select form-select-sm"></select>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small">Account No.</label>
+                                <input type="text" id="bpAccount" class="form-control form-control-sm" maxlength="30">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header py-2"><strong class="small">Net pay handling</strong></div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-7">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="bpRoundPayable">
+                                    <label class="form-check-label small" for="bpRoundPayable">Round off salary payable</label>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small">Nearest</label>
+                                <input type="number" step="0.01" id="bpRoundNearest" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="bpCfMinus">
+                                    <label class="form-check-label small" for="bpCfMinus">Carry forward minus salary</label>
+                                </div>
+                                <div class="form-text small">
+                                    When deductions exceed pay, carry the shortfall to next month rather than
+                                    showing a negative figure nothing can act on.
+                                </div>
+                                <div class="form-check form-switch mt-1">
+                                    <input class="form-check-input" type="checkbox" id="bpCfCoins">
+                                    <label class="form-check-label small" for="bpCfCoins">Carry forward coins</label>
+                                </div>
+                                <div class="form-text small">
+                                    Keeps rounding from quietly gaining or losing money over the year.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header py-2">
+                        <strong class="small">Rounding</strong>
+                        <div class="text-muted small">
+                            Per figure, because sites keep EPF and ETF to the cent for the returns
+                            while rounding tax and net pay.
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2" id="bpRounding"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Statutory ── -->
+    <div class="tab-pane fade" id="ps-statutory" role="tabpanel">
+        <div class="alert alert-warning py-2 small">
+            <i class="feather icon-alert-triangle me-1"></i>
+            <strong>Check these against the current IRD and EPF/ETF circulars before your first live run.</strong>
+            The seeded values are the long-standing statutory rates and an APIT table that changes
+            with each budget. A wrong band is invisible on the payslip and wrong for everyone.
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <div><strong>EPF &amp; ETF Rates</strong>
+                    <div class="text-muted small">Add a new row to change rates from a date — never edit history.</div></div>
+                <button class="btn btn-primary btn-sm" onclick="psRateModal()">+ Add Rate</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive"><table class="table table-hover table-sm mb-0">
+                    <thead class="table-light"><tr>
+                        <th class="ps-3">Effective From</th>
+                        <th class="text-end">EPF (Employee)</th>
+                        <th class="text-end">EPF (Employer)</th>
+                        <th class="text-end">ETF (Employer)</th>
+                        <th>Notes</th><th class="text-end pe-3">Actions</th>
+                    </tr></thead>
+                    <tbody id="psRateBody"><tr><td colspan="6" class="text-center py-3 text-muted">Loading…</td></tr></tbody>
+                </table></div>
+            </div>
+        </div>
+
+        @* Tables first, then bands: a band belongs to a table, and more than one table is in
+           force at a time — primary and secondary employment are taxed differently. *@
+        <div class="card mb-3">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <div><strong>APIT Tax Tables</strong>
+                    <div class="text-muted small">
+                        Each employee is assigned one; those without fall back to the default.
+                    </div></div>
+                <button class="btn btn-primary btn-sm" onclick="psApitTableModal()">+ Add Table</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive"><table class="table table-hover table-sm mb-0">
+                    <thead class="table-light"><tr>
+                        <th class="ps-3">Code</th><th>Name</th><th>Description</th>
+                        <th class="text-center">Bands</th>
+                        <th class="text-center">Default</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end pe-3">Actions</th>
+                    </tr></thead>
+                    <tbody id="psApitTableBody"><tr><td colspan="7" class="text-center py-3 text-muted">Loading…</td></tr></tbody>
+                </table></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <div><strong>APIT Bands</strong>
+                    <div class="text-muted small">
+                        Monthly: tax = earnings × rate − relief. Bands within a table must not overlap.
+                    </div></div>
+                <button class="btn btn-primary btn-sm" onclick="psApitModal()">+ Add Band</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive"><table class="table table-hover table-sm mb-0">
+                    <thead class="table-light"><tr>
+                        <th class="ps-3">Table</th>
+                        <th>Effective From</th><th>Monthly Range</th>
+                        <th class="text-end">Rate</th><th class="text-end">Relief</th>
+                        <th class="text-end pe-3">Actions</th>
+                    </tr></thead>
+                    <tbody id="psApitBody"><tr><td colspan="6" class="text-center py-3 text-muted">Loading…</td></tr></tbody>
+                </table></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* One modal, reshaped per entity. Six near-identical modals would be six places to fix the
+   next time a field is added to all of them. *@
+<div class="modal fade" id="psModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title" id="psModalTitle">Edit</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body"><div class="row g-2" id="psModalBody"></div></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm" id="psModalSave">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/admin/payroll-setup.js" asp-append-version="true"></script>
+    @* After payroll-setup.js — both use its shared helpers. *@
+    <script src="~/js/pages/admin/branch-parameters.js" asp-append-version="true"></script>
+    <script src="~/js/pages/admin/payroll-categories.js" asp-append-version="true"></script>
+}

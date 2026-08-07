@@ -59,7 +59,7 @@
     <link rel="stylesheet" type="text/css" href="~/assets/css/style.css">
     <link rel="stylesheet" type="text/css" href="~/assets/css/jquery.mCustomScrollbar.css">
     <!-- Adminty teal colour overrides (must come after template CSS) -->
-    <link rel="stylesheet" type="text/css" href="~/css/site.css">
+    <link rel="stylesheet" type="text/css" href="~/css/site.css" asp-append-version="true">
     @* Neutral Select2 appearance. Must come after style.css and site.css — it
        matches the theme's selector specificity, so load order is what decides. *@
     <link rel="stylesheet" type="text/css" href="~/css/ams-select2.css" asp-append-version="true">
@@ -246,6 +246,26 @@
                          LEFT SIDEBAR NAVIGATION
                     ========================================================== -->
                     <nav class="pcoded-navbar">
+
+                        @*
+                            Menu search. The sidebar carries roughly forty screens across nine
+                            collapsed groups, so finding one means guessing which group it is in.
+                            Typing filters every entry by name and opens the groups that match,
+                            which also answers "does this system have X?" without a hunt.
+
+                            Deliberately not a select2 or a server call: it filters the DOM that
+                            is already rendered, so it can only ever offer pages this user is
+                            permitted to see. A search index built server-side would have to
+                            repeat the permission checks to stay honest.
+                        *@
+                        <div class="ams-menu-search">
+                            <i class="feather icon-search"></i>
+                            <input type="text" id="amsMenuSearch" autocomplete="off"
+                                   placeholder="Search menu…  (Ctrl+K)" aria-label="Search menu">
+                            <button type="button" id="amsMenuSearchClear" aria-label="Clear search">&times;</button>
+                        </div>
+                        <div class="ams-menu-noresult" id="amsMenuNoResult">No menu item matches.</div>
+
                         <div class="pcoded-inner-navbar main-menu">
 
                             @*
@@ -302,11 +322,20 @@
                                     <ul class="pcoded-submenu">
                                         @if (CanView(AppConstants.Modules.Employees))
                                         {
+                                            <li class="pcoded-submenu-caption">People</li>
                                             <li class="@Nav("Admin","Employees")">
                                                 <a asp-controller="Admin" asp-action="Employees">
                                                     <span class="pcoded-mtext">Employees</span>
                                                 </a>
                                             </li>
+                                        }
+                                        @* One caption for the three structure screens, shown only if at
+                                           least one of them is permitted — never a heading over a gap. *@
+                                        @if (CanViewAny(AppConstants.Modules.Departments,
+                                                        AppConstants.Modules.Designations,
+                                                        AppConstants.Modules.Branches))
+                                        {
+                                            <li class="pcoded-submenu-caption">Organisation</li>
                                         }
                                         @if (CanView(AppConstants.Modules.Departments))
                                         {
@@ -363,14 +392,22 @@
                                 @if (CanViewAny(AppConstants.Modules.Attendance, AppConstants.Modules.Leave,
                                                 AppConstants.Modules.Holidays))
                                 {
-                                <li class="pcoded-hasmenu @OpenIf("Attendance","AttendanceReview","Leave","Holidays")">
+                                <li class="pcoded-hasmenu @OpenIf("Attendance","AttendanceReview","MonthEnd","Leave","Holidays")">
                                     <a href="javascript:void(0)">
                                         <span class="pcoded-micon"><i class="feather icon-check-circle"></i></span>
                                         <span class="pcoded-mtext">Attendance &amp; Leave</span>
                                     </a>
+                                    @*
+                                        Month End stays here rather than moving to Payroll, even though
+                                        it closes the month FOR payroll: the screen is gated on
+                                        Attendance.View, and HR Manager, Manager and Supervisor hold that
+                                        without holding Payroll.View. Filing it under Payroll would hide
+                                        it from exactly the people who run it.
+                                    *@
                                     <ul class="pcoded-submenu">
                                         @if (CanView(AppConstants.Modules.Attendance))
                                         {
+                                            <li class="pcoded-submenu-caption">Daily</li>
                                             <li class="@Nav("Admin","Attendance")">
                                                 <a asp-controller="Admin" asp-action="Attendance">
                                                     <span class="pcoded-mtext">Attendance Records</span>
@@ -381,22 +418,28 @@
                                                     <span class="pcoded-mtext">Attendance Review</span>
                                                 </a>
                                             </li>
-                                            <li class="@Nav("Admin","MonthEnd")">
-                                                <a asp-controller="Admin" asp-action="MonthEnd">
-                                                    <span class="pcoded-mtext">Month End &amp; Payroll</span>
-                                                </a>
-                                            </li>
                                         }
                                         @if (CanView(AppConstants.Modules.Leave))
                                         {
+                                            <li class="pcoded-submenu-caption">Leave</li>
                                             <li class="@Nav("Admin","Leave")">
                                                 <a asp-controller="Admin" asp-action="Leave">
                                                     <span class="pcoded-mtext">Leave Management</span>
                                                 </a>
                                             </li>
                                         }
+                                        @if (CanView(AppConstants.Modules.Attendance))
+                                        {
+                                            <li class="pcoded-submenu-caption">Period Close</li>
+                                            <li class="@Nav("Admin","MonthEnd")">
+                                                <a asp-controller="Admin" asp-action="MonthEnd">
+                                                    <span class="pcoded-mtext">Month End &amp; Payroll</span>
+                                                </a>
+                                            </li>
+                                        }
                                         @if (CanView(AppConstants.Modules.Holidays))
                                         {
+                                            <li class="pcoded-submenu-caption">Setup</li>
                                             <li class="@Nav("Admin","Holidays")">
                                                 <a asp-controller="Admin" asp-action="Holidays">
                                                     <span class="pcoded-mtext">Holidays</span>
@@ -415,7 +458,11 @@
                                         <span class="pcoded-micon"><i class="feather icon-clock"></i></span>
                                         <span class="pcoded-mtext">Overtime</span>
                                     </a>
+                                    @* OT Rules was sitting among three screens used every day, which made
+                                       a configuration screen look like a daily one. Same position, but
+                                       now plainly marked as setup. *@
                                     <ul class="pcoded-submenu">
+                                        <li class="pcoded-submenu-caption">Processing</li>
                                         <li class="@Nav("Admin","OvertimeApproval")">
                                             <a asp-controller="Admin" asp-action="OvertimeApproval">
                                                 <span class="pcoded-mtext">OT Approval</span>
@@ -431,11 +478,103 @@
                                                 <span class="pcoded-mtext">OT Summary</span>
                                             </a>
                                         </li>
+
+                                        <li class="pcoded-submenu-caption">Setup</li>
                                         <li class="@Nav("Admin","OvertimeRules")">
                                             <a asp-controller="Admin" asp-action="OvertimeRules">
                                                 <span class="pcoded-mtext">OT Rules</span>
                                             </a>
                                         </li>
+                                    </ul>
+                                </li>
+                                }
+
+                                @* ── Payroll ───────────────────────────────────────── *@
+                                @if (CanViewAny(AppConstants.Modules.Payroll, AppConstants.Modules.PayrollSetup))
+                                {
+                                <li class="pcoded-hasmenu @OpenIf("PayrollSetup","EmployeePayroll","SalaryDetails","EmployeeBankAccounts","GroupAssignComponent","PayrollAdmin","Loans","LoanSettlement","TransactionSchedule","ItemWiseTransaction","EmployeeWiseTransaction")">
+                                    <a href="javascript:void(0)">
+                                        <span class="pcoded-micon"><i class="feather icon-credit-card"></i></span>
+                                        <span class="pcoded-mtext">Payroll</span>
+                                    </a>
+                                    @*
+                                        Ordered by the payroll lifecycle rather than alphabetically or by
+                                        the order the screens were built: configure the structure, record
+                                        what each employee is paid, enter the month's transactions, then
+                                        correct. Nine flat entries were impossible to scan, so the stages
+                                        carry captions — a clerk running the month reads down one section
+                                        instead of hunting the whole list.
+                                    *@
+                                    <ul class="pcoded-submenu">
+                                        @if (CanView(AppConstants.Modules.PayrollSetup))
+                                        {
+                                            <li class="pcoded-submenu-caption">Setup</li>
+                                            <li class="@Nav("Admin","PayrollSetup")">
+                                                <a asp-controller="Admin" asp-action="PayrollSetup">
+                                                    <span class="pcoded-mtext">Payroll Setup</span>
+                                                </a>
+                                            </li>
+                                        }
+                                        @if (CanView(AppConstants.Modules.Payroll))
+                                        {
+                                            <li class="pcoded-submenu-caption">Employee Master</li>
+                                            <li class="@Nav("Admin","EmployeePayroll")">
+                                                <a asp-controller="Admin" asp-action="EmployeePayroll">
+                                                    <span class="pcoded-mtext">Employee Payroll</span>
+                                                </a>
+                                            </li>
+                                            <li class="@Nav("Admin","SalaryDetails")">
+                                                <a asp-controller="Admin" asp-action="SalaryDetails">
+                                                    <span class="pcoded-mtext">Salary Details</span>
+                                                </a>
+                                            </li>
+                                            <li class="@Nav("Admin","EmployeeBankAccounts")">
+                                                <a asp-controller="Admin" asp-action="EmployeeBankAccounts">
+                                                    <span class="pcoded-mtext">Employee Bank Accounts</span>
+                                                </a>
+                                            </li>
+
+                                            <li class="pcoded-submenu-caption">Transactions</li>
+                                            <li class="@Nav("Admin","ItemWiseTransaction")">
+                                                <a asp-controller="Admin" asp-action="ItemWiseTransaction">
+                                                    <span class="pcoded-mtext">Item wise Transaction</span>
+                                                </a>
+                                            </li>
+                                            <li class="@Nav("Admin","EmployeeWiseTransaction")">
+                                                <a asp-controller="Admin" asp-action="EmployeeWiseTransaction">
+                                                    <span class="pcoded-mtext">Employee Wise Transactions</span>
+                                                </a>
+                                            </li>
+                                            <li class="@Nav("Admin","TransactionSchedule")">
+                                                <a asp-controller="Admin" asp-action="TransactionSchedule">
+                                                    <span class="pcoded-mtext">Transaction Schedule</span>
+                                                </a>
+                                            </li>
+                                            <li class="@Nav("Admin","GroupAssignComponent")">
+                                                <a asp-controller="Admin" asp-action="GroupAssignComponent">
+                                                    <span class="pcoded-mtext">Bulk Value Entry</span>
+                                                </a>
+                                            </li>
+
+                                            <li class="pcoded-submenu-caption">Loans</li>
+                                            <li class="@Nav("Admin","Loans")">
+                                                <a asp-controller="Admin" asp-action="Loans">
+                                                    <span class="pcoded-mtext">Staff Loans</span>
+                                                </a>
+                                            </li>
+                                            <li class="@Nav("Admin","LoanSettlement")">
+                                                <a asp-controller="Admin" asp-action="LoanSettlement">
+                                                    <span class="pcoded-mtext">Loan Settlement</span>
+                                                </a>
+                                            </li>
+
+                                            <li class="pcoded-submenu-caption">Corrections</li>
+                                            <li class="@Nav("Admin","PayrollAdmin")">
+                                                <a asp-controller="Admin" asp-action="PayrollAdmin">
+                                                    <span class="pcoded-mtext">Payroll Administration</span>
+                                                </a>
+                                            </li>
+                                        }
                                     </ul>
                                 </li>
                                 }
@@ -599,9 +738,18 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <!-- Bootstrap (local) -->
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Smooth scroll & custom scrollbar (local assets) -->
+    <!-- Custom scrollbar (local assets) -->
     <script src="~/assets/js/jquery.mCustomScrollbar.concat.min.js"></script>
-    <script src="~/assets/js/SmoothScroll.js"></script>
+    @*
+        SmoothScroll.js is deliberately NOT loaded. It works by cancelling the browser's
+        wheel event and animating the scroll itself, but Chrome now registers wheel
+        listeners as passive by default, so its preventDefault() at SmoothScroll.js:357 is
+        ignored. The result is the worst of both: the page scrolls natively AND
+        SmoothScroll animates it, so every wheel tick moves twice and fights the sidebar's
+        own scrollbar — plus an [Intervention] warning per tick, which buries real errors.
+
+        The file stays in assets/ (it is part of the vendored theme); it is only unhooked.
+    *@
     <!-- Pcoded sidebar engine (local assets) -->
     <script src="~/assets/js/pcoded.min.js"></script>
     <script src="~/assets/js/vartical-layout.min.js"></script>
@@ -627,6 +775,7 @@
        script needs to know it exists. *@
     <script src="~/lib/select2/js/select2.full.min.js"></script>
     <script src="~/js/ams-select2.js" asp-append-version="true"></script>
+    <script src="~/js/ams-menu-search.js" asp-append-version="true"></script>
     @* Idle screen lock. Only decides *when* to lock — the lock itself lives in the
        session and is enforced by SessionAuthorizeAttribute on every request. *@
     <script src="~/js/ams-idle-lock.js" asp-append-version="true"></script>

@@ -128,6 +128,86 @@ public class AdminController : BaseController
         return View();
     }
 
+    /// <summary>
+    /// Payroll setup per employee — grade, statutory numbers, bank details, and who is not
+    /// yet ready to be paid.
+    ///
+    /// Payroll rather than PayrollSetup: this lists what named individuals are paid, which is
+    /// a different thing from the salary structure.
+    /// </summary>
+    [HttpGet("EmployeePayroll")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult EmployeePayroll() => View();
+
+    /// <summary>
+    /// Direct salary entry — pick an employee, set their basic, save.
+    ///
+    /// Deliberately narrow. It writes only the salary override, so a quick correction here
+    /// cannot clear the bank account or statutory numbers that live on the profile.
+    /// </summary>
+    [HttpGet("SalaryDetails")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult SalaryDetails() => View();
+
+    /// <summary>
+    /// Bank details for every employee in one grid. Collecting account numbers is a
+    /// data-entry task done once for hundreds of people; a profile visit each turns half an
+    /// hour into an afternoon.
+    /// </summary>
+    [HttpGet("EmployeeBankAccounts")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult EmployeeBankAccounts() => View();
+
+    /// <summary>Staff loans — granting, recovery and early settlement.</summary>
+    [HttpGet("Loans")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult Loans() => View();
+
+    /// <summary>One code, one month, an amount per employee — this month's one-offs.</summary>
+    [HttpGet("ItemWiseTransaction")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult ItemWiseTransaction() => View();
+
+    /// <summary>One employee, one month, every one-off code — the item-wise grid transposed.</summary>
+    [HttpGet("EmployeeWiseTransaction")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult EmployeeWiseTransaction() => View();
+
+    /// <summary>One employee's scheduled allowances and deductions, bounded by month.</summary>
+    [HttpGet("TransactionSchedule")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult TransactionSchedule() => View();
+
+    /// <summary>Settling a loan early — its own screen, mirroring the old system.</summary>
+    [HttpGet("LoanSettlement")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult LoanSettlement() => View();
+
+    /// <summary>Gives one allowance or deduction the same value across many employees.</summary>
+    [HttpGet("GroupAssignComponent")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult GroupAssignComponent() => View();
+
+    /// <summary>
+    /// Corrections and exceptions — EPF adjustments, payroll suspensions, code changes.
+    ///
+    /// Three small screens on one page. Each is used rarely and none earns its own sidebar
+    /// entry, but together they are what a clerk reaches for when something is wrong.
+    /// </summary>
+    [HttpGet("PayrollAdmin")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult PayrollAdmin() => View();
+
+    /// <summary>
+    /// Payroll master data — grades, allowances, banks, statutory rates.
+    ///
+    /// PayrollSetup rather than Payroll: configuring the salary structure and seeing what an
+    /// individual is paid are different jobs, usually held by different people.
+    /// </summary>
+    [HttpGet("PayrollSetup")]
+    [SessionAuthorize(Modules.PayrollSetup, Actions.View)]
+    public IActionResult PayrollSetup() => View();
+
     [HttpGet("Settings")]
     [SessionAuthorize(Modules.Settings, Actions.View)]
     public IActionResult Settings() => View();

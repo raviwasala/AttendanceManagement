@@ -136,9 +136,29 @@ body {
   margin-top: 56px !important;
   padding-top: 0 !important;
 }
+/* Sidebar height and scrolling.
+ *
+ * Two things differ from the stock Adminty template, and together they broke scrolling:
+ *
+ * 1. The theme ships .pcoded-navbar{height:100%} and gives it NO top offset. We push it
+ *    down 56px to clear our fixed header but left the height at 100%, so the sidebar was
+ *    56px taller than the space it had and its last rows sat below the viewport with no
+ *    way to reach them. Taking the offset back out of the height fixes that.
+ *
+ * 2. The theme's own scrollbar calls — $(".main-menu").mCustomScrollbar(...) and the two
+ *    beside it — are ALL COMMENTED OUT in pcoded.min.js. The stock sidebar scrolls
+ *    natively. So the menu needs a real overflow container, which is what the flex column
+ *    below gives it: the search box keeps its height, the menu takes the rest and scrolls.
+ *
+ * Stated explicitly because both are invisible unless you diff against the template.
+ */
 .pcoded-navbar {
   background-color: #404E67 !important;
   top: 56px !important;
+  height: calc(100% - 56px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
   margin-top: 0 !important;
   border-top: none !important;
   box-shadow: none !important;
@@ -798,4 +818,155 @@ a:hover { color: var(--ams-primary-d); }
 .ams-emp-link:focus {
   color: #018f92;
   text-decoration: none;
+}
+/* ── Sidebar menu search ──────────────────────────────────────────────────────
+   Sits above the menu, on the same #404E67 as the sidebar so it reads as part of
+   the nav rather than a widget dropped on top of it. See js/ams-menu-search.js. */
+
+/* Keeps its natural height in the flex column above; the menu takes what is left.
+   No magic number here any more — the earlier version subtracted a hard-coded 56px from
+   the menu, which meant this box's padding and the menu's height had to be kept in step
+   by hand. */
+.ams-menu-search {
+  position: relative;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  padding: 10px 12px 6px 12px;
+  background-color: #404E67;
+}
+
+/* The actual scroll container for the menu. min-height:0 is required, not decorative:
+   without it a flex item refuses to shrink below its content and overflows the sidebar
+   instead of scrolling inside it. */
+.pcoded-navbar .pcoded-inner-navbar.main-menu {
+  flex: 1 1 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* A slim scrollbar that reads as part of the dark sidebar rather than an OS artefact. */
+.pcoded-navbar .pcoded-inner-navbar.main-menu::-webkit-scrollbar { width: 6px; }
+.pcoded-navbar .pcoded-inner-navbar.main-menu::-webkit-scrollbar-track { background: transparent; }
+.pcoded-navbar .pcoded-inner-navbar.main-menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 3px;
+}
+.pcoded-navbar .pcoded-inner-navbar.main-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+.ams-menu-search input {
+  width: 100%;
+  padding: 7px 26px 7px 32px;
+  font-size: 13px;
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 3px;
+  outline: none;
+}
+.ams-menu-search input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+.ams-menu-search input:focus {
+  background-color: rgba(255, 255, 255, 0.14);
+  border-color: #4099ff;
+}
+.ams-menu-search > i {
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  transform: translateY(-30%);
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.45);
+  pointer-events: none;
+}
+.ams-menu-search button {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-30%);
+  padding: 0 4px;
+  font-size: 18px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.55);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.ams-menu-search button:hover { color: #fff; }
+
+/* Taken out of the flow on purpose. In normal flow it would shorten the menu below it
+   by its own height, and the calc above would be wrong whenever it happened to be
+   showing — a message about an empty result is not worth a layout dependency. */
+.ams-menu-noresult {
+  display: none;
+  position: absolute;
+  top: 56px;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  padding: 10px 20px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  background-color: #404E67;
+}
+
+/* Hidden rather than removed, so clearing the box restores the menu without a rebuild. */
+.ams-menu-hidden { display: none !important; }
+
+/* While filtering, matches stay open and visible — the theme's own collapse
+   animation would otherwise fight the search for control of the submenu. */
+.ams-menu-searching .pcoded-submenu { transition: none !important; }
+.ams-menu-searching li.pcoded-hasmenu > a > .pcoded-mtext { opacity: 0.75; }
+
+/* Only the search box is out of place on an icon-width sidebar. */
+.pcoded[vertical-nav-type="collapsed"] .ams-menu-search,
+.pcoded[vertical-nav-type="offcanvas"] .ams-menu-search,
+.pcoded[vertical-nav-type="collapsed"] .ams-menu-noresult,
+.pcoded[vertical-nav-type="offcanvas"] .ams-menu-noresult {
+  display: none;
+}
+
+/* ── Submenu section captions ────────────────────────────────────────────────
+   Stages within one group — Payroll runs to nine screens, which is past the point
+   where a flat list can be scanned. Not links, and never rendered empty. */
+/* The long selector is deliberate and has to stay. The theme carries
+     .pcoded .pcoded-navbar .pcoded-item .pcoded-hasmenu .pcoded-submenu li{padding:0}
+   at five classes, so a shorter selector loses on specificity and the caption
+   silently keeps padding:0 — flush against the sidebar edge, which is exactly how
+   this looked before. Matching that chain and adding the class wins without
+   resorting to !important, which would then have to be undone by the next rule. */
+.pcoded .pcoded-navbar .pcoded-item .pcoded-hasmenu .pcoded-submenu li.pcoded-submenu-caption {
+  position: relative;
+  /* 50px matches the padding-left the theme puts on a submenu <a>, so a caption
+     lines up with the items it introduces instead of hanging off to the left. */
+  padding: 14px 15px 5px 50px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
+  cursor: default;
+}
+/* The theme draws a 3px accent rail down the left of every submenu <a>. A caption
+   has no <a>, so without this the rail breaks into disconnected segments — which is
+   what makes the group look damaged rather than divided. Continued in a dimmer
+   shade: still one rail, with the caption reading as a step along it. */
+.pcoded .pcoded-navbar .pcoded-item .pcoded-hasmenu .pcoded-submenu li.pcoded-submenu-caption:before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-left: 3px solid rgba(255, 255, 255, 0.18);
+}
+/* First caption in a group sits directly under the group header, where the extra
+   top space reads as a gap rather than a separation. */
+.pcoded .pcoded-navbar .pcoded-item .pcoded-hasmenu .pcoded-submenu li.pcoded-submenu-caption:first-child {
+  padding-top: 8px;
+}
+.pcoded .pcoded-navbar .pcoded-item .pcoded-hasmenu .pcoded-submenu li.pcoded-submenu-caption:hover {
+  background: none;
 }

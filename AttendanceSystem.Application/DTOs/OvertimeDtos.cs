@@ -33,6 +33,18 @@ public class OvertimeRuleDto
     public int RoundToMinutes { get; set; } = 15;
     public bool RequiresApproval { get; set; } = true;
 
+    /// <summary>Short identifier shown on the payslip line.</summary>
+    public string? Code { get; set; }
+
+    /// <summary>How the money reaches the payslip — independent of the multiplier.</summary>
+    public bool IsApitLiable { get; set; } = true;
+    public bool IsEpfLiable { get; set; }
+    public bool IncludeInGrossPay { get; set; } = true;
+
+    /// <summary>Days and hours the hourly rate is derived from. Null uses the branch figures.</summary>
+    public int? DaysPerMonth { get; set; }
+    public decimal? HoursPerDay { get; set; }
+
     /// <summary>Plain-language summary of the scope, so the list reads without decoding columns.</summary>
     public string ScopeDisplay =>
         string.Join(" · ", new[]
@@ -75,6 +87,18 @@ public class SaveOvertimeRuleDto
     public int RoundToMinutes { get; set; } = 15;
 
     public bool RequiresApproval { get; set; } = true;
+
+    /// <summary>Short identifier shown on the payslip line.</summary>
+    public string? Code { get; set; }
+
+    /// <summary>How the money reaches the payslip — independent of the multiplier.</summary>
+    public bool IsApitLiable { get; set; } = true;
+    public bool IsEpfLiable { get; set; }
+    public bool IncludeInGrossPay { get; set; } = true;
+
+    /// <summary>Days and hours the hourly rate is derived from. Null uses the branch figures.</summary>
+    public int? DaysPerMonth { get; set; }
+    public decimal? HoursPerDay { get; set; }
 }
 
 // ── Register / approval rows ────────────────────────────────────────────────────

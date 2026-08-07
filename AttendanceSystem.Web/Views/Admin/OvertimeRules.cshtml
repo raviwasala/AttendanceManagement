@@ -146,6 +146,69 @@
                             <label class="form-check-label" for="ruleActive">Active</label>
                         </div>
                     </div>
+
+                    @* The multiplier decides how much; these decide what it counts as once it
+                       reaches a payslip. Independent of each other — overtime is normally
+                       taxable but outside EPF. *@
+                    <div class="col-12"><hr class="my-2">
+                        <div class="small fw-semibold text-muted">Payroll treatment</div>
+                        <div class="form-text">
+                            How overtime earned under this rule is treated on the payslip.
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label small">Code</label>
+                        <input type="text" id="ruleCode" class="form-control" maxlength="20"
+                               placeholder="e.g. OT1">
+                        <div class="form-text">Shown on the payslip line.</div>
+                    </div>
+
+                    @* The hourly rate is monthly earnings ÷ (days × hours), then × the
+                       multiplier. Blank uses the branch figures, so one convention is set
+                       once and only a rule that genuinely differs says so. *@
+                    <div class="col-md-3">
+                        <label class="form-label small">Days per Month</label>
+                        <input type="number" id="ruleDays" class="form-control" placeholder="branch default">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">Hours per Day</label>
+                        <input type="number" step="0.5" id="ruleHours" class="form-control"
+                               placeholder="branch default">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small">Hourly rate divisor</label>
+                        <input type="text" id="ruleDivisor" class="form-control" readonly>
+                        <div class="form-text">days × hours</div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-text small">
+                            Overtime pay = (basic + allowances flagged for OT) ÷ (days × hours)
+                            × multiplier × hours worked.
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small d-block">&nbsp;</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="ruleApit" checked>
+                            <label class="form-check-label small" for="ruleApit">Tax calculation</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small d-block">&nbsp;</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="ruleEpf">
+                            <label class="form-check-label small" for="ruleEpf">EPF / ETF calculation</label>
+                        </div>
+                        <div class="form-text">Usually off for overtime.</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small d-block">&nbsp;</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="ruleGross" checked>
+                            <label class="form-check-label small" for="ruleGross">Gross pay</label>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">

@@ -35,6 +35,32 @@ public interface IUnitOfWork : IDisposable, IAsyncDisposable
     IRepository<OvertimeRule> OvertimeRules { get; }
     IOvertimeRecordRepository OvertimeRecords { get; }
 
+    // ── Payroll ────────────────────────────────────────────────────────────────
+    IRepository<Bank> Banks { get; }
+    IRepository<BankBranch> BankBranches { get; }
+    IRepository<SalaryGrade> SalaryGrades { get; }
+    IRepository<SalaryGroup> SalaryGroups { get; }
+    IRepository<SubDepartment> SubDepartments { get; }
+    IRepository<SalaryComponent> SalaryComponents { get; }
+    IRepository<EmployeeSalaryComponent> EmployeeSalaryComponents { get; }
+    IRepository<MonthlyTransaction> MonthlyTransactions { get; }
+    IRepository<EmployeePayrollInfo> EmployeePayrollInfos { get; }
+    IRepository<EpfEtfRate> EpfEtfRates { get; }
+    IRepository<ApitTaxTable> ApitTaxTables { get; }
+    IRepository<ApitTaxBracket> ApitTaxBrackets { get; }
+    IRepository<EmploymentCategory> EmploymentCategories { get; }
+    IRepository<LoanType> LoanTypes { get; }
+    IRepository<ThirdParty> ThirdParties { get; }
+    IRepository<BranchPayrollSettings> BranchPayrollSettings { get; }
+    IRepository<EpfAdjustment> EpfAdjustments { get; }
+    IRepository<EmployeeLeaveEntitlement> EmployeeLeaveEntitlements { get; }
+    IRepository<EmployeeLoan> EmployeeLoans { get; }
+    IRepository<LoanGuarantor> LoanGuarantors { get; }
+    IRepository<LoanTransaction> LoanTransactions { get; }
+    IRepository<PayrollPeriod> PayrollPeriods { get; }
+    IRepository<Payslip> Payslips { get; }
+    IRepository<PayslipLine> PayslipLines { get; }
+
     /// <summary>Returns all RolePermission records for a given role (join table query).</summary>
     Task<IEnumerable<RolePermission>> GetRolePermissionsAsync(int roleId);
 

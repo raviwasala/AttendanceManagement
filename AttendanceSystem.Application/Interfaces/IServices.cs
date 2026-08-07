@@ -168,6 +168,153 @@ public interface IApprovalScopeService
     Task<Services.DataScope> GetDataScopeAsync();
 }
 
+/// <summary>
+/// Payroll master data — banks, grades, groups, sub-departments, components and the
+/// statutory rate tables.
+/// </summary>
+public interface IPayrollSetupService
+{
+    Task<Result<IEnumerable<BankDto>>> GetBanksAsync();
+    Task<Result> SaveBankAsync(SaveBankDto dto);
+    Task<Result> DeleteBankAsync(int id);
+
+    Task<Result<IEnumerable<BankBranchDto>>> GetBankBranchesAsync(int? bankId);
+    Task<Result> SaveBankBranchAsync(SaveBankBranchDto dto);
+    Task<Result> DeleteBankBranchAsync(int id);
+
+    Task<Result<IEnumerable<SalaryGradeDto>>> GetGradesAsync();
+    Task<Result> SaveGradeAsync(SaveSalaryGradeDto dto);
+    Task<Result> DeleteGradeAsync(int id);
+
+    Task<Result<IEnumerable<SalaryGroupDto>>> GetGroupsAsync();
+    Task<Result> SaveGroupAsync(SaveSalaryGroupDto dto);
+    Task<Result> DeleteGroupAsync(int id);
+
+    Task<Result<IEnumerable<SubDepartmentDto>>> GetSubDepartmentsAsync(int? departmentId);
+    Task<Result> SaveSubDepartmentAsync(SaveSubDepartmentDto dto);
+    Task<Result> DeleteSubDepartmentAsync(int id);
+
+    Task<Result<IEnumerable<SalaryComponentDto>>> GetComponentsAsync();
+    Task<Result> SaveComponentAsync(SaveSalaryComponentDto dto);
+    Task<Result> DeleteComponentAsync(int id);
+
+    Task<Result<IEnumerable<EmploymentCategoryDto>>> GetCategoriesAsync();
+    Task<Result> SaveCategoryAsync(SaveEmploymentCategoryDto dto);
+    Task<Result> DeleteCategoryAsync(int id);
+
+    Task<Result<IEnumerable<LoanTypeDto>>> GetLoanTypesAsync();
+    Task<Result> SaveLoanTypeAsync(SaveLoanTypeDto dto);
+    Task<Result> DeleteLoanTypeAsync(int id);
+
+    Task<Result<BranchPayrollSettingsDto>> GetBranchSettingsAsync(int branchId);
+    Task<Result> SaveBranchSettingsAsync(SaveBranchPayrollSettingsDto dto);
+
+    Task<Result<IEnumerable<ThirdPartyDto>>> GetThirdPartiesAsync();
+    Task<Result> SaveThirdPartyAsync(SaveThirdPartyDto dto);
+    Task<Result> DeleteThirdPartyAsync(int id);
+
+    Task<Result<IEnumerable<ApitTaxTableDto>>> GetApitTablesAsync();
+    Task<Result> SaveApitTableAsync(SaveApitTaxTableDto dto);
+
+    Task<Result<IEnumerable<EpfEtfRateDto>>> GetRatesAsync();
+    Task<Result> SaveRateAsync(SaveEpfEtfRateDto dto);
+
+    Task<Result<IEnumerable<ApitBracketDto>>> GetApitBracketsAsync();
+    Task<Result> SaveApitBracketAsync(SaveApitBracketDto dto);
+    Task<Result> DeleteApitBracketAsync(int id);
+}
+
+/// <summary>
+/// One-off allowances and deductions for a payroll month, entered one code at a time
+/// against many employees.
+/// </summary>
+public interface IMonthlyTransactionService
+{
+    /// <summary>
+    /// Every employee this user may see, with whatever they have for this code this month.
+    /// Employees with nothing entered come back with zero rather than being omitted — the
+    /// grid is an entry sheet, so the people without a figure are the point.
+    /// </summary>
+    Task<Result<ItemWiseGridDto>> GetItemWiseAsync(
+        int salaryComponentId, int yearMonth, int? departmentId, string? search);
+
+    /// <summary>Saves the grid. Zero removes a row; only rows sent are touched.</summary>
+    Task<Result<string>> SaveItemWiseAsync(SaveItemWiseDto dto);
+
+    /// <summary>Totals per code for one month — what the payroll run will pick up.</summary>
+    Task<Result<IEnumerable<ItemWiseGridDto>>> GetMonthSummaryAsync(int yearMonth);
+
+    /// <summary>
+    /// The same rows read the other way round: one employee's whole month, every code.
+    /// Only codes that have a figure appear — this is a payslip working, not an entry sheet.
+    /// </summary>
+    Task<Result<EmployeeWiseGridDto>> GetEmployeeWiseAsync(int employeeId, int yearMonth);
+
+    /// <summary>Replaces the employee's month. A code dropped from the grid is removed.</summary>
+    Task<Result<string>> SaveEmployeeWiseAsync(SaveEmployeeWiseDto dto);
+}
+
+/// <summary>
+/// One employee's payroll record — statutory numbers, grade, bank account, and the
+/// component values that differ from the defaults.
+/// </summary>
+public interface IEmployeePayrollService
+{
+    /// <summary>Every employee this user may see, with their payroll setup and readiness.</summary>
+    Task<Result<IEnumerable<EmployeePayrollListItemDto>>> GetListAsync(
+        string? search, int? departmentId, bool? readyOnly);
+
+    /// <summary>Bank details for every visible employee, for the maintenance grid.</summary>
+    Task<Result<IEnumerable<EmployeeBankRowDto>>> GetBankRowsAsync(
+        string? search, int? departmentId, bool? incompleteOnly);
+    Task<Result> SaveBankRowAsync(SaveEmployeeBankRowDto dto);
+
+    /// <summary>Sets one component to the same value for many employees.</summary>
+    Task<Result<BulkAssignResultDto>> BulkAssignComponentAsync(BulkAssignComponentDto dto);
+
+    /// <summary>Sets one component to the same amount across a scope rather than a chosen list.</summary>
+    Task<Result<CommonValueResultDto>> ApplyCommonValueAsync(CommonValueEntryDto dto);
+    Task<Result<int>> CountForScopeAsync(int componentId, CommonValueScope scope);
+
+    /// <summary>One employee's scheduled allowances and deductions, with their month ranges.</summary>
+    Task<Result<IEnumerable<TransactionScheduleRowDto>>> GetScheduleAsync(int employeeId);
+    Task<Result> SaveScheduleRowAsync(SaveTransactionScheduleRowDto dto);
+    Task<Result> DeleteScheduleRowAsync(int id);
+
+    Task<Result<IEnumerable<EpfAdjustmentDto>>> GetEpfAdjustmentsAsync(int? year, int? month);
+    Task<Result> SaveEpfAdjustmentAsync(SaveEpfAdjustmentDto dto);
+    Task<Result> DeleteEpfAdjustmentAsync(int id);
+
+    /// <summary>Everyone not being paid — suspended, resigned or inactive.</summary>
+    Task<Result<IEnumerable<NonEffectiveEmployeeDto>>> GetNonEffectiveAsync();
+    Task<Result> SuspendAsync(SuspendEmployeeDto dto);
+
+    Task<Result> ChangeEmployeeCodeAsync(ChangeEmployeeCodeDto dto);
+
+    Task<Result<EmployeePayrollInfoDto>> GetAsync(int employeeId);
+    Task<Result> SaveAsync(SaveEmployeePayrollInfoDto dto);
+
+    /// <summary>Sets one employee's basic salary directly — the Salary Details screen.</summary>
+    Task<Result> SaveSalaryAsync(SaveEmployeeSalaryDto dto);
+
+    Task<Result<IEnumerable<EmployeeComponentDto>>> GetComponentsAsync(int employeeId);
+    Task<Result> SaveComponentAsync(SaveEmployeeComponentDto dto);
+}
+
+/// <summary>Staff loans — granting, recovery and early settlement.</summary>
+public interface ILoanService
+{
+    /// <summary>Preview only. Nothing is stored, so the figures are visible before granting.</summary>
+    Result<LoanScheduleDto> PreviewSchedule(decimal amount, decimal rate, int months,
+                                            LoanInterestType interestType);
+
+    Task<Result<IEnumerable<EmployeeLoanDto>>> GetLoansAsync(int? employeeId, LoanStatus? status);
+    Task<Result> SaveLoanAsync(SaveEmployeeLoanDto dto);
+
+    Task<Result<IEnumerable<LoanTransactionDto>>> GetTransactionsAsync(int loanId);
+    Task<Result> SettleAsync(LoanSettlementDto dto);
+}
+
 /// <summary>Holiday service contract.</summary>
 public interface IHolidayService
 {

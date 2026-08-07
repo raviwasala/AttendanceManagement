@@ -1,0 +1,83 @@
+@{
+    ViewData["Title"] = "Salary Details";
+}
+
+<div class="mb-3">
+    <h5 class="mb-0">Salary Details</h5>
+    <div class="text-muted small">Set one employee's basic salary directly.</div>
+</div>
+
+<div id="sdAlert"></div>
+
+@* Narrow on purpose — this screen types a number against a person and touches nothing else.
+   The grade, bank and statutory details are edited on the employee's Payroll tab, so a quick
+   salary correction cannot accidentally clear them. *@
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">
+                        Employee <span class="text-danger">*</span>
+                    </label>
+                    <select id="sdEmployee" class="form-select"></select>
+                </div>
+
+                @* What the grade pays is shown before the box, so whoever types a figure can
+                   see whether they are overriding a grade or filling a gap. *@
+                <div id="sdContext" class="alert alert-light border py-2 small d-none"></div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Salary</label>
+                    <input type="number" step="0.01" id="sdSalary" class="form-control"
+                           placeholder="Leave blank to use the grade">
+                    <div class="form-text small">
+                        Leave blank and this employee follows their grade — so a grade revision
+                        still moves them. Type a figure only where they genuinely differ.
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" id="sdSaveBtn" onclick="sdSave()" disabled>
+                        <i class="feather icon-save me-1"></i>Save
+                    </button>
+                    <button class="btn btn-outline-secondary" id="sdClearBtn" onclick="sdClear()" disabled>
+                        Use grade instead
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header py-2">
+                <strong class="small">Employees with their own salary</strong>
+                <div class="text-muted small">
+                    These do not follow their grade. Everyone else moves when the grade changes.
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height:420px;overflow-y:auto;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Code</th>
+                                <th>Employee</th>
+                                <th>Grade</th>
+                                <th class="text-end pe-3">Salary</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sdOverrideBody">
+                            <tr><td colspan="4" class="text-center py-4 text-muted">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/admin/salary-details.js" asp-append-version="true"></script>
+}

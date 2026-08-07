@@ -22,6 +22,109 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.ApitTaxBracket", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ApitTaxTableId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EffectiveFrom")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("FromAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Rate")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("Relief")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("ToAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApitTaxTableId", "EffectiveFrom", "SortOrder");
+
+                    b.ToTable("ApitTaxBrackets");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.ApitTaxTable", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("ApitTaxTables");
+                });
+
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.AttendanceLog", b =>
                 {
                     b.Property<int>("Id")
@@ -262,6 +365,99 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.ToTable("AuditLogs");
                 });
 
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.Bank", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("Banks");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.BankBranch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BankId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BankId", "Code")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("BankBranches");
+                });
+
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.Branch", b =>
                 {
                     b.Property<int>("Id")
@@ -278,6 +474,12 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
 
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("int");
+
+                    b.Property<string>("EpfEmployerNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EtfEmployerNumber")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -312,6 +514,120 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                             IsDeleted = false,
                             Name = "Head Office"
                         });
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.BranchPayrollSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int?>("BankBranchId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("CarryForwardCoins")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CarryForwardMinusSalary")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DaysPerMonth")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("EmployeeEpfPercent")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal?>("EmployerEpfPercent")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal?>("EmployerEtfPercent")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("EpfContactPerson")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("EpfContactPhone")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("EpfDCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int>("EpfRounding")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EtfRounding")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("GratuityPercentOfBasic")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("GratuityQualifyingYears")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("HoursPerDay")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("LoanRounding")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("NoPayRounding")
+                        .HasColumnType("int");
+
+                    b.Property<int>("NonCitizenTaxYears")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OvertimeRounding")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PayeRegistrationNo")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("RoundNearest")
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<bool>("RoundOffSalaryPayable")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("TaxRounding")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BankBranchId");
+
+                    b.HasIndex("BranchId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("BranchPayrollSettings");
                 });
 
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.CompanySettings", b =>
@@ -948,6 +1264,12 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.Property<int>("BranchId")
                         .HasColumnType("int");
 
+                    b.Property<string>("CivilStatus")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ConfirmedDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -1192,6 +1514,322 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.ToTable("EmployeeHistories");
                 });
 
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.EmployeeLeaveEntitlement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CarriedForwardDays")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EntitledDays")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("LeaveTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LeaveTypeId");
+
+                    b.HasIndex("EmployeeId", "LeaveTypeId", "Year")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("EmployeeLeaveEntitlements");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.EmployeeLoan", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("AllowGuarantorsToGrantLoans")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FirstDeductionMonth")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FirstDeductionYear")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("InterestAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("InterestRate")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("InterestType")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("LoanAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("LoanDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("LoanTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("MonthlyInstallment")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("NumberOfInstallments")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("ReduceThisMonth")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalPayable")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LoanTypeId");
+
+                    b.HasIndex("EmployeeId", "Status");
+
+                    b.ToTable("EmployeeLoans");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.EmployeePayrollInfo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("AccountNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal>("AdditionalTaxAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("ApitTaxTableId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("BankBranchId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("BasicSalaryOverride")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("EmployeeEpfPercentOverride")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("EmployerEpfPercentOverride")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal?>("EmployerEtfPercentOverride")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int?>("EmploymentCategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EpfNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int?>("EpfRegistrationBranchId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EpfStatus")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("EtfNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<bool>("IsApitApplicable")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsBankTransfer")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsEpfMember")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsEtfMember")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsPayrollSuspended")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsTaxOnTax")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("OtLimitHours")
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<int?>("SalaryGradeId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SalaryGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SubDepartmentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SuspendReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("SuspendedFrom")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("SuspendedTo")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApitTaxTableId");
+
+                    b.HasIndex("BankBranchId");
+
+                    b.HasIndex("EmployeeId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.HasIndex("EmploymentCategoryId");
+
+                    b.HasIndex("EpfRegistrationBranchId");
+
+                    b.HasIndex("SalaryGradeId");
+
+                    b.HasIndex("SalaryGroupId");
+
+                    b.HasIndex("SubDepartmentId");
+
+                    b.ToTable("EmployeePayrollInfos");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.EmployeeSalaryComponent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EffectiveFrom")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EffectiveTo")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SalaryComponentId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Value")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SalaryComponentId");
+
+                    b.HasIndex("EmployeeId", "SalaryComponentId", "EffectiveFrom");
+
+                    b.ToTable("EmployeeSalaryComponents");
+                });
+
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.EmployeeShift", b =>
                 {
                     b.Property<int>("Id")
@@ -1234,6 +1872,163 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.HasIndex("ShiftId");
 
                     b.ToTable("EmployeeShifts");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.EmploymentCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsEpfEligible")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("EmploymentCategories");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.EpfAdjustment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("AffectsReturn")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("AppliedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("AppliedInPayrollPeriodId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int>("Target")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppliedInPayrollPeriodId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("Year", "Month", "EmployeeId");
+
+                    b.ToTable("EpfAdjustments");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.EpfEtfRate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EffectiveFrom")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("EmployeeEpfPercent")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("EmployerEpfPercent")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("EmployerEtfPercent")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EffectiveFrom");
+
+                    b.ToTable("EpfEtfRates");
                 });
 
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.Holiday", b =>
@@ -1436,6 +2231,212 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.LoanGuarantor", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmployeeLoanId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GuarantorEmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GuarantorEmployeeId");
+
+                    b.HasIndex("EmployeeLoanId", "GuarantorEmployeeId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("LoanGuarantors");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.LoanTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmployeeLoanId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Month")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("PayrollPeriodId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("TransactionDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("TransactionType")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PayrollPeriodId");
+
+                    b.HasIndex("EmployeeLoanId", "Year", "Month");
+
+                    b.ToTable("LoanTransactions");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.LoanType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<decimal>("InterestRate")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("InterestType")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("LoanTypes");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.MonthlyTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("Hours")
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<int>("SalaryComponentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("YearMonth")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SalaryComponentId");
+
+                    b.HasIndex("YearMonth", "SalaryComponentId");
+
+                    b.HasIndex("EmployeeId", "SalaryComponentId", "YearMonth")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("MonthlyTransactions");
+                });
+
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.OvertimeRecord", b =>
                 {
                     b.Property<int>("Id")
@@ -1538,6 +2539,10 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Code")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -1547,6 +2552,9 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.Property<int>("DayType")
                         .HasColumnType("int");
 
+                    b.Property<int?>("DaysPerMonth")
+                        .HasColumnType("int");
+
                     b.Property<int?>("DepartmentId")
                         .HasColumnType("int");
 
@@ -1554,10 +2562,22 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<decimal?>("HoursPerDay")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IncludeInGrossPay")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsApitLiable")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsEpfLiable")
                         .HasColumnType("bit");
 
                     b.Property<int?>("MaxMinutesPerDay")
@@ -1602,6 +2622,258 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.HasIndex("ShiftId");
 
                     b.ToTable("OvertimeRules");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.PayrollPeriod", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ApprovedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("BranchId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("EmployeeEpfPercent")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("EmployerEpfPercent")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("EmployerEtfPercent")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ProcessedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("Year", "Month", "BranchId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("PayrollPeriods");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.Payslip", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal>("Apit")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("ApitLiableEarnings")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("BankBranchName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("BankName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<decimal>("BasicSalary")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CostToCompany")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("EmployeeEpf")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("EmployerEpf")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("EmployerEtf")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("EpfLiableEarnings")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("EpfNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal>("GrossPay")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("LeaveDays")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("NetPay")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("NoPayDays")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("NoPayDeduction")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("OvertimeAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("OvertimeHours")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("PayrollPeriodId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PresentDays")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalDeductions")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalFixedAllowances")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalOtherDeductions")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalVariableAllowances")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("WorkingDays")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("PayrollPeriodId", "EmployeeId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("Payslips");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.PayslipLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ComponentCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("ComponentName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("ComponentType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsEpfLiable")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRecurring")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PayslipId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SalaryComponentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PayslipId");
+
+                    b.HasIndex("SalaryComponentId");
+
+                    b.ToTable("PayslipLines");
                 });
 
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.Permission", b =>
@@ -2867,6 +4139,175 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.SalaryComponent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("BasedOnWorkingDays")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("CalculationType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("ComponentType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("DefaultValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IncludeInAllowanceOnlyNoPay")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IncludeInGrossPay")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IncludeInNoPay")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IncludeInOtRate")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsApitLiable")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsEpfLiable")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Recurrence")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("SalaryComponents");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.SalaryGrade", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("BasicSalary")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("SalaryGrades");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.SalaryGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SalaryGroups");
+                });
+
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.Shift", b =>
                 {
                     b.Property<int>("Id")
@@ -2970,6 +4411,103 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                             WeeklyOffDays = "Saturday,Sunday",
                             WorkingDaysPerMonth = 0
                         });
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.SubDepartment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DepartmentId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId", "Name")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("SubDepartments");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.ThirdParty", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ModifiedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SalaryComponentId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.HasIndex("SalaryComponentId");
+
+                    b.ToTable("ThirdParties");
                 });
 
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.User", b =>
@@ -3153,6 +4691,17 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.ToTable("UserDashboardTiles");
                 });
 
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.ApitTaxBracket", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.ApitTaxTable", "ApitTaxTable")
+                        .WithMany("Brackets")
+                        .HasForeignKey("ApitTaxTableId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApitTaxTable");
+                });
+
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.AttendanceLog", b =>
                 {
                     b.HasOne("AttendanceSystem.Domain.Entities.Employee", "Employee")
@@ -3193,6 +4742,35 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.BankBranch", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.Bank", "Bank")
+                        .WithMany("Branches")
+                        .HasForeignKey("BankId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Bank");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.BranchPayrollSettings", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.BankBranch", "BankBranch")
+                        .WithMany()
+                        .HasForeignKey("BankBranchId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("BankBranch");
+
+                    b.Navigation("Branch");
                 });
 
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.DashboardPreference", b =>
@@ -3342,6 +4920,123 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.EmployeeLeaveEntitlement", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.LeaveType", "LeaveType")
+                        .WithMany()
+                        .HasForeignKey("LeaveTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("LeaveType");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.EmployeeLoan", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.LoanType", "LoanType")
+                        .WithMany()
+                        .HasForeignKey("LoanTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("LoanType");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.EmployeePayrollInfo", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.ApitTaxTable", "ApitTaxTable")
+                        .WithMany()
+                        .HasForeignKey("ApitTaxTableId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.BankBranch", "BankBranch")
+                        .WithMany()
+                        .HasForeignKey("BankBranchId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.Employee", "Employee")
+                        .WithOne()
+                        .HasForeignKey("AttendanceSystem.Domain.Entities.EmployeePayrollInfo", "EmployeeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.EmploymentCategory", "EmploymentCategory")
+                        .WithMany()
+                        .HasForeignKey("EmploymentCategoryId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.Branch", "EpfRegistrationBranch")
+                        .WithMany()
+                        .HasForeignKey("EpfRegistrationBranchId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.SalaryGrade", "SalaryGrade")
+                        .WithMany("Employees")
+                        .HasForeignKey("SalaryGradeId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.SalaryGroup", "SalaryGroup")
+                        .WithMany()
+                        .HasForeignKey("SalaryGroupId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.SubDepartment", "SubDepartment")
+                        .WithMany()
+                        .HasForeignKey("SubDepartmentId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("ApitTaxTable");
+
+                    b.Navigation("BankBranch");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("EmploymentCategory");
+
+                    b.Navigation("EpfRegistrationBranch");
+
+                    b.Navigation("SalaryGrade");
+
+                    b.Navigation("SalaryGroup");
+
+                    b.Navigation("SubDepartment");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.EmployeeSalaryComponent", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.SalaryComponent", "SalaryComponent")
+                        .WithMany()
+                        .HasForeignKey("SalaryComponentId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("SalaryComponent");
+                });
+
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.EmployeeShift", b =>
                 {
                     b.HasOne("AttendanceSystem.Domain.Entities.Employee", "Employee")
@@ -3361,6 +5056,24 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.Navigation("Shift");
                 });
 
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.EpfAdjustment", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.PayrollPeriod", "AppliedInPayrollPeriod")
+                        .WithMany()
+                        .HasForeignKey("AppliedInPayrollPeriodId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("AppliedInPayrollPeriod");
+
+                    b.Navigation("Employee");
+                });
+
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.LeaveRequest", b =>
                 {
                     b.HasOne("AttendanceSystem.Domain.Entities.Employee", "Employee")
@@ -3378,6 +5091,62 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.Navigation("Employee");
 
                     b.Navigation("LeaveType");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.LoanGuarantor", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.EmployeeLoan", "EmployeeLoan")
+                        .WithMany("Guarantors")
+                        .HasForeignKey("EmployeeLoanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.Employee", "GuarantorEmployee")
+                        .WithMany()
+                        .HasForeignKey("GuarantorEmployeeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("EmployeeLoan");
+
+                    b.Navigation("GuarantorEmployee");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.LoanTransaction", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.EmployeeLoan", "EmployeeLoan")
+                        .WithMany("Transactions")
+                        .HasForeignKey("EmployeeLoanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.PayrollPeriod", "PayrollPeriod")
+                        .WithMany()
+                        .HasForeignKey("PayrollPeriodId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("EmployeeLoan");
+
+                    b.Navigation("PayrollPeriod");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.MonthlyTransaction", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.SalaryComponent", "SalaryComponent")
+                        .WithMany()
+                        .HasForeignKey("SalaryComponentId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("SalaryComponent");
                 });
 
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.OvertimeRecord", b =>
@@ -3429,6 +5198,53 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.Navigation("Shift");
                 });
 
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.PayrollPeriod", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.Branch", "Branch")
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Branch");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.Payslip", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.PayrollPeriod", "PayrollPeriod")
+                        .WithMany("Payslips")
+                        .HasForeignKey("PayrollPeriodId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("PayrollPeriod");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.PayslipLine", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.Payslip", "Payslip")
+                        .WithMany("Lines")
+                        .HasForeignKey("PayslipId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AttendanceSystem.Domain.Entities.SalaryComponent", "SalaryComponent")
+                        .WithMany()
+                        .HasForeignKey("SalaryComponentId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Payslip");
+
+                    b.Navigation("SalaryComponent");
+                });
+
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.RolePermission", b =>
                 {
                     b.HasOne("AttendanceSystem.Domain.Entities.Permission", "Permission")
@@ -3446,6 +5262,27 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.Navigation("Permission");
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.SubDepartment", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Department");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.ThirdParty", b =>
+                {
+                    b.HasOne("AttendanceSystem.Domain.Entities.SalaryComponent", "SalaryComponent")
+                        .WithMany()
+                        .HasForeignKey("SalaryComponentId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("SalaryComponent");
                 });
 
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.User", b =>
@@ -3490,6 +5327,16 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.ApitTaxTable", b =>
+                {
+                    b.Navigation("Brackets");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.Bank", b =>
+                {
+                    b.Navigation("Branches");
+                });
+
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.Branch", b =>
                 {
                     b.Navigation("Employees");
@@ -3527,9 +5374,26 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.EmployeeLoan", b =>
+                {
+                    b.Navigation("Guarantors");
+
+                    b.Navigation("Transactions");
+                });
+
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.LeaveType", b =>
                 {
                     b.Navigation("LeaveRequests");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.PayrollPeriod", b =>
+                {
+                    b.Navigation("Payslips");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.Payslip", b =>
+                {
+                    b.Navigation("Lines");
                 });
 
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.Permission", b =>
@@ -3542,6 +5406,11 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.Navigation("RolePermissions");
 
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("AttendanceSystem.Domain.Entities.SalaryGrade", b =>
+                {
+                    b.Navigation("Employees");
                 });
 
             modelBuilder.Entity("AttendanceSystem.Domain.Entities.Shift", b =>

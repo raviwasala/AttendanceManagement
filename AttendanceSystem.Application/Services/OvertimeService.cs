@@ -575,6 +575,12 @@ public class OvertimeService : IOvertimeService
         entity.MaxMinutesPerDay = dto.MaxMinutesPerDay is > 0 ? dto.MaxMinutesPerDay : null;
         entity.RoundToMinutes = dto.RoundToMinutes;
         entity.RequiresApproval = dto.RequiresApproval;
+        entity.Code = dto.Code?.Trim();
+        entity.IsApitLiable = dto.IsApitLiable;
+        entity.IsEpfLiable = dto.IsEpfLiable;
+        entity.IncludeInGrossPay = dto.IncludeInGrossPay;
+        entity.DaysPerMonth = dto.DaysPerMonth;
+        entity.HoursPerDay = dto.HoursPerDay;
     }
 
     private static void AutoApprove(OvertimeRecord record, int minutes, DateTime now,
@@ -668,6 +674,12 @@ public class OvertimeService : IOvertimeService
         MinimumMinutes = r.MinimumMinutes,
         MaxMinutesPerDay = r.MaxMinutesPerDay,
         RoundToMinutes = r.RoundToMinutes,
-        RequiresApproval = r.RequiresApproval
+        RequiresApproval = r.RequiresApproval,
+        Code = r.Code,
+        IsApitLiable = r.IsApitLiable,
+        IsEpfLiable = r.IsEpfLiable,
+        IncludeInGrossPay = r.IncludeInGrossPay,
+        DaysPerMonth = r.DaysPerMonth,
+        HoursPerDay = r.HoursPerDay
     };
 }

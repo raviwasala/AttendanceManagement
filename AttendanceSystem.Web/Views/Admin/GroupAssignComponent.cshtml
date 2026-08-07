@@ -1,0 +1,185 @@
+@{
+    ViewData["Title"] = "Group Employees for Item";
+}
+
+<div class="mb-3">
+    <h5 class="mb-0">Bulk Value Entry</h5>
+    <div class="text-muted small">
+        Set an allowance or deduction for many employees at once.
+    </div>
+</div>
+
+<div id="gaAlert"></div>
+
+@* Two ways to do the same job, kept apart because they answer different questions:
+   "give these fifteen people a bonus" versus "raise the meal allowance for everyone". *@
+<ul class="nav nav-tabs mb-3" role="tablist">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#bv-selected">
+        <i class="feather icon-users me-1"></i>Group Employees for Item</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#bv-common">
+        <i class="feather icon-layers me-1"></i>Common Value Entry</a></li>
+</ul>
+
+<div class="tab-content">
+<div class="tab-pane fade show active" id="bv-selected" role="tabpanel">
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header py-2"><strong class="small">1. Choose the item</strong></div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">
+                        Allowance or Deduction <span class="text-danger">*</span>
+                    </label>
+                    <select id="gaComponent" class="form-select" data-search onchange="gaComponentChanged()"></select>
+                    <div class="form-text small" id="gaComponentHint"></div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Value</label>
+                    <input type="number" step="0.01" id="gaValue" class="form-control"
+                           placeholder="Leave blank to use the default">
+                    <div class="form-text small">
+                        Blank clears any personal value and returns everyone selected to the
+                        component's default.
+                    </div>
+                </div>
+
+                <div class="alert alert-light border py-2 small mb-3" id="gaSelectionNote">
+                    No employees selected.
+                </div>
+
+                <button class="btn btn-primary w-100" id="gaApplyBtn" onclick="gaApply()" disabled>
+                    <i class="feather icon-check me-1"></i>Apply to selected
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <strong class="small">2. Choose the employees</strong>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="gaSelectAll(true)">Select all shown</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="gaSelectAll(false)">Clear</button>
+                </div>
+            </div>
+            <div class="card-body py-2">
+                <div class="row g-2">
+                    <div class="col-md-5">
+                        <input type="text" id="gaSearch" class="form-control form-control-sm"
+                               placeholder="Search name or code…" oninput="gaFilter()">
+                    </div>
+                    <div class="col-md-4">
+                        <select id="gaDept" class="form-select form-select-sm" onchange="gaFilter()">
+                            <option value="">All departments</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="gaGrade" class="form-select form-select-sm" onchange="gaFilter()">
+                            <option value="">All grades</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height:460px;overflow-y:auto;">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3" style="width:40px;"></th>
+                                <th>Code</th>
+                                <th>Employee</th>
+                                <th>Department</th>
+                                <th>Grade</th>
+                            </tr>
+                        </thead>
+                        <tbody id="gaBody">
+                            <tr><td colspan="5" class="text-center py-4 text-muted">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    </div><!-- /bv-selected -->
+
+    <!-- ── Common Value Entry ── -->
+    <div class="tab-pane fade" id="bv-common" role="tabpanel">
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">
+                                Code <span class="text-danger">*</span>
+                            </label>
+                            <select id="cvComponent" class="form-select" data-search onchange="cvChanged()"></select>
+                            <div class="form-text small" id="cvComponentHint"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Amount</label>
+                            <input type="number" step="0.01" id="cvAmount" class="form-control">
+                        </div>
+
+                        @* The three scopes are not interchangeable, and the difference is easy
+                           to miss: the first grants the item to people who never had it. *@
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Replace Amount for</label>
+
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="radio" name="cvScope"
+                                       id="cvScope1" value="1" onchange="cvChanged()">
+                                <label class="form-check-label" for="cvScope1">
+                                    All Active Employees
+                                    <div class="form-text small mb-0">
+                                        Grants the item to everyone, including those who never had it.
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="radio" name="cvScope"
+                                       id="cvScope2" value="2" checked onchange="cvChanged()">
+                                <label class="form-check-label" for="cvScope2">
+                                    Selected Employees for the Item
+                                    <div class="form-text small mb-0">
+                                        Revises only those who already receive it. Grants it to nobody.
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="radio" name="cvScope"
+                                       id="cvScope3" value="3" onchange="cvChanged()" disabled>
+                                <label class="form-check-label text-muted" for="cvScope3">
+                                    Current Amount in Monthly Transaction
+                                    <div class="form-text small mb-0">
+                                        Not available — monthly transactions are not built yet.
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-light border py-2 small" id="cvImpact">
+                            Choose a code to see how many employees this would reach.
+                        </div>
+
+                        <button class="btn btn-primary w-100" id="cvApplyBtn" onclick="cvApply()">
+                            <i class="feather icon-check me-1"></i>Replace Amount
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div><!-- /tab-content -->
+
+@section Scripts {
+    <script src="~/js/pages/admin/group-assign-component.js" asp-append-version="true"></script>
+    <script src="~/js/pages/admin/common-value-entry.js" asp-append-version="true"></script>
+}

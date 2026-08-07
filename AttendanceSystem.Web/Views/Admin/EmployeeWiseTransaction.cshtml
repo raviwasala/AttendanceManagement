@@ -1,0 +1,90 @@
+@{
+    ViewData["Title"] = "Employee Wise Transactions";
+}
+
+<div class="mb-3">
+    <h5 class="mb-0">Employee Wise Transactions</h5>
+    <div class="text-muted small">
+        One employee's one-off allowances and deductions for a month.
+    </div>
+</div>
+
+<div id="ewAlert"></div>
+
+<div class="card mb-3">
+    <div class="card-body py-3">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-6">
+                <label class="form-label small fw-semibold">
+                    Employee <span class="text-danger">*</span>
+                </label>
+                <select id="ewEmployee" class="form-select" data-search onchange="ewLoad()"></select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">
+                    Month <span class="text-danger">*</span>
+                </label>
+                <input type="month" id="ewMonth" class="form-control" onchange="ewLoad()">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">&nbsp;</label>
+                <div class="alert alert-light border py-2 small mb-0" id="ewEmpHint">
+                    Choose an employee.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* The same rows the Item wise screen edits, read the other way round. One table behind
+   both: two stores would drift the first time a figure was corrected on one screen. *@
+<div class="card">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <strong class="small">Employee Wise Transactions</strong>
+        <div>
+            <button class="btn btn-sm btn-outline-secondary" onclick="ewAddRow()" id="ewAddBtn" disabled>
+                + Add Line
+            </button>
+            <button class="btn btn-sm btn-primary ms-1" onclick="ewSave()" id="ewSaveBtn" disabled>
+                <i class="feather icon-check me-1"></i>Save
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3" style="width:280px;">Code</th>
+                        <th>Description</th>
+                        <th class="text-end" style="width:140px;">Amount</th>
+                        <th class="text-end" style="width:110px;">Hours</th>
+                        <th style="width:200px;">Remarks</th>
+                        <th style="width:50px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="ewBody">
+                    <tr><td colspan="6" class="text-center py-4 text-muted">
+                        Choose an employee and a month.
+                    </td></tr>
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="2" class="text-end pe-2">Earnings</th>
+                        <th class="text-end text-success" id="ewTotalEarn">0.00</th>
+                        <th colspan="3"></th>
+                    </tr>
+                    <tr>
+                        <th colspan="2" class="text-end pe-2">Deductions</th>
+                        <th class="text-end text-danger" id="ewTotalDed">0.00</th>
+                        <th colspan="3"></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/admin/employee-wise-transaction.js" asp-append-version="true"></script>
+}

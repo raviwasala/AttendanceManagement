@@ -57,4 +57,45 @@ public class OvertimeRule : BaseEntity
     /// rostered overtime as pre-authorised can skip the queue.
     /// </summary>
     public bool RequiresApproval { get; set; } = true;
+
+    /// <summary>
+    /// Short identifier for the rule, shown on the payslip line and in exports.
+    /// Names change; a code is what a payroll clerk matches against.
+    /// </summary>
+    public string? Code { get; set; }
+
+    // ── The hourly rate ────────────────────────────────────────────────────────
+    //
+    // Overtime is paid at (monthly earnings ÷ (Days × Hours)) × RateMultiplier. Both divisors
+    // are held here and both are nullable: null means "use the branch's figures", so a site
+    // with one convention sets it once and a rule that genuinely differs says so explicitly.
+    //
+    // Kept per rule rather than only per branch because that is how it is actually used —
+    // a holiday rate can be worked out on a different notional day length from ordinary
+    // overtime, and forcing one figure on both would misprice one of them.
+
+    /// <summary>Working days in a month for this rule's hourly rate. Null uses the branch figure.</summary>
+    public int? DaysPerMonth { get; set; }
+
+    /// <summary>Working hours in a day for this rule's hourly rate. Null uses the branch figure.</summary>
+    public decimal? HoursPerDay { get; set; }
+
+    // ── Payroll treatment ──────────────────────────────────────────────────────
+    //
+    // How the money this rule produces is treated once it reaches a payslip. Independent of
+    // each other and of everything above: the multiplier decides *how much*, these decide
+    // *what it counts as*. Sri Lankan practice varies — overtime is normally taxable but
+    // often outside EPF, and some sites keep it out of the reported gross entirely.
+
+    /// <summary>Overtime earned under this rule enters APIT (PAYE) taxable earnings.</summary>
+    public bool IsApitLiable { get; set; } = true;
+
+    /// <summary>
+    /// Enters EPF and ETF earnings. False by default — overtime is customarily outside EPF,
+    /// and defaulting it true would quietly raise every contribution.
+    /// </summary>
+    public bool IsEpfLiable { get; set; }
+
+    /// <summary>Counts toward the gross pay figure shown and reported.</summary>
+    public bool IncludeInGrossPay { get; set; } = true;
 }
