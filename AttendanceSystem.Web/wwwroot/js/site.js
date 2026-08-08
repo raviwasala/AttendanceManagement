@@ -73,6 +73,99 @@ window.notifyError = function (msg, title) {
     else alert(msg);
 };
 
+/*
+ * Enter moves down a column in a data-entry grid.
+ *
+ * Tab already moves across a row, which is right when you are completing one record. But
+ * these grids are keyed the other way: somebody works down 239 amounts from a claim sheet,
+ * one column at a time. With Tab alone that means two keystrokes per row and constant
+ * re-aiming, and it is the single thing that makes a web grid feel worse than the old
+ * desktop one.
+ *
+ * Enter goes to the same column in the next row, Shift+Enter to the previous — the
+ * spreadsheet convention, so it needs no explaining. Tab is left exactly as it was.
+ *
+ * Bound by delegation on `bodySelector`, so it survives the table being re-rendered by a
+ * filter or a reload.
+ */
+window.amsEnterMovesDown = function (bodySelector) {
+    $(document).on('keydown', bodySelector + ' input, ' + bodySelector + ' textarea',
+        function (e) {
+            if (e.key !== 'Enter') return;
+
+            // Stops the browser submitting the surrounding form, which would otherwise
+            // reload the page and lose everything typed so far.
+            e.preventDefault();
+
+            var $cell = $(this).closest('td');
+            var $row = $cell.closest('tr');
+            if (!$row.length) return;
+
+            var col = $cell.index();
+            var $next = e.shiftKey ? $row.prev('tr') : $row.next('tr');
+
+            // Rows that hold no input — an empty-state message, a spacer — are stepped over
+            // rather than swallowing the keystroke.
+            while ($next.length && !$next.children('td').eq(col).find('input,textarea')
+                                          .filter(':enabled').length) {
+                $next = e.shiftKey ? $next.prev('tr') : $next.next('tr');
+            }
+
+            if (!$next.length) return;   // top or bottom of the grid: stay put
+
+            var $target = $next.children('td').eq(col).find('input,textarea')
+                               .filter(':enabled').first();
+
+            if ($target.length) {
+                $target.focus();
+                if ($target.is('input[type="text"],input[type="number"]')) $target.select();
+            }
+        });
+};
+
+/*
+ * Asks for a piece of text before proceeding — a reason, a note.
+ *
+ * Deliberately NOT built on notifyConfirm. That helper is suppressed when Settings turns
+ * "confirm before delete" off, which is right for a yes/no guard and wrong here: this
+ * collects data the server requires, so skipping it would just produce a rejected request
+ * with no way for the user to answer. A required reason is not a confirmation.
+ */
+window.notifyPrompt = function (options, onConfirm) {
+    var opts = options || {};
+
+    if (typeof Swal === 'undefined') {
+        var value = window.prompt(opts.title || 'Enter a value', '');
+        if (value && typeof onConfirm === 'function') onConfirm(value);
+        return;
+    }
+
+    Swal.fire({
+        title: opts.title || 'Enter a value',
+        text: opts.text || '',
+        icon: opts.icon || 'question',
+        input: 'text',
+        inputPlaceholder: opts.placeholder || '',
+        inputValidator: function (v) {
+            return (v && v.trim()) ? null : (opts.required || 'This is required.');
+        },
+        showCancelButton: true,
+        confirmButtonColor: '#00acac',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: opts.confirmText || 'OK',
+        cancelButtonText: 'Cancel',
+        customClass: {
+            confirmButton: 'btn btn-primary me-2',
+            cancelButton: 'btn btn-secondary'
+        },
+        buttonsStyling: false
+    }).then(function (result) {
+        if (result.isConfirmed && typeof onConfirm === 'function') {
+            onConfirm(result.value);
+        }
+    });
+};
+
 window.notifyConfirm = function (options, onConfirm) {
     // Settings → System Configuration can switch the prompts off for trusted sites; the
     // action then runs straight away. Default is to ask, including if config never loaded.

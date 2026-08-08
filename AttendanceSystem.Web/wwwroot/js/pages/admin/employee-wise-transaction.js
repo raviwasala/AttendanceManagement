@@ -22,8 +22,10 @@ $(function () {
         ewComponents = (compRes[0] || []).filter(function (c) { return c.IsActive; });
     });
 
-    var now = new Date();
-    $('#ewMonth').val(now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0'));
+    // The open payroll month, not today's — see ams-payroll-period.js.
+    amsBindPayrollMonth('#ewMonth', '#ewMonthNote');
+
+    amsEnterMovesDown('#ewBody');
 });
 
 function ewYearMonth() {

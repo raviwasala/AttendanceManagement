@@ -185,8 +185,13 @@ function applyImport() {
             url: '/api/data/employees/import', type: 'POST',
             contentType: 'application/json', data: JSON.stringify(valid),
             success: function (res) {
+                // The payroll count is reported separately because "239 employees imported"
+                // says nothing about whether any of them can actually be paid.
                 notifySuccess('Created ' + res.Created + ', updated ' + res.Updated +
-                              (res.Skipped ? ', skipped ' + res.Skipped : '') + '.');
+                              (res.Skipped ? ', skipped ' + res.Skipped : '') + '.' +
+                              (res.PayrollRecordsWritten
+                                  ? ' Payroll details written for ' + res.PayrollRecordsWritten + '.'
+                                  : ''));
                 $('#impApply').addClass('d-none');
                 previewImport();   // re-read so the rows now show as updates
             },

@@ -70,6 +70,29 @@ public class EmployeeImportRowDto
     public int? DesignationId { get; set; }
     public int? BranchId { get; set; }
 
+    // ── Payroll ───────────────────────────────────────────────────────────────
+    //
+    // Optional throughout: an employee record is valid without them, and sites that run
+    // attendance only should not be forced to invent salary data. Present, though, because
+    // loading a few hundred employees and then keying their salary, EPF number and bank
+    // account by hand afterwards is the same job done twice.
+
+    public string? GradeCode { get; set; }
+    public decimal? BasicSalary { get; set; }
+    public string? EpfNumber { get; set; }
+    public string? EtfNumber { get; set; }
+    public string? BankBranchCode { get; set; }
+    public string? AccountNumber { get; set; }
+
+    public int? SalaryGradeId { get; set; }
+    public int? BankBranchId { get; set; }
+
+    /// <summary>True when the row carries any payroll field, so the commit knows to write one.</summary>
+    public bool HasPayrollData =>
+        SalaryGradeId.HasValue || BasicSalary.HasValue ||
+        !string.IsNullOrWhiteSpace(EpfNumber) || !string.IsNullOrWhiteSpace(EtfNumber) ||
+        BankBranchId.HasValue || !string.IsNullOrWhiteSpace(AccountNumber);
+
     /// <summary>Set when the row matches an existing employee — the import updates rather than inserts.</summary>
     public int? ExistingEmployeeId { get; set; }
 
@@ -101,6 +124,13 @@ public class EmployeeImportResultDto
     public int Updated { get; set; }
     public int Skipped { get; set; }
     public int Failed { get; set; }
+
+    /// <summary>
+    /// How many rows also carried salary, EPF or bank details. Reported separately because
+    /// "239 employees imported" says nothing about whether any of them can be paid.
+    /// </summary>
+    public int PayrollRecordsWritten { get; set; }
+
     public List<string> Errors { get; set; } = new();
 }
 

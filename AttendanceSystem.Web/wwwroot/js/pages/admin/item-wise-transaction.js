@@ -39,9 +39,12 @@ $(function () {
             + group('Earnings', isEarning) + group('Deductions', isDeduction));
     });
 
-    // Defaults to the current month, which is what somebody entering today's claim sheet means.
-    var now = new Date();
-    $('#iwMonth').val(now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0'));
+    // Defaults to the open payroll month, not to today's calendar month. In early August
+    // the claim sheet on the desk is July's.
+    amsBindPayrollMonth('#iwMonth', '#iwMonthNote');
+
+    // Enter walks down the Amount column; Tab still crosses to Remarks.
+    amsEnterMovesDown('#iwBody');
 });
 
 function iwYearMonth() {

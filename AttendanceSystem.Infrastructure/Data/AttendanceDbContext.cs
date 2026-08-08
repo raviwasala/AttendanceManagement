@@ -55,6 +55,7 @@ public class AttendanceDbContext : DbContext
     public DbSet<SalaryComponent> SalaryComponents { get; set; } = null!;
     public DbSet<EmployeeSalaryComponent> EmployeeSalaryComponents { get; set; } = null!;
     public DbSet<MonthlyTransaction> MonthlyTransactions { get; set; } = null!;
+    public DbSet<SalaryIncrement> SalaryIncrements { get; set; } = null!;
     public DbSet<EmployeePayrollInfo> EmployeePayrollInfos { get; set; } = null!;
     public DbSet<EpfEtfRate> EpfEtfRates { get; set; } = null!;
     public DbSet<ApitTaxTable> ApitTaxTables { get; set; } = null!;
@@ -538,6 +539,24 @@ public class AttendanceDbContext : DbContext
             e.HasQueryFilter(x => !x.IsDeleted);
         });
 
+        modelBuilder.Entity<SalaryIncrement>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.PreviousBasic).HasColumnType("decimal(18,2)");
+            e.Property(x => x.NewBasic).HasColumnType("decimal(18,2)");
+            e.Property(x => x.IncrementValue).HasColumnType("decimal(18,2)");
+            e.Property(x => x.Reason).HasMaxLength(250);
+            e.Property(x => x.RejectionReason).HasMaxLength(250);
+            e.Property(x => x.Status).HasDefaultValue(IncrementStatus.Pending);
+            e.HasOne(x => x.Employee).WithMany().HasForeignKey(x => x.EmployeeId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(x => new { x.EmployeeId, x.EffectiveDate });
+            e.HasIndex(x => x.BatchId);
+            // The confirmation screen reads pending rows and nothing else.
+            e.HasIndex(x => x.Status);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
         modelBuilder.Entity<EmployeePayrollInfo>(e =>
         {
             e.HasKey(x => x.Id);
@@ -593,7 +612,10 @@ public class AttendanceDbContext : DbContext
             e.Property(x => x.Name).IsRequired().HasMaxLength(100);
             e.Property(x => x.Code).IsRequired().HasMaxLength(20);
             e.Property(x => x.Description).HasMaxLength(300);
+            e.Property(x => x.TableType).HasDefaultValue(TaxTableType.Monthly);
             e.HasIndex(x => x.Code).IsUnique().HasFilter("[IsDeleted] = 0");
+            // The payroll looks tables up by type, so that is the index that matters.
+            e.HasIndex(x => new { x.TableType, x.IsDefault });
             e.HasQueryFilter(x => !x.IsDeleted);
         });
 

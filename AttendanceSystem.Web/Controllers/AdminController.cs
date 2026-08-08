@@ -163,6 +163,21 @@ public class AdminController : BaseController
     [SessionAuthorize(Modules.Payroll, Actions.View)]
     public IActionResult Loans() => View();
 
+    /// <summary>Raising basic salary, for one employee or a whole department or grade.</summary>
+    [HttpGet("SalaryIncrements")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult SalaryIncrements() => View();
+
+    /// <summary>Proposed increments awaiting approval. Confirming here is what changes pay.</summary>
+    [HttpGet("IncrementConfirmation")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult IncrementConfirmation() => View();
+
+    /// <summary>The month payroll is working on, and the history of closed months.</summary>
+    [HttpGet("PayrollPeriods")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult PayrollPeriods() => View();
+
     /// <summary>One code, one month, an amount per employee — this month's one-offs.</summary>
     [HttpGet("ItemWiseTransaction")]
     [SessionAuthorize(Modules.Payroll, Actions.View)]

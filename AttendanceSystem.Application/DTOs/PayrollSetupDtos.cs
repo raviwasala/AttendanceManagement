@@ -397,6 +397,10 @@ public class ApitTaxTableDto
     public string Name { get; set; } = string.Empty;
     public string Code { get; set; } = string.Empty;
     public string? Description { get; set; }
+
+    public TaxTableType TableType { get; set; }
+    public string TableTypeDisplay { get; set; } = string.Empty;
+
     public bool IsDefault { get; set; }
     public bool IsActive { get; set; } = true;
     public int BandCount { get; set; }
@@ -408,6 +412,7 @@ public class SaveApitTaxTableDto
     [Required, MaxLength(100)] public string Name { get; set; } = string.Empty;
     [Required, MaxLength(20)] public string Code { get; set; } = string.Empty;
     [MaxLength(300)] public string? Description { get; set; }
+    public TaxTableType TableType { get; set; } = TaxTableType.Monthly;
     public bool IsDefault { get; set; }
     public bool IsActive { get; set; } = true;
 }
@@ -932,4 +937,155 @@ public class SaveEmployeeWiseDto
     [Range(200001, 210012)] public int YearMonth { get; set; }
 
     public List<SaveEmployeeWiseRowDto> Rows { get; set; } = new();
+}
+
+// ── Payroll period (the current working month) ─────────────────────────────────
+
+public class PayrollPeriodDto
+{
+    public int Id { get; set; }
+    public int Year { get; set; }
+    public int Month { get; set; }
+
+    /// <summary>yyyymm, so screens that speak that format need no conversion.</summary>
+    public int YearMonth { get; set; }
+
+    public string MonthDisplay { get; set; } = string.Empty;
+    public PayrollStatus Status { get; set; }
+    public string StatusDisplay { get; set; } = string.Empty;
+
+    public DateTime? ProcessedAt { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class OpenPayrollPeriodDto
+{
+    [Range(2000, 2100)] public int Year { get; set; }
+    [Range(1, 12)] public int Month { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class ReopenPayrollPeriodDto
+{
+    public int Id { get; set; }
+    [Required] public string Reason { get; set; } = string.Empty;
+}
+
+// ── Salary increments ─────────────────────────────────────────────────────────
+
+/// <summary>How the employees for an increment were chosen.</summary>
+public enum IncrementTarget
+{
+    Employees = 1,
+    Department = 2,
+    Grade = 3
+}
+
+/// <summary>One employee's before-and-after, shown before anything is written.</summary>
+public class IncrementPreviewRowDto
+{
+    public int EmployeeId { get; set; }
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string EmployeeName { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = string.Empty;
+    public string GradeName { get; set; } = string.Empty;
+
+    public decimal CurrentBasic { get; set; }
+    public decimal IncrementAmount { get; set; }
+    public decimal NewBasic { get; set; }
+
+    /// <summary>True when the current basic comes from the grade rather than a personal figure.</summary>
+    public bool FromGrade { get; set; }
+
+    /// <summary>Set when this row cannot be incremented, and why. Excluded from the totals.</summary>
+    public string? Blocked { get; set; }
+}
+
+public class IncrementPreviewDto
+{
+    public List<IncrementPreviewRowDto> Rows { get; set; } = new();
+
+    public int EligibleCount { get; set; }
+    public int BlockedCount { get; set; }
+    public decimal TotalCurrent { get; set; }
+    public decimal TotalNew { get; set; }
+    public decimal MonthlyCostIncrease { get; set; }
+}
+
+public class ApplyIncrementDto
+{
+    public IncrementTarget Target { get; set; } = IncrementTarget.Employees;
+
+    /// <summary>Used when Target is Employees.</summary>
+    public List<int> EmployeeIds { get; set; } = new();
+
+    public int? DepartmentId { get; set; }
+    public int? SalaryGradeId { get; set; }
+
+    [Range(0.01, 99999999)] public decimal Value { get; set; }
+    public IncrementBasis Basis { get; set; } = IncrementBasis.Amount;
+
+    public DateTime EffectiveDate { get; set; } = DateTime.Today;
+    public string? Reason { get; set; }
+}
+
+public class SalaryIncrementDto
+{
+    public int Id { get; set; }
+    public int EmployeeId { get; set; }
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string EmployeeName { get; set; } = string.Empty;
+
+    public DateTime EffectiveDate { get; set; }
+    public decimal PreviousBasic { get; set; }
+    public decimal NewBasic { get; set; }
+    public decimal IncrementValue { get; set; }
+    public IncrementBasis Basis { get; set; }
+    public string BasisDisplay { get; set; } = string.Empty;
+    public IncrementStatus Status { get; set; }
+    public string StatusDisplay { get; set; } = string.Empty;
+    public string? Reason { get; set; }
+    public Guid? BatchId { get; set; }
+}
+
+/// <summary>One row on the Increment Confirmation grid.</summary>
+public class IncrementConfirmationRowDto
+{
+    public int Id { get; set; }
+    public int EmployeeId { get; set; }
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string EmployeeName { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = string.Empty;
+
+    /// <summary>What they are paid now — still the current salary while this is pending.</summary>
+    public decimal BasicSalary { get; set; }
+
+    public DateTime JoiningDate { get; set; }
+
+    /// <summary>Whole years from joining to the effective date, not to today.</summary>
+    public int YearsOfService { get; set; }
+
+    public DateTime EffectiveDate { get; set; }
+
+    /// <summary>Why this raise was proposed — annual review, promotion.</summary>
+    public string Condition { get; set; } = string.Empty;
+
+    public decimal IncrementAmount { get; set; }
+    public decimal NewBasic { get; set; }
+    public string BasisDisplay { get; set; } = string.Empty;
+
+    public Guid? BatchId { get; set; }
+    public DateTime ProposedAt { get; set; }
+}
+
+public class ConfirmIncrementsDto
+{
+    public List<int> Ids { get; set; } = new();
+}
+
+public class RejectIncrementsDto
+{
+    public List<int> Ids { get; set; } = new();
+    [Required] public string Reason { get; set; } = string.Empty;
 }

@@ -224,6 +224,56 @@ public interface IPayrollSetupService
     Task<Result> DeleteApitBracketAsync(int id);
 }
 
+/// <summary>Salary increments, for one employee or a whole department or grade.</summary>
+public interface ISalaryIncrementService
+{
+    /// <summary>
+    /// Who would be incremented and to what, before anything is written. Blocked rows are
+    /// listed with their reason rather than dropped — a count of successes says nothing
+    /// about who was missed.
+    /// </summary>
+    Task<Result<IncrementPreviewDto>> PreviewAsync(ApplyIncrementDto dto);
+
+    /// <summary>
+    /// Proposes the increment. No salary changes — that happens on confirmation, because
+    /// working out who is due a rise and committing the company to paying it are usually two
+    /// different people.
+    /// </summary>
+    Task<Result<string>> ProposeAsync(ApplyIncrementDto dto);
+
+    /// <summary>Proposals waiting to be confirmed.</summary>
+    Task<Result<IEnumerable<IncrementConfirmationRowDto>>> GetPendingAsync();
+
+    /// <summary>Confirms proposals — this is where the basic salary is written.</summary>
+    Task<Result<string>> ConfirmAsync(List<int> ids);
+
+    /// <summary>Turns proposals down, with a reason. Kept rather than deleted.</summary>
+    Task<Result<string>> RejectAsync(List<int> ids, string reason);
+
+    Task<Result<IEnumerable<SalaryIncrementDto>>> GetHistoryAsync(int? employeeId);
+}
+
+/// <summary>
+/// The payroll month every entry screen works against — state the system holds, not
+/// something derived from today's date.
+/// </summary>
+public interface IPayrollPeriodService
+{
+    /// <summary>The open month, or null when none has been opened. Never invents one.</summary>
+    Task<Result<PayrollPeriodDto?>> GetCurrentAsync();
+
+    Task<Result<IEnumerable<PayrollPeriodDto>>> GetAllAsync();
+
+    /// <summary>Opens a month. Only one may be open, and gaps are refused.</summary>
+    Task<Result<PayrollPeriodDto>> OpenAsync(OpenPayrollPeriodDto dto);
+
+    /// <summary>Closes the open month and opens the next, so entry never has to stop.</summary>
+    Task<Result<PayrollPeriodDto>> CloseAndAdvanceAsync();
+
+    /// <summary>Reopens a closed month, with a reason. Refused once a month is paid.</summary>
+    Task<Result> ReopenAsync(int id, string reason);
+}
+
 /// <summary>
 /// One-off allowances and deductions for a payroll month, entered one code at a time
 /// against many employees.

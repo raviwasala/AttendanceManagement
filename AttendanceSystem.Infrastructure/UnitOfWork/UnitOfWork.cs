@@ -33,6 +33,7 @@ public class UnitOfWork : IUnitOfWork
     private IRepository<SalaryComponent>? _salaryComponents;
     private IRepository<EmployeeSalaryComponent>? _employeeSalaryComponents;
     private IRepository<MonthlyTransaction>? _monthlyTransactions;
+    private IRepository<SalaryIncrement>? _salaryIncrements;
     private IRepository<EmployeePayrollInfo>? _employeePayrollInfos;
     private IRepository<EpfEtfRate>? _epfEtfRates;
     private IRepository<ApitTaxBracket>? _apitTaxBrackets;
@@ -48,6 +49,7 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<SalaryComponent> SalaryComponents => _salaryComponents ??= new Repository<SalaryComponent>(_context);
     public IRepository<EmployeeSalaryComponent> EmployeeSalaryComponents => _employeeSalaryComponents ??= new Repository<EmployeeSalaryComponent>(_context);
     public IRepository<MonthlyTransaction> MonthlyTransactions => _monthlyTransactions ??= new Repository<MonthlyTransaction>(_context);
+    public IRepository<SalaryIncrement> SalaryIncrements => _salaryIncrements ??= new Repository<SalaryIncrement>(_context);
     public IRepository<EmployeePayrollInfo> EmployeePayrollInfos => _employeePayrollInfos ??= new Repository<EmployeePayrollInfo>(_context);
     public IRepository<EpfEtfRate> EpfEtfRates => _epfEtfRates ??= new Repository<EpfEtfRate>(_context);
     public IRepository<ApitTaxBracket> ApitTaxBrackets => _apitTaxBrackets ??= new Repository<ApitTaxBracket>(_context);

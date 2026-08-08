@@ -44,6 +44,7 @@ public interface IUnitOfWork : IDisposable, IAsyncDisposable
     IRepository<SalaryComponent> SalaryComponents { get; }
     IRepository<EmployeeSalaryComponent> EmployeeSalaryComponents { get; }
     IRepository<MonthlyTransaction> MonthlyTransactions { get; }
+    IRepository<SalaryIncrement> SalaryIncrements { get; }
     IRepository<EmployeePayrollInfo> EmployeePayrollInfos { get; }
     IRepository<EpfEtfRate> EpfEtfRates { get; }
     IRepository<ApitTaxTable> ApitTaxTables { get; }

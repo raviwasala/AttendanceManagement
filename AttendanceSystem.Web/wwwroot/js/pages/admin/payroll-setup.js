@@ -489,13 +489,35 @@ var psApit = [];
 
 var psApitTables = [];
 
+/* The five IRD schedules. Numbers match the old payroll exactly, gap at 3 included —
+   renumbering to close it would silently repoint any table migrated across. */
+var PS_TAX_TABLE_TYPES = [
+    { value: 1, text: 'Monthly Tax Table' },
+    { value: 2, text: 'Bonus Tax Table' },
+    { value: 4, text: 'Non Citizen Tax Table' },
+    { value: 5, text: 'Yearly Tax Table' },
+    { value: 6, text: 'Tax on Tax Table' }
+];
+
+function psTaxTableTypeNum(v) {
+    return enumNum(v, ['Monthly', 'Bonus', '', 'NonCitizen', 'Yearly', 'TaxOnTax']);
+}
+
 function psLoadApitTables() {
     $.getJSON('/api/payroll-setup/apit-tables', function (d) {
         psApitTables = d || [];
-        amsPage('#psApitTableBody', psApitTables, function (t) {
+
+        var filter = parseInt($('#psApitTypeFilter').val(), 10) || 0;
+        var shown = filter
+            ? psApitTables.filter(function (t) { return psTaxTableTypeNum(t.TableType) === filter; })
+            : psApitTables;
+
+        amsPage('#psApitTableBody', shown, function (t) {
             return '<tr>'
                  + '<td class="ps-3 fw-semibold">' + esc(t.Code) + '</td>'
                  + '<td>' + esc(t.Name) + '</td>'
+                 + '<td><span class="badge bg-light text-dark">'
+                 + esc(t.TableTypeDisplay || '—') + '</span></td>'
                  + '<td class="text-muted small">' + esc(t.Description || '—') + '</td>'
                  // A table with no bands taxes nobody, so an empty one is called out.
                  + '<td class="text-center">' + (t.BandCount
@@ -506,7 +528,7 @@ function psLoadApitTables() {
                  + '<td class="text-center">' + psStatus(t.IsActive) + '</td>'
                  + '<td class="text-end pe-3">' + psActions('psApitTableModal', t.Id) + '</td>'
                  + '</tr>';
-        }, { colspan: 7, empty: 'No tax tables configured.', label: 'table' });
+        }, { colspan: 8, empty: 'No tax table of this type is configured.', label: 'table' });
     });
 }
 
@@ -516,10 +538,16 @@ function psApitTableModal(id) {
     psShowModal(id ? 'Edit Tax Table' : 'Add Tax Table',
         psField('Code', 'atCode', 'text', t.Code, { required: true, maxlength: 20, col: 4 })
       + psField('Name', 'atName', 'text', t.Name, { required: true, maxlength: 100, col: 8 })
-      + psField('Description', 'atDesc', 'text', t.Description, { maxlength: 300, col: 12 })
+      + psField('Table Type', 'atType', 'select', psTaxTableTypeNum(t.TableType) || 1, {
+            col: 6, required: true, options: PS_TAX_TABLE_TYPES,
+            help: 'Which IRD schedule this is. The payroll picks a table by type, so this '
+                + 'has to be right even if the name later changes.'
+        })
+      + psField('Description', 'atDesc', 'text', t.Description, { maxlength: 300, col: 6 })
       + psField('Default', 'atDefault', 'checkbox', t.IsDefault, {
             col: 6, checkLabel: 'Use for employees with no table assigned',
-            help: 'Setting this clears the flag on any other table — only one can be the default.'
+            help: 'Clears the flag on other tables of the SAME type only — each type keeps '
+                + 'its own default.'
         })
       + psField('Active', 'atActive', 'checkbox', t.IsActive, { col: 6, checkLabel: 'Active' }),
         function () {
@@ -528,6 +556,7 @@ function psApitTableModal(id) {
                 Code: $('#atCode').val().trim(),
                 Name: $('#atName').val().trim(),
                 Description: $('#atDesc').val().trim() || null,
+                TableType: parseInt($('#atType').val(), 10) || 1,
                 IsDefault: $('#atDefault').is(':checked'),
                 IsActive: $('#atActive').is(':checked')
             };
@@ -543,7 +572,15 @@ function psLoadApit() {
         psApit = d || [];
         amsPage('#psApitBody', psApit, function (b) {
             return '<tr>'
-                 + '<td class="ps-3"><span class="badge bg-info">' + esc(b.TaxTableName) + '</span></td>'
+                 // The schedule is named beside the table, because a band means something
+                 // different depending on whether it is a monthly or a bonus one, and the
+                 // table's own name rarely says which.
+                 + '<td class="ps-3"><span class="badge bg-info">' + esc(b.TaxTableName) + '</span>'
+                 + (function () {
+                       var t = psApitTables.filter(function (x) { return x.Id === b.ApitTaxTableId; })[0];
+                       return t ? '<div class="small text-muted">' + esc(t.TableTypeDisplay) + '</div>' : '';
+                   })()
+                 + '</td>'
                  + '<td>' + new Date(b.EffectiveFrom).toLocaleDateString() + '</td>'
                  + '<td>' + esc(b.RangeDisplay) + '</td>'
                  + '<td class="text-end">' + b.Rate.toFixed(2) + '%</td>'

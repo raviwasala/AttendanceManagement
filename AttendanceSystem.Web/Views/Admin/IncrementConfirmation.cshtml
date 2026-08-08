@@ -1,0 +1,82 @@
+@{
+    ViewData["Title"] = "Increment Confirmation";
+}
+
+<div class="mb-3">
+    <h5 class="mb-0">Increment Confirmation</h5>
+    <div class="text-muted small">
+        Increments waiting to be confirmed. Nobody's salary changes until they are.
+    </div>
+</div>
+
+<div id="icAlert"></div>
+
+<div class="card">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+        <div>
+            <strong class="small">Increment Confirmation</strong>
+            <span class="text-muted small ms-2" id="icCount"></span>
+        </div>
+        <div>
+            <button class="btn btn-sm btn-outline-danger" onclick="icReject()" id="icRejectBtn" disabled>
+                Reject
+            </button>
+            <button class="btn btn-sm btn-primary ms-1" onclick="icConfirm()" id="icConfirmBtn" disabled>
+                <i class="feather icon-check me-1"></i>Confirm
+            </button>
+        </div>
+    </div>
+
+    <div class="card-body py-2">
+        <div class="row g-2">
+            <div class="col-md-5">
+                <input type="text" id="icSearch" class="form-control form-control-sm"
+                       placeholder="Search name or code…" oninput="icRender()">
+            </div>
+            <div class="col-md-4">
+                <select id="icDept" class="form-select form-select-sm" onchange="icRender()">
+                    <option value="">All departments</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    @* The Confirm tick is per row rather than one button for the lot: a batch of forty is
+       normally approved wholesale, but the one case that matters is the single person who
+       should not be in it. *@
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3" style="width:40px;">
+                            <input type="checkbox" id="icAll" onchange="icToggleAll(this)" title="Select all">
+                        </th>
+                        <th>Emp. Code</th>
+                        <th>Name</th>
+                        <th class="text-end">Basic Salary</th>
+                        <th>Date Join</th>
+                        <th>Inc. Date</th>
+                        <th>Condition</th>
+                        <th class="text-end">Amount</th>
+                        <th class="text-end pe-3">New Basic</th>
+                    </tr>
+                </thead>
+                <tbody id="icBody">
+                    <tr><td colspan="9" class="text-center py-4 text-muted">Loading…</td></tr>
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="7" class="text-end pe-2">Selected — monthly increase</th>
+                        <th class="text-end text-success" id="icTotal">0.00</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/admin/increment-confirmation.js" asp-append-version="true"></script>
+}

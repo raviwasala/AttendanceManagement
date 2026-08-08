@@ -1,3 +1,5 @@
+using AttendanceSystem.Domain.Enums;
+
 namespace AttendanceSystem.Domain.Entities;
 
 /// <summary>
@@ -41,7 +43,21 @@ public class ApitTaxTable : BaseEntity
 
     public string? Description { get; set; }
 
-    /// <summary>Used for employees who have not been assigned one explicitly.</summary>
+    /// <summary>
+    /// Which IRD schedule this is — monthly, bonus, non-citizen, yearly, tax-on-tax.
+    ///
+    /// The payroll picks a table by type, not by name: asking for "the bonus table" has to
+    /// keep working when somebody renames it or supersedes it at the next budget.
+    /// </summary>
+    public TaxTableType TableType { get; set; } = TaxTableType.Monthly;
+
+    /// <summary>
+    /// Used for employees who have not been assigned one explicitly.
+    ///
+    /// Default is per <see cref="TableType"/>, not across all tables: every type needs its own
+    /// fallback, and one global default would leave four of the five with nothing to fall
+    /// back to.
+    /// </summary>
     public bool IsDefault { get; set; }
 
     public bool IsActive { get; set; } = true;

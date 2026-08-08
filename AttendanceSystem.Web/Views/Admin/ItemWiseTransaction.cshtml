@@ -27,6 +27,7 @@
                     Month <span class="text-danger">*</span>
                 </label>
                 <input type="month" id="iwMonth" class="form-control" onchange="iwLoad()">
+                <div id="iwMonthNote" class="mt-1"></div>
             </div>
             <div class="col-md-4">
                 <label class="form-label small">&nbsp;</label>
@@ -43,6 +44,13 @@
         <div>
             <strong class="small" id="iwGridTitle">Employees</strong>
             <span class="text-muted small ms-2" id="iwGridCount"></span>
+            @* Stated where the keying happens. A shortcut nobody is told about is one
+               nobody uses, and this is the difference between one keystroke per row and
+               three. *@
+            <span class="text-muted small ms-3">
+                <kbd>Enter</kbd> next row · <kbd>Shift</kbd>+<kbd>Enter</kbd> previous ·
+                <kbd>Tab</kbd> next column
+            </span>
         </div>
         <div>
             <button class="btn btn-sm btn-outline-secondary" onclick="iwClearAll()" id="iwClearBtn" disabled>

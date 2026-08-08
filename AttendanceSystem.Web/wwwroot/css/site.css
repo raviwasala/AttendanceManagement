@@ -970,3 +970,23 @@ a:hover { color: var(--ams-primary-d); }
 .pcoded .pcoded-navbar .pcoded-item .pcoded-hasmenu .pcoded-submenu li.pcoded-submenu-caption:hover {
   background: none;
 }
+
+/* ── Payroll month badge in the header ─────────────────────────────────────── */
+.ams-period-slot a {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 13px;
+  border-radius: 3px;
+  text-decoration: none;
+}
+.ams-period-slot .ams-period-ok {
+  color: #1abc9c;
+  background: rgba(26, 188, 156, 0.12);
+}
+/* Deliberately loud. No open month means every entry screen has stopped defaulting, and
+   the connection between the two is not obvious from the screen that is misbehaving. */
+.ams-period-slot .ams-period-none {
+  color: #fff;
+  background: #d9534f;
+}

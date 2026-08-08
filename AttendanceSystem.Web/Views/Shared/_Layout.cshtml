@@ -129,6 +129,13 @@
                                     <i class="feather icon-maximize full-screen"></i>
                                 </a>
                             </li>
+                            @* The working payroll month, visible from every screen. Somebody
+                               keying figures all afternoon should not have to remember which
+                               month they are posting into, or open a screen to find out. *@
+                            @if (CanView(AppConstants.Modules.Payroll))
+                            {
+                                <li class="ams-period-slot"><span id="amsPeriodBadge"></span></li>
+                            }
                         </ul>
 
                         <ul class="nav-right">
@@ -322,20 +329,11 @@
                                     <ul class="pcoded-submenu">
                                         @if (CanView(AppConstants.Modules.Employees))
                                         {
-                                            <li class="pcoded-submenu-caption">People</li>
                                             <li class="@Nav("Admin","Employees")">
                                                 <a asp-controller="Admin" asp-action="Employees">
                                                     <span class="pcoded-mtext">Employees</span>
                                                 </a>
                                             </li>
-                                        }
-                                        @* One caption for the three structure screens, shown only if at
-                                           least one of them is permitted — never a heading over a gap. *@
-                                        @if (CanViewAny(AppConstants.Modules.Departments,
-                                                        AppConstants.Modules.Designations,
-                                                        AppConstants.Modules.Branches))
-                                        {
-                                            <li class="pcoded-submenu-caption">Organisation</li>
                                         }
                                         @if (CanView(AppConstants.Modules.Departments))
                                         {
@@ -407,7 +405,6 @@
                                     <ul class="pcoded-submenu">
                                         @if (CanView(AppConstants.Modules.Attendance))
                                         {
-                                            <li class="pcoded-submenu-caption">Daily</li>
                                             <li class="@Nav("Admin","Attendance")">
                                                 <a asp-controller="Admin" asp-action="Attendance">
                                                     <span class="pcoded-mtext">Attendance Records</span>
@@ -421,7 +418,6 @@
                                         }
                                         @if (CanView(AppConstants.Modules.Leave))
                                         {
-                                            <li class="pcoded-submenu-caption">Leave</li>
                                             <li class="@Nav("Admin","Leave")">
                                                 <a asp-controller="Admin" asp-action="Leave">
                                                     <span class="pcoded-mtext">Leave Management</span>
@@ -430,7 +426,6 @@
                                         }
                                         @if (CanView(AppConstants.Modules.Attendance))
                                         {
-                                            <li class="pcoded-submenu-caption">Period Close</li>
                                             <li class="@Nav("Admin","MonthEnd")">
                                                 <a asp-controller="Admin" asp-action="MonthEnd">
                                                     <span class="pcoded-mtext">Month End &amp; Payroll</span>
@@ -439,7 +434,6 @@
                                         }
                                         @if (CanView(AppConstants.Modules.Holidays))
                                         {
-                                            <li class="pcoded-submenu-caption">Setup</li>
                                             <li class="@Nav("Admin","Holidays")">
                                                 <a asp-controller="Admin" asp-action="Holidays">
                                                     <span class="pcoded-mtext">Holidays</span>
@@ -458,11 +452,9 @@
                                         <span class="pcoded-micon"><i class="feather icon-clock"></i></span>
                                         <span class="pcoded-mtext">Overtime</span>
                                     </a>
-                                    @* OT Rules was sitting among three screens used every day, which made
-                                       a configuration screen look like a daily one. Same position, but
-                                       now plainly marked as setup. *@
+                                    @* OT Rules is last because it is configuration, not daily work — the
+                                       three screens above it are used every day. *@
                                     <ul class="pcoded-submenu">
-                                        <li class="pcoded-submenu-caption">Processing</li>
                                         <li class="@Nav("Admin","OvertimeApproval")">
                                             <a asp-controller="Admin" asp-action="OvertimeApproval">
                                                 <span class="pcoded-mtext">OT Approval</span>
@@ -479,7 +471,6 @@
                                             </a>
                                         </li>
 
-                                        <li class="pcoded-submenu-caption">Setup</li>
                                         <li class="@Nav("Admin","OvertimeRules")">
                                             <a asp-controller="Admin" asp-action="OvertimeRules">
                                                 <span class="pcoded-mtext">OT Rules</span>
@@ -492,7 +483,7 @@
                                 @* ── Payroll ───────────────────────────────────────── *@
                                 @if (CanViewAny(AppConstants.Modules.Payroll, AppConstants.Modules.PayrollSetup))
                                 {
-                                <li class="pcoded-hasmenu @OpenIf("PayrollSetup","EmployeePayroll","SalaryDetails","EmployeeBankAccounts","GroupAssignComponent","PayrollAdmin","Loans","LoanSettlement","TransactionSchedule","ItemWiseTransaction","EmployeeWiseTransaction")">
+                                <li class="pcoded-hasmenu @OpenIf("PayrollSetup","EmployeePayroll","SalaryDetails","EmployeeBankAccounts","GroupAssignComponent","PayrollAdmin","Loans","LoanSettlement","TransactionSchedule","ItemWiseTransaction","EmployeeWiseTransaction","PayrollPeriods","SalaryIncrements","IncrementConfirmation")">
                                     <a href="javascript:void(0)">
                                         <span class="pcoded-micon"><i class="feather icon-credit-card"></i></span>
                                         <span class="pcoded-mtext">Payroll</span>
@@ -528,6 +519,16 @@
                                                     <span class="pcoded-mtext">Salary Details</span>
                                                 </a>
                                             </li>
+                                            <li class="@Nav("Admin","SalaryIncrements")">
+                                                <a asp-controller="Admin" asp-action="SalaryIncrements">
+                                                    <span class="pcoded-mtext">Salary Increments</span>
+                                                </a>
+                                            </li>
+                                            <li class="@Nav("Admin","IncrementConfirmation")">
+                                                <a asp-controller="Admin" asp-action="IncrementConfirmation">
+                                                    <span class="pcoded-mtext">Increment Confirmation</span>
+                                                </a>
+                                            </li>
                                             <li class="@Nav("Admin","EmployeeBankAccounts")">
                                                 <a asp-controller="Admin" asp-action="EmployeeBankAccounts">
                                                     <span class="pcoded-mtext">Employee Bank Accounts</span>
@@ -535,6 +536,11 @@
                                             </li>
 
                                             <li class="pcoded-submenu-caption">Transactions</li>
+                                            <li class="@Nav("Admin","PayrollPeriods")">
+                                                <a asp-controller="Admin" asp-action="PayrollPeriods">
+                                                    <span class="pcoded-mtext">Payroll Months</span>
+                                                </a>
+                                            </li>
                                             <li class="@Nav("Admin","ItemWiseTransaction")">
                                                 <a asp-controller="Admin" asp-action="ItemWiseTransaction">
                                                     <span class="pcoded-mtext">Item wise Transaction</span>
@@ -542,7 +548,7 @@
                                             </li>
                                             <li class="@Nav("Admin","EmployeeWiseTransaction")">
                                                 <a asp-controller="Admin" asp-action="EmployeeWiseTransaction">
-                                                    <span class="pcoded-mtext">Employee Wise Transactions</span>
+                                                    <span class="pcoded-mtext">Emp Wise Transaction</span>
                                                 </a>
                                             </li>
                                             <li class="@Nav("Admin","TransactionSchedule")">
@@ -776,6 +782,7 @@
     <script src="~/lib/select2/js/select2.full.min.js"></script>
     <script src="~/js/ams-select2.js" asp-append-version="true"></script>
     <script src="~/js/ams-menu-search.js" asp-append-version="true"></script>
+    <script src="~/js/ams-payroll-period.js" asp-append-version="true"></script>
     @* Idle screen lock. Only decides *when* to lock — the lock itself lives in the
        session and is enforced by SessionAuthorizeAttribute on every request. *@
     <script src="~/js/ams-idle-lock.js" asp-append-version="true"></script>

@@ -34,7 +34,11 @@ public class EmployeeImportService : IEmployeeImportService
         "Employee Code", "User ID", "Full Name", "Last Name", "Name With Initials", "NIC",
         "Department", "Designation", "Branch",
         "Email", "Phone", "Gender", "Date Of Birth", "Joining Date",
-        "Biometric Enroll ID", "Address", "Active"
+        "Biometric Enroll ID", "Address", "Active",
+        // Payroll columns are optional — a site running attendance only can delete them and
+        // the file still imports. They are here because loading employees and then keying
+        // salary, EPF number and bank account by hand afterwards is the same job done twice.
+        "Grade Code", "Basic Salary", "EPF Number", "ETF Number", "Bank Branch Code", "Account Number"
     ];
 
     public Result<ExportFileDto> GetTemplate()
@@ -48,7 +52,8 @@ public class EmployeeImportService : IEmployeeImportService
                 "", "513 T", "Kamal Perera", "Perera", "K Perera", "199912345678",
                 "Production", "Machine Operator", "Head Office",
                 "kamal@example.com", "0771234567", "Male", "1999-05-12", "2024-01-15",
-                "1042", "12 Main Street, Colombo", "Yes"
+                "1042", "12 Main Street, Colombo", "Yes",
+                "G1", "45000.00", "A/12345", "A/12345", "001-7056", "1234567890"
             }
         };
 
@@ -90,6 +95,16 @@ public class EmployeeImportService : IEmployeeImportService
             var desigs  = await _db.Designations.Where(d => !d.IsDeleted).ToDictionaryAsync(d => d.Name.Trim(), d => d.Id, StringComparer.OrdinalIgnoreCase);
             var branches= await _db.Branches.Where(b => !b.IsDeleted).ToDictionaryAsync(b => b.Name.Trim(), b => b.Id, StringComparer.OrdinalIgnoreCase);
 
+            var grades = await _db.SalaryGrades.Where(g => !g.IsDeleted)
+                .ToDictionaryAsync(g => g.Code.Trim(), g => g.Id, StringComparer.OrdinalIgnoreCase);
+
+            // Keyed on the combined bank-and-branch code, which is what a bank transfer file
+            // uses and therefore what a payroll export from another system will carry.
+            var bankBranches = (await _db.BankBranches.Where(b => !b.IsDeleted)
+                    .Include(b => b.Bank).ToListAsync())
+                .GroupBy(b => $"{b.Bank!.Code}-{b.Code}".Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+
             var existing = await _db.Employees.Where(e => !e.IsDeleted)
                 .Select(e => new { e.Id, e.EmployeeCode, e.BiometricEnrollId })
                 .ToListAsync();
@@ -109,6 +124,7 @@ public class EmployeeImportService : IEmployeeImportService
                 var row = ParseRow(lines[i], map, i + 1);
 
                 ResolveLookups(row, depts, desigs, branches, unknown);
+                ResolvePayrollLookups(row, grades, bankBranches, unknown);
                 MatchExisting(row, byCode, byEnroll);
                 Validate(row, seenCodes, seenEnroll, byEnroll);
 
@@ -190,7 +206,14 @@ public class EmployeeImportService : IEmployeeImportService
             ["joined"]    = ["joiningdate", "joined", "datejoined", "hiredate"],
             ["enroll"]    = ["biometricenrollid", "enrollid", "biometricid", "fingerprintid", "deviceuserid"],
             ["address"]   = ["address"],
-            ["active"]    = ["active", "isactive", "status"]
+            ["active"]    = ["active", "isactive", "status"],
+
+            ["grade"]     = ["gradecode", "grade", "salarygrade"],
+            ["basic"]     = ["basicsalary", "basic", "salary", "basicpay"],
+            ["epfno"]     = ["epfnumber", "epfno", "epf", "epfmemberno"],
+            ["etfno"]     = ["etfnumber", "etfno", "etf", "etfmemberno"],
+            ["branchcode"] = ["bankbranchcode", "branchcode", "bankcode", "bankbranch"],
+            ["accountno"] = ["accountnumber", "accountno", "acno", "bankaccount", "acctno"]
         };
 
         var normalised = header.Select(Norm).ToList();
@@ -231,8 +254,28 @@ public class EmployeeImportService : IEmployeeImportService
             Email            = Get("email"),
             Phone            = Get("phone"),
             Gender           = Get("gender"),
-            Address          = Get("address")
+            Address          = Get("address"),
+
+            GradeCode        = Get("grade"),
+            EpfNumber        = Get("epfno"),
+            EtfNumber        = Get("etfno"),
+            BankBranchCode   = Get("branchcode"),
+            AccountNumber    = Get("accountno")
         };
+
+        // Rejected rather than silently dropped. A salary that failed to parse and quietly
+        // became nothing is somebody unpaid, and the file gives no hint which row it was.
+        var basic = Get("basic");
+        if (basic != null)
+        {
+            var cleaned = basic.Replace(",", "").Trim();
+            if (decimal.TryParse(cleaned, System.Globalization.NumberStyles.Any,
+                                 System.Globalization.CultureInfo.InvariantCulture, out var amount)
+                && amount >= 0)
+                row.BasicSalary = amount;
+            else
+                row.Errors.Add($"Basic Salary '{basic}' is not a valid amount.");
+        }
 
         row.DateOfBirth = ParseDate(Get("dob"));
         row.JoiningDate = ParseDate(Get("joined"));
@@ -299,6 +342,52 @@ public class EmployeeImportService : IEmployeeImportService
             unknown.Add($"{label}: {name}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Resolves the optional payroll columns.
+    ///
+    /// A blank column is silence, not an error — a site running attendance only deletes these
+    /// columns and the file still imports. A value that does not resolve IS an error, because
+    /// a grade code nobody recognises means the employee lands with no salary, and that is
+    /// discovered on payday.
+    /// </summary>
+    private static void ResolvePayrollLookups(
+        EmployeeImportRowDto row,
+        Dictionary<string, int> grades, Dictionary<string, int> bankBranches,
+        HashSet<string> unknown)
+    {
+        if (!string.IsNullOrWhiteSpace(row.GradeCode))
+        {
+            if (grades.TryGetValue(row.GradeCode.Trim(), out var gid)) row.SalaryGradeId = gid;
+            else
+            {
+                row.Errors.Add($"Grade Code '{row.GradeCode}' does not exist. "
+                             + "Add it under Payroll Setup first.");
+                unknown.Add($"Grade: {row.GradeCode}");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(row.BankBranchCode))
+        {
+            if (bankBranches.TryGetValue(row.BankBranchCode.Trim(), out var bid)) row.BankBranchId = bid;
+            else
+            {
+                row.Errors.Add($"Bank Branch Code '{row.BankBranchCode}' does not exist. "
+                             + "Add the bank and branch under Payroll Setup first.");
+                unknown.Add($"Bank Branch: {row.BankBranchCode}");
+            }
+        }
+
+        // Warned rather than rejected: it is legitimate at go-live to load salaries before
+        // the bank details arrive. It is not legitimate to forget, so it is called out.
+        if (!string.IsNullOrWhiteSpace(row.AccountNumber) && !row.BankBranchId.HasValue)
+            row.Warnings.Add("An account number with no bank branch — the transfer file "
+                           + "cannot be built for this employee.");
+
+        if (row.SalaryGradeId.HasValue && row.BasicSalary.HasValue)
+            row.Warnings.Add("Both a grade and a basic salary were given; the salary wins and "
+                           + "this employee will not follow the grade.");
     }
 
     private static void MatchExisting(
@@ -368,6 +457,10 @@ public class EmployeeImportService : IEmployeeImportService
             var byCode = await _db.Employees.Where(e => !e.IsDeleted)
                 .ToDictionaryAsync(e => e.EmployeeCode, e => e, StringComparer.OrdinalIgnoreCase);
 
+            // Rows carrying payroll data, paired with the employee they were written to.
+            // Collected here and applied after the first save, when new employees have Ids.
+            var written = new List<(EmployeeImportRowDto Row, Employee Employee)>();
+
             foreach (var row in rows)
             {
                 if (!row.IsValid || row.DepartmentId == null || row.DesignationId == null || row.BranchId == null
@@ -417,9 +510,50 @@ public class EmployeeImportService : IEmployeeImportService
 
                 if (isNew) { byCode[emp.EmployeeCode] = emp; result.Created++; }
                 else result.Updated++;
+
+                if (row.HasPayrollData) written.Add((row, emp));
             }
 
+            // Saved before the payroll pass because a newly created employee has no Id until
+            // it is, and EmployeePayrollInfo is keyed on it. Both are inside the same
+            // transaction, so a failure in the second pass still rolls the first one back —
+            // employees loaded without their salaries would be the worst outcome of the two.
             await _db.SaveChangesAsync();
+
+            if (written.Any())
+            {
+                var empIds = written.Select(w => w.Employee.Id).ToList();
+                var infos = await _db.EmployeePayrollInfos
+                    .Where(i => empIds.Contains(i.EmployeeId) && !i.IsDeleted)
+                    .ToDictionaryAsync(i => i.EmployeeId);
+
+                foreach (var (row, emp) in written)
+                {
+                    if (!infos.TryGetValue(emp.Id, out var info))
+                    {
+                        info = new EmployeePayrollInfo { EmployeeId = emp.Id, CreatedAt = DateTime.Now };
+                        _db.EmployeePayrollInfos.Add(info);
+                        infos[emp.Id] = info;
+                    }
+
+                    // Each field is written only when the column carried a value. A file with
+                    // salary columns and blank bank details must not erase bank details that
+                    // are already on the system — a re-import to fix one typo would otherwise
+                    // silently clear everything the file did not mention.
+                    if (row.SalaryGradeId.HasValue) info.SalaryGradeId = row.SalaryGradeId;
+                    if (row.BasicSalary.HasValue) info.BasicSalaryOverride = row.BasicSalary > 0 ? row.BasicSalary : null;
+                    if (!string.IsNullOrWhiteSpace(row.EpfNumber)) info.EpfNumber = row.EpfNumber.Trim();
+                    if (!string.IsNullOrWhiteSpace(row.EtfNumber)) info.EtfNumber = row.EtfNumber.Trim();
+                    if (row.BankBranchId.HasValue) info.BankBranchId = row.BankBranchId;
+                    if (!string.IsNullOrWhiteSpace(row.AccountNumber)) info.AccountNumber = row.AccountNumber.Trim();
+
+                    info.ModifiedAt = DateTime.Now;
+                    result.PayrollRecordsWritten++;
+                }
+
+                await _db.SaveChangesAsync();
+            }
+
             await tx.CommitAsync();
             return Result<EmployeeImportResultDto>.Success(result);
         }

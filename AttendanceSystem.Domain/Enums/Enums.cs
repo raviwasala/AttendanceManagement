@@ -315,3 +315,69 @@ public enum CommonValueScope
     /// <summary>The amounts entered against this item in the current month's transactions.</summary>
     CurrentMonthlyTransaction = 3
 }
+
+/// <summary>
+/// Whether a salary increment was expressed as money or as a percentage.
+///
+/// Recorded rather than resolved to money on entry: "everyone gets 7.5%" and "everyone gets
+/// 2,500" are different decisions, and a year later only the stored basis says which was made.
+/// </summary>
+public enum IncrementBasis
+{
+    /// <summary>A flat money amount added to the current basic.</summary>
+    Amount = 1,
+
+    /// <summary>A percentage of the current basic.</summary>
+    Percentage = 2
+}
+
+/// <summary>
+/// Where an increment is between being proposed and being paid.
+///
+/// The two steps are separate because they are usually two people. Whoever works out that
+/// forty staff are due an annual rise is rarely the person authorised to commit the company
+/// to paying it every month thereafter.
+/// </summary>
+public enum IncrementStatus
+{
+    /// <summary>Worked out and listed, but the salary has NOT changed yet.</summary>
+    Pending = 1,
+
+    /// <summary>Confirmed. The basic salary has been written.</summary>
+    Confirmed = 2,
+
+    /// <summary>Turned down. Kept, so a rejected proposal is not simply re-proposed.</summary>
+    Rejected = 3
+}
+
+/// <summary>
+/// Which IRD table a set of tax bands belongs to.
+///
+/// The numbers are the ones the old payroll used and are kept exactly, gap included: 3 is
+/// unassigned there, and renumbering to close it would silently repoint any table anybody
+/// migrates across. A gap in an enum costs nothing; a shifted meaning costs a tax return.
+///
+/// They are separate tables rather than one with a flag because they are genuinely different
+/// schedules — a bonus is taxed on its own basis, and a non-citizen's rate does not depend on
+/// the resident thresholds at all.
+/// </summary>
+public enum TaxTableType
+{
+    /// <summary>Regular monthly remuneration. The everyday table.</summary>
+    Monthly = 1,
+
+    /// <summary>Lump sums — bonus, arrears, gratuity — taxed apart from the monthly figure.</summary>
+    Bonus = 2,
+
+    /// <summary>Employees who are not citizens, who sit on their own schedule.</summary>
+    NonCitizen = 4,
+
+    /// <summary>The annual reconciliation, used at year end rather than per month.</summary>
+    Yearly = 5,
+
+    /// <summary>
+    /// Grossing up, where the employer bears the tax. The tax is itself taxable, so the
+    /// figure has to be solved rather than simply applied.
+    /// </summary>
+    TaxOnTax = 6
+}

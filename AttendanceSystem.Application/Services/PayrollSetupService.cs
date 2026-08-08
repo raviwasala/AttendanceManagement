@@ -5,6 +5,7 @@ using AttendanceSystem.Common.Logging;
 using AttendanceSystem.Common.Models;
 using AttendanceSystem.Common.Session;
 using AttendanceSystem.Domain.Entities;
+using AttendanceSystem.Domain.Enums;
 using AttendanceSystem.Domain.Interfaces;
 
 namespace AttendanceSystem.Application.Services;
@@ -1026,6 +1027,20 @@ public class PayrollSetupService : IPayrollSetupService
 
     // ── APIT tables ───────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// The IRD's own wording for each schedule. Kept here rather than in the browser so the
+    /// name is the same on a screen, an export and a log line.
+    /// </summary>
+    private static string TaxTableTypeName(TaxTableType type) => type switch
+    {
+        TaxTableType.Monthly => "Monthly Tax Table",
+        TaxTableType.Bonus => "Bonus Tax Table",
+        TaxTableType.NonCitizen => "Non Citizen Tax Table",
+        TaxTableType.Yearly => "Yearly Tax Table",
+        TaxTableType.TaxOnTax => "Tax on Tax Table",
+        _ => type.ToString()
+    };
+
     public async Task<Result<IEnumerable<ApitTaxTableDto>>> GetApitTablesAsync()
     {
         try
@@ -1033,11 +1048,16 @@ public class PayrollSetupService : IPayrollSetupService
             var tables = (await _uow.ApitTaxTables.GetAllAsync()).ToList();
             var bands = (await _uow.ApitTaxBrackets.GetAllAsync()).ToList();
 
+            // Grouped by type first: the five schedules are separate things, and a flat list
+            // sorted by code would interleave a bonus table between two monthly ones.
             return Result<IEnumerable<ApitTaxTableDto>>.Success(tables
-                .OrderByDescending(t => t.IsDefault).ThenBy(t => t.Code)
+                .OrderBy(t => t.TableType)
+                .ThenByDescending(t => t.IsDefault).ThenBy(t => t.Code)
                 .Select(t => new ApitTaxTableDto
                 {
                     Id = t.Id, Name = t.Name, Code = t.Code, Description = t.Description,
+                    TableType = t.TableType,
+                    TableTypeDisplay = TaxTableTypeName(t.TableType),
                     IsDefault = t.IsDefault, IsActive = t.IsActive,
                     BandCount = bands.Count(b => b.ApitTaxTableId == t.Id)
                 }));
@@ -1072,6 +1092,7 @@ public class PayrollSetupService : IPayrollSetupService
 
             table.Name = dto.Name.Trim(); table.Code = code;
             table.Description = dto.Description?.Trim();
+            table.TableType = dto.TableType;
             table.IsDefault = dto.IsDefault; table.IsActive = dto.IsActive;
 
             if (dto.Id == 0) await _uow.ApitTaxTables.AddAsync(table);
@@ -1079,12 +1100,15 @@ public class PayrollSetupService : IPayrollSetupService
 
             await _uow.SaveChangesAsync();
 
-            // Exactly one default. Two would make "which table applies to an employee with
-            // none assigned" ambiguous, and the answer would depend on row order.
+            // One default PER TYPE, not one overall. Two within a type would make "which
+            // table applies to an employee with none assigned" ambiguous and the answer would
+            // depend on row order; clearing across types would instead leave the bonus and
+            // non-citizen schedules with no fallback the moment a monthly one was made
+            // default.
             if (dto.IsDefault)
             {
                 foreach (var other in await _uow.ApitTaxTables.FindAsync(
-                             t => t.IsDefault && t.Id != table.Id))
+                             t => t.IsDefault && t.TableType == table.TableType && t.Id != table.Id))
                 {
                     other.IsDefault = false;
                     await _uow.ApitTaxTables.UpdateAsync(other);

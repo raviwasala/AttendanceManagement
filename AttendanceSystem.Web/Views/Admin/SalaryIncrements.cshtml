@@ -1,0 +1,160 @@
+@{
+    ViewData["Title"] = "Salary Increments";
+}
+
+<div class="mb-3">
+    <h5 class="mb-0">Salary Increments</h5>
+    <div class="text-muted small">
+        Propose a raise for one employee, or a whole department or grade. Salaries change once it is approved on Increment Confirmation.
+    </div>
+</div>
+
+<div id="siAlert"></div>
+
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header py-2"><strong class="small">1. Who</strong></div>
+            <div class="card-body">
+                @* The three ways the old system let you pick people, kept as tabs so only one
+                   is ever active — a screen that let you tick employees AND a department at
+                   once would have to decide what the combination meant. *@
+                <ul class="nav nav-tabs nav-fill mb-3" role="tablist">
+                    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab"
+                        href="#si-emp" onclick="siTargetChanged(1)">Employee</a></li>
+                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab"
+                        href="#si-dept" onclick="siTargetChanged(2)">Department</a></li>
+                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab"
+                        href="#si-grade" onclick="siTargetChanged(3)">Grade</a></li>
+                </ul>
+
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="si-emp">
+                        <input type="text" id="siEmpSearch" class="form-control form-control-sm mb-2"
+                               placeholder="Search name or code…" oninput="siRenderEmployees()">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="small text-muted" id="siEmpCount">—</span>
+                            <span>
+                                <a href="javascript:void(0)" class="small" onclick="siSelectAll(true)">All shown</a>
+                                <a href="javascript:void(0)" class="small ms-2" onclick="siSelectAll(false)">None</a>
+                            </span>
+                        </div>
+                        <div style="max-height:260px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:3px;"
+                             id="siEmpList" class="p-2">
+                            <div class="text-muted small">Loading…</div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="si-dept">
+                        <label class="form-label small">Department</label>
+                        <select id="siDept" class="form-select" onchange="siPreview()"></select>
+                        <div class="form-text small">
+                            Everyone active in the department, including anyone added since.
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="si-grade">
+                        <label class="form-label small">Grade</label>
+                        <select id="siGrade" class="form-select" onchange="siPreview()"></select>
+                        <div class="form-text small">
+                            Everyone on this grade. Note that incrementing them moves each onto a
+                            personal salary, so they stop following the grade afterwards.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header py-2"><strong class="small">2. How much</strong></div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-7">
+                        <label class="form-label small">Increment <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" min="0" id="siValue" class="form-control"
+                               oninput="siPreview()">
+                    </div>
+                    <div class="col-5">
+                        <label class="form-label small">By</label>
+                        <select id="siBasis" class="form-select" onchange="siPreview()">
+                            <option value="1">Amount</option>
+                            <option value="2">Percent</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Effective date <span class="text-danger">*</span></label>
+                        <input type="date" id="siDate" class="form-control">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Reason</label>
+                        <input type="text" id="siReason" class="form-control" maxlength="250"
+                               placeholder="Annual review, promotion…">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary w-100 mt-3" id="siApplyBtn" onclick="siApply()" disabled>
+                    <i class="feather icon-check me-1"></i>Propose Increment
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        @* Nothing is written until Apply. A raise is permanent and repeats every month, so
+           the before-and-after is shown per employee rather than as a count. *@
+        <div class="card">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                <strong class="small">Preview</strong>
+                <span class="small text-muted" id="siSummary">Choose people and an amount.</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height:480px;overflow-y:auto;">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Code</th>
+                                <th>Employee</th>
+                                <th>Grade</th>
+                                <th class="text-end">Current</th>
+                                <th class="text-end">Increase</th>
+                                <th class="text-end pe-3">New</th>
+                            </tr>
+                        </thead>
+                        <tbody id="siBody">
+                            <tr><td colspan="6" class="text-center py-4 text-muted">
+                                Nothing selected yet.
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header py-2"><strong class="small">Recent Increments</strong></div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height:280px;overflow-y:auto;">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Date</th>
+                                <th>Employee</th>
+                                <th class="text-end">From</th>
+                                <th class="text-end">To</th>
+                                <th>By</th>
+                                <th class="pe-3">Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody id="siHistory">
+                            <tr><td colspan="6" class="text-center py-3 text-muted">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/admin/salary-increments.js" asp-append-version="true"></script>
+}
