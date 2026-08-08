@@ -55,4 +55,23 @@ public class SalaryIncrement : BaseEntity
 
     /// <summary>Why a proposal was turned down. Kept so it is not simply re-proposed.</summary>
     public string? RejectionReason { get; set; }
+
+    /// <summary>
+    /// Back-pay owed because the raise took effect in months that have already been paid.
+    /// Zero when the increment starts in the open month, which is the ordinary case.
+    ///
+    /// Computed once, at confirmation, and stored rather than derived later. Derived, it
+    /// would change every time the payroll month moved on, and a figure that already went
+    /// through a payslip must not move afterwards.
+    /// </summary>
+    public decimal ArrearsAmount { get; set; }
+
+    /// <summary>How many already-paid months the arrears cover — for the payslip to explain itself.</summary>
+    public int ArrearsMonths { get; set; }
+
+    /// <summary>
+    /// The payroll month the arrears were paid in, as yyyymm. Null while still owed.
+    /// Stops the same back-pay being paid twice if a month is reopened and re-run.
+    /// </summary>
+    public int? ArrearsPaidInYearMonth { get; set; }
 }

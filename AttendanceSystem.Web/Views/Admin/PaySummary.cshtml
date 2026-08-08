@@ -1,0 +1,74 @@
+@{
+    ViewData["Title"] = "Pay Summary";
+}
+
+<div class="mb-3 d-flex justify-content-between align-items-start">
+    <div>
+        <h5 class="mb-0">Pay Summary</h5>
+        <div class="text-muted small">
+            One line per department — the management view, and what a GL journal is posted from.
+        </div>
+    </div>
+    <button class="btn btn-sm btn-outline-secondary d-print-none" onclick="window.print()">
+        <i class="feather icon-printer me-1"></i>Print
+    </button>
+</div>
+
+<div class="card mb-3 d-print-none">
+    <div class="card-body py-3">
+        <label class="form-label small fw-semibold">Payroll month</label>
+        <select id="psmPeriod" class="form-select" style="max-width:340px;" onchange="psmLoad()"></select>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header py-2"><strong class="small" id="psmTitle">Pay Summary</strong></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">Department</th>
+                        <th class="text-center">Staff</th>
+                        <th class="text-end">Gross</th>
+                        <th class="text-end">EPF 8%</th>
+                        <th class="text-end">APIT</th>
+                        <th class="text-end">Deductions</th>
+                        <th class="text-end">Net Pay</th>
+                        <th class="text-end">EPF 12%</th>
+                        <th class="text-end">ETF 3%</th>
+                        <th class="text-end pe-3">Cost to Company</th>
+                    </tr>
+                </thead>
+                <tbody id="psmBody">
+                    <tr><td colspan="10" class="text-center py-4 text-muted">Choose a payroll month.</td></tr>
+                </tbody>
+                <tfoot class="table-light fw-bold"><tr id="psmFoot"></tr></tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+@* The journal is spelled out because this posting is the summary's whole downstream purpose,
+   and deriving it from the columns by hand is where mistakes enter the ledger. *@
+<div class="card mt-3">
+    <div class="card-header py-2"><strong class="small">Journal</strong></div>
+    <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-3">Account</th>
+                    <th class="text-end">Debit</th>
+                    <th class="text-end pe-3">Credit</th>
+                </tr>
+            </thead>
+            <tbody id="psmJournal">
+                <tr><td colspan="3" class="text-center py-3 text-muted">—</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/admin/pay-summary.js" asp-append-version="true"></script>
+}

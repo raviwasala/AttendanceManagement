@@ -93,11 +93,50 @@ public class Payslip : BaseEntity
     public decimal ApitLiableEarnings { get; set; }
     public decimal Apit { get; set; }
 
+    /// <summary>Basic after no-pay — what was actually earned, and what EPF is charged on.</summary>
+    public decimal EarnedBasic { get; set; }
+
+    /// <summary>Back-pay for a raise that started in a month already paid.</summary>
+    public decimal SalaryArrears { get; set; }
+
     // ── Other deductions and the result ───────────────────────────────────────
+
+    public decimal TotalLoanInstalments { get; set; }
+
+    /// <summary>Historic levies, both abolished. Stored so an imported legacy month reconciles.</summary>
+    public decimal StampDuty { get; set; }
+    public decimal SrLevy { get; set; }
+
+    /// <summary>
+    /// Shortfall recovered from last month, when deductions had exceeded pay. Part of this
+    /// month's deductions.
+    /// </summary>
+    public decimal BroughtForward { get; set; }
 
     public decimal TotalOtherDeductions { get; set; }
     public decimal TotalDeductions { get; set; }
     public decimal NetPay { get; set; }
+
+    /// <summary>
+    /// What could not be recovered this month and passes to the next. Read as next month's
+    /// <see cref="BroughtForward"/>, which is why it is stored rather than recomputed —
+    /// re-deriving it later would change a figure that has already been paid against.
+    /// </summary>
+    public decimal CarriedForward { get; set; }
+
+    /// <summary>
+    /// Bank transfer or cash, decided at run time from the employee's setup. Stored because
+    /// the bank file and the cash list are both built from it, and somebody switching to
+    /// bank next month must not move a past payslip out of the cash list.
+    /// </summary>
+    public bool IsBankTransfer { get; set; } = true;
+
+    /// <summary>
+    /// Anything the figures cannot say for themselves — a net of zero because everything was
+    /// carried, a taxable employee with no tax table. Shown on the register so it is seen
+    /// before the money moves.
+    /// </summary>
+    public string? Notes { get; set; }
 
     /// <summary>
     /// Total cost to the employer — gross plus the employer's own EPF and ETF. Not deducted

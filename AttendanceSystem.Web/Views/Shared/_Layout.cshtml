@@ -483,7 +483,7 @@
                                 @* ── Payroll ───────────────────────────────────────── *@
                                 @if (CanViewAny(AppConstants.Modules.Payroll, AppConstants.Modules.PayrollSetup))
                                 {
-                                <li class="pcoded-hasmenu @OpenIf("PayrollSetup","EmployeePayroll","SalaryDetails","EmployeeBankAccounts","GroupAssignComponent","PayrollAdmin","Loans","LoanSettlement","TransactionSchedule","ItemWiseTransaction","EmployeeWiseTransaction","PayrollPeriods","SalaryIncrements","IncrementConfirmation")">
+                                <li class="pcoded-hasmenu @OpenIf("PayrollSetup","EmployeePayroll","SalaryDetails","EmployeeBankAccounts","GroupAssignComponent","PayrollAdmin","Loans","LoanSettlement","TransactionSchedule","ItemWiseTransaction","EmployeeWiseTransaction","PayrollPeriods","PayRegister","Payslip","PaySummary","SalaryIncrements","IncrementConfirmation")">
                                     <a href="javascript:void(0)">
                                         <span class="pcoded-micon"><i class="feather icon-credit-card"></i></span>
                                         <span class="pcoded-mtext">Payroll</span>
@@ -571,6 +571,23 @@
                                             <li class="@Nav("Admin","LoanSettlement")">
                                                 <a asp-controller="Admin" asp-action="LoanSettlement">
                                                     <span class="pcoded-mtext">Loan Settlement</span>
+                                                </a>
+                                            </li>
+
+                                            <li class="pcoded-submenu-caption">Reports</li>
+                                            <li class="@Nav("Admin","PayRegister")">
+                                                <a asp-controller="Admin" asp-action="PayRegister">
+                                                    <span class="pcoded-mtext">Pay Register</span>
+                                                </a>
+                                            </li>
+                                            <li class="@Nav("Admin","Payslip")">
+                                                <a asp-controller="Admin" asp-action="Payslip">
+                                                    <span class="pcoded-mtext">Payslips</span>
+                                                </a>
+                                            </li>
+                                            <li class="@Nav("Admin","PaySummary")">
+                                                <a asp-controller="Admin" asp-action="PaySummary">
+                                                    <span class="pcoded-mtext">Pay Summary</span>
                                                 </a>
                                             </li>
 

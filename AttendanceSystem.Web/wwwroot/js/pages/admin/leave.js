@@ -40,7 +40,7 @@ $(function () {
 function loadApplyDropdowns() {
     $.getJSON('/api/employees', function (d) {
         var o = '<option value="">-- Employee --</option>';
-        d.forEach(function (e) { o += '<option value="' + e.Id + '">' + e.EmployeeCode + ' - ' + e.FullName + '</option>'; });
+        d.forEach(function (e) { o += '<option value="' + esc(e.Id) + '">' + esc(e.EmployeeCode) + ' - ' + esc(e.FullName) + '</option>'; });
         $('#leaveEmp').html(o);
     });
 }
@@ -107,7 +107,7 @@ function loadTypes() {
         allTypes = d;
         renderTypes(d);
         var o = '<option value="">-- Leave Type --</option>';
-        d.filter(function(x){return x.IsActive;}).forEach(function (t) { o += '<option value="' + t.Id + '">' + t.Name + '</option>'; });
+        d.filter(function(x){return x.IsActive;}).forEach(function (t) { o += '<option value="' + esc(t.Id) + '">' + esc(t.Name) + '</option>'; });
         $('#leaveType').html(o);
     }).fail(function () { $('#typeBody').html('<tr><td colspan="6" class="text-danger text-center py-3">Failed to load.</td></tr>'); });
 }

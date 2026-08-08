@@ -37,6 +37,8 @@ public static class ApplicationServiceExtensions
         services.AddScoped<IMonthlyTransactionService, MonthlyTransactionService>();
         services.AddScoped<IPayrollPeriodService, PayrollPeriodService>();
         services.AddScoped<ISalaryIncrementService, SalaryIncrementService>();
+        services.AddScoped<IPayrollRunService, PayrollRunService>();
+        services.AddScoped<IPayrollReportService, PayrollReportService>();
         services.AddScoped<ILoanService, LoanService>();
         return services;
     }

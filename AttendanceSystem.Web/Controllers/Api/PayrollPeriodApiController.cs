@@ -19,7 +19,25 @@ namespace AttendanceSystem.Web.Controllers.Api;
 public class PayrollPeriodApiController : ApiControllerBase
 {
     private readonly IPayrollPeriodService _svc;
-    public PayrollPeriodApiController(IPayrollPeriodService svc) => _svc = svc;
+    private readonly IPayrollRunService _run;
+
+    public PayrollPeriodApiController(IPayrollPeriodService svc, IPayrollRunService run)
+    {
+        _svc = svc;
+        _run = run;
+    }
+
+    /// <summary>
+    /// Calculates the month. Payroll.Approve rather than Edit: a run decides what every
+    /// employee is paid, which is not the same authority as keying one figure.
+    /// </summary>
+    [HttpPost("run/{id:int}")]
+    [SessionAuthorize(Modules.Payroll, Actions.Approve)]
+    public async Task<IActionResult> Run(int id)
+    {
+        var r = await _run.RunAsync(id);
+        return r.IsSuccess ? Ok(r.Data) : BadRequest(r.ErrorMessage);
+    }
 
     [HttpGet("current")]
     [SessionAuthorize(Modules.Payroll, Actions.View)]

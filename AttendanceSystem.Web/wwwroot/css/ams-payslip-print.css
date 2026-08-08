@@ -1,0 +1,129 @@
+/* ── Payslip print formats ────────────────────────────────────────────────────
+   Two layouts from the same data:
+
+   .ps-detailed  one A4 page per payslip, two columns, room for every line
+   .ps-compact   10cm x 14.85cm slip, two to an A4 portrait page
+
+   14.85cm is exactly half of A4's 29.7cm, which is what makes two fit a page with
+   nothing left over. Changing that height without changing the page rule below puts
+   three-and-a-bit slips on a page and cuts the third in half.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* ── Compact slip ─────────────────────────────────────────────────────────── */
+
+.ps-compact {
+  width: 10cm;
+  height: 14.85cm;
+  box-sizing: border-box;
+  padding: 0.4cm;
+  margin: 0 auto 0.3cm auto;
+  border: 1px solid #000;
+  background: #fff;
+  font-family: "Courier New", monospace;
+  font-size: 8.2pt;
+  line-height: 1.28;
+  color: #000;
+  display: flex;
+  flex-direction: column;
+
+  /* Deliberately NOT overflow:hidden.
+   *
+   * The height is fixed so two slips fill an A4 page exactly, and an employee with a long
+   * list of allowances and deductions can exceed it. Hidden overflow would drop those lines
+   * silently: the slip would look complete, would not foot, and nobody would notice until
+   * the employee asked. Letting it spill is ugly and obvious, which is the right trade for a
+   * document about somebody's pay. The screen preview flags it before it reaches paper. */
+  overflow: visible;
+}
+
+/* Roughly where the content stops fitting. Screen only — a printed slip should not carry a
+   warning, and by then it is too late to act on one anyway. */
+.ps-compact.ps-overflow {
+  border-color: #d9534f;
+  box-shadow: 0 0 0 2px rgba(217, 83, 79, .35);
+}
+.ps-overflow-note {
+  color: #d9534f;
+  font-size: 7pt;
+  font-weight: bold;
+}
+@media print { .ps-overflow-note { display: none; } .ps-compact.ps-overflow { border-color: #000; box-shadow: none; } }
+
+.ps-compact .c-band {
+  border-bottom: 1px solid #000;
+  padding: 2px 0;
+}
+.ps-compact .c-band:last-child { border-bottom: none; }
+
+.ps-compact .c-centre { text-align: center; }
+.ps-compact .c-title  { font-weight: bold; letter-spacing: .5px; }
+
+.ps-compact .c-head {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 7.6pt;
+  letter-spacing: .4px;
+}
+
+/* Tabular figures and a fixed label column, so every amount lands on the same
+   right edge whatever the label says. A ragged money column is the single thing
+   that makes a printed slip look untrustworthy. */
+.ps-compact .c-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+.ps-compact .c-row > span:last-child {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ps-compact .c-rule { border-top: 1px solid #000; margin: 2px 0; }
+.ps-compact .c-strong { font-weight: bold; }
+
+.ps-compact .c-net {
+  text-align: center;
+  font-weight: bold;
+  padding: 3px 0;
+}
+.ps-compact .c-net .c-amount { font-size: 11pt; }
+
+.ps-compact .c-foot {
+  margin-top: auto;          /* pinned to the bottom however short the slip's content */
+  font-size: 6.8pt;
+  padding-top: 2px;
+}
+
+/* ── Screen preview ───────────────────────────────────────────────────────── */
+
+.ps-sheet-wrap {
+  background: #eceff1;
+  padding: 12px;
+}
+.ps-compact { box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+
+/* ── Print ────────────────────────────────────────────────────────────────── */
+
+@media print {
+  .pcoded-navbar, .header-navbar, .d-print-none { display: none !important; }
+  .pcoded-main-container { margin: 0 !important; }
+  .page-wrapper, .pcoded-inner-content, .main-body { padding: 0 !important; }
+  .ps-sheet-wrap { background: none; padding: 0; }
+
+  @page { size: A4 portrait; margin: 0.5cm; }
+
+  .ps-compact {
+    margin: 0 auto;
+    box-shadow: none;
+    /* No page-break rule of its own. Two slips are exactly one page tall, so the
+       browser breaks in the right place by itself; forcing a break after each would
+       waste half of every sheet — the opposite of what this format is for. */
+  }
+
+  .ps-detailed {
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    page-break-after: always;
+  }
+  .ps-detailed:last-child { page-break-after: auto; }
+}

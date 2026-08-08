@@ -214,14 +214,14 @@ function loadEmployees() {
     $.getJSON('/api/employees', function (data) {
         allEmployees = data;
         var opts = '<option value="">-- Select Employee --</option>';
-        data.forEach(function (e) { opts += '<option value="' + e.Id + '">' + e.EmployeeCode + ' - ' + e.FullName + '</option>'; });
+        data.forEach(function (e) { opts += '<option value="' + esc(e.Id) + '">' + esc(e.EmployeeCode) + ' - ' + esc(e.FullName) + '</option>'; });
         $('#assignEmp').html(opts);
     });
 }
 
 function openAssignModal() {
     var shiftOpts = '<option value="">-- Select Shift --</option>';
-    allShifts.filter(function (s) { return s.IsActive; }).forEach(function (s) { shiftOpts += '<option value="' + s.Id + '">' + s.Name + '</option>'; });
+    allShifts.filter(function (s) { return s.IsActive; }).forEach(function (s) { shiftOpts += '<option value="' + esc(s.Id) + '">' + esc(s.Name) + '</option>'; });
     $('#assignShift').html(shiftOpts);
     $('#assignFrom').val(new Date().toISOString().split('T')[0]);
     $('#assignTo').val('');

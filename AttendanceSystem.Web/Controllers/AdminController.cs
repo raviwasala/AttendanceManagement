@@ -173,6 +173,21 @@ public class AdminController : BaseController
     [SessionAuthorize(Modules.Payroll, Actions.View)]
     public IActionResult IncrementConfirmation() => View();
 
+    /// <summary>Every employee's pay for a month on one sheet — checked before money moves.</summary>
+    [HttpGet("PayRegister")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult PayRegister() => View();
+
+    /// <summary>One employee's payslip, as it was stored.</summary>
+    [HttpGet("Payslip")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult Payslip() => View();
+
+    /// <summary>Department totals and the journal they post to.</summary>
+    [HttpGet("PaySummary")]
+    [SessionAuthorize(Modules.Payroll, Actions.View)]
+    public IActionResult PaySummary() => View();
+
     /// <summary>The month payroll is working on, and the history of closed months.</summary>
     [HttpGet("PayrollPeriods")]
     [SessionAuthorize(Modules.Payroll, Actions.View)]

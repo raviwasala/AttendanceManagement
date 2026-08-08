@@ -1089,3 +1089,168 @@ public class RejectIncrementsDto
     public List<int> Ids { get; set; } = new();
     [Required] public string Reason { get; set; } = string.Empty;
 }
+
+// ── Payroll run ───────────────────────────────────────────────────────────────
+
+public class PayrollRunResultDto
+{
+    public int PayrollPeriodId { get; set; }
+    public string MonthDisplay { get; set; } = string.Empty;
+
+    public int PayslipCount { get; set; }
+    public int Suspended { get; set; }
+
+    /// <summary>How many payslips carry a note worth reading before the money moves.</summary>
+    public int WithNotes { get; set; }
+
+    /// <summary>
+    /// Who was left out and why, named rather than counted. "237 skipped" tells nobody
+    /// which 237 or what to fix.
+    /// </summary>
+    public List<string> Skipped { get; set; } = new();
+
+    public decimal TotalGross { get; set; }
+    public decimal TotalDeductions { get; set; }
+    public decimal TotalNet { get; set; }
+    public decimal TotalCostToCompany { get; set; }
+}
+
+// ── Payroll reports ───────────────────────────────────────────────────────────
+
+/// <summary>One employee's row on the pay register.</summary>
+public class PayRegisterRowDto
+{
+    public int PayslipId { get; set; }
+    public int EmployeeId { get; set; }
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string EmployeeName { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = string.Empty;
+
+    public decimal EarnedBasic { get; set; }
+    public decimal NoPayDeduction { get; set; }
+    public decimal OvertimeAmount { get; set; }
+    public decimal SalaryArrears { get; set; }
+    public decimal GrossPay { get; set; }
+
+    public decimal EmployeeEpf { get; set; }
+    public decimal Apit { get; set; }
+    public decimal TotalLoanInstalments { get; set; }
+    public decimal TotalOtherDeductions { get; set; }
+    public decimal BroughtForward { get; set; }
+    public decimal TotalDeductions { get; set; }
+
+    public decimal NetPay { get; set; }
+    public decimal CarriedForward { get; set; }
+
+    public decimal EmployerEpf { get; set; }
+    public decimal EmployerEtf { get; set; }
+    public decimal CostToCompany { get; set; }
+
+    public bool IsBankTransfer { get; set; }
+    public string? Notes { get; set; }
+
+    /// <summary>
+    /// Each component that reached this payslip, keyed by code. The register's columns are
+    /// whatever appears across the month rather than a fixed list, so a code added this
+    /// month shows up without anyone changing a report.
+    /// </summary>
+    public Dictionary<string, decimal> Components { get; set; } = new();
+}
+
+public class PayRegisterDto
+{
+    public int PayrollPeriodId { get; set; }
+    public string MonthDisplay { get; set; } = string.Empty;
+    public string StatusDisplay { get; set; } = string.Empty;
+
+    /// <summary>Earning codes present this month, in payslip order. Register column headings.</summary>
+    public List<string> EarningColumns { get; set; } = new();
+    public List<string> DeductionColumns { get; set; } = new();
+
+    public List<PayRegisterRowDto> Rows { get; set; } = new();
+
+    public PayRegisterRowDto Totals { get; set; } = new();
+
+    public int BankCount { get; set; }
+    public int CashCount { get; set; }
+    public decimal BankTotal { get; set; }
+    public decimal CashTotal { get; set; }
+}
+
+/// <summary>One department's line on the pay summary.</summary>
+public class PaySummaryRowDto
+{
+    public string DepartmentName { get; set; } = string.Empty;
+    public int Headcount { get; set; }
+
+    public decimal GrossPay { get; set; }
+    public decimal EmployeeEpf { get; set; }
+    public decimal Apit { get; set; }
+    public decimal TotalDeductions { get; set; }
+    public decimal NetPay { get; set; }
+
+    public decimal EmployerEpf { get; set; }
+    public decimal EmployerEtf { get; set; }
+    public decimal CostToCompany { get; set; }
+}
+
+public class PaySummaryDto
+{
+    public int PayrollPeriodId { get; set; }
+    public string MonthDisplay { get; set; } = string.Empty;
+    public List<PaySummaryRowDto> Rows { get; set; } = new();
+    public PaySummaryRowDto Totals { get; set; } = new();
+}
+
+/// <summary>One employee's payslip, ready to print.</summary>
+public class PayslipDto
+{
+    public int Id { get; set; }
+    public string MonthDisplay { get; set; } = string.Empty;
+
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string EmployeeName { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = string.Empty;
+    public string DesignationName { get; set; } = string.Empty;
+    public string? EpfNumber { get; set; }
+    public DateTime JoiningDate { get; set; }
+
+    public int WorkingDays { get; set; }
+    public int PresentDays { get; set; }
+    public int LeaveDays { get; set; }
+    public decimal NoPayDays { get; set; }
+
+    /// <summary>What the no-pay days cost. Shown beside the day count, not as a deduction.</summary>
+    public decimal NoPayDeduction { get; set; }
+    public decimal OvertimeHours { get; set; }
+
+    public List<PayslipLineDto> Earnings { get; set; } = new();
+    public List<PayslipLineDto> Deductions { get; set; } = new();
+
+    public decimal GrossPay { get; set; }
+    public decimal EmployeeEpf { get; set; }
+    public decimal Apit { get; set; }
+    public decimal BroughtForward { get; set; }
+    public decimal TotalDeductions { get; set; }
+    public decimal NetPay { get; set; }
+    public decimal CarriedForward { get; set; }
+
+    public decimal EmployerEpf { get; set; }
+    public decimal EmployerEtf { get; set; }
+
+    public bool IsBankTransfer { get; set; }
+    public string? BankName { get; set; }
+    public string? BankBranchName { get; set; }
+    public string? AccountNumber { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class PayslipLineDto
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+
+    /// <summary>Outstanding after this instalment, for a loan line. Null otherwise.</summary>
+    public decimal? Balance { get; set; }
+}

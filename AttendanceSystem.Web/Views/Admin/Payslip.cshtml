@@ -1,0 +1,72 @@
+@{
+    ViewData["Title"] = "Payslips";
+}
+
+<div class="mb-3 d-flex justify-content-between align-items-start d-print-none">
+    <div>
+        <h5 class="mb-0">Payslips</h5>
+        <div class="text-muted small">As calculated and stored — never recomputed.</div>
+    </div>
+    <div>
+        <a href="/Admin/PayRegister" class="btn btn-sm btn-outline-secondary">
+            <i class="feather icon-list me-1"></i>Register
+        </a>
+        <button class="btn btn-sm btn-primary ms-1" onclick="window.print()" id="psPrintBtn" disabled>
+            <i class="feather icon-printer me-1"></i>Print
+        </button>
+    </div>
+</div>
+
+<div class="card mb-3 d-print-none">
+    <div class="card-body py-3">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Payroll month</label>
+                <select id="psPeriod" class="form-select" onchange="psLoadList()"></select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Department</label>
+                <select id="psDept" class="form-select" onchange="psLoadList()">
+                    <option value="">All departments</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Employee</label>
+                <select id="psEmployee" class="form-select" data-search onchange="psShowOne()"></select>
+            </div>
+            @* Two formats from the same data. The compact slip is the one most sites print
+               every month; the detailed sheet is for a query, where the extra room earns
+               its place. *@
+            <div class="col-md-2">
+                <label class="form-label small">Format</label>
+                <select id="psFormat" class="form-select" onchange="psSetFormat(this.value)">
+                    <option value="compact">Compact — 2 per A4</option>
+                    <option value="detailed">Detailed — 1 per A4</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <label class="form-label small">&nbsp;</label>
+                <button class="btn btn-outline-primary w-100" onclick="psShowAll()" title="Load every payslip for the month">
+                    All
+                </button>
+            </div>
+        </div>
+        <div class="small text-muted mt-2" id="psHint"></div>
+    </div>
+</div>
+
+<div id="psAlert" class="d-print-none"></div>
+
+<div id="psSheets">
+    <div class="card mx-auto" style="max-width:820px;">
+        <div class="card-body text-muted small">Choose a month and an employee.</div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/ams-payslip-print.css" asp-append-version="true">
+}
+
+@section Scripts {
+    <script src="~/js/pages/admin/payslip.js" asp-append-version="true"></script>
+}

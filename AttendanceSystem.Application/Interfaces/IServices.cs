@@ -224,6 +224,36 @@ public interface IPayrollSetupService
     Task<Result> DeleteApitBracketAsync(int id);
 }
 
+/// <summary>
+/// Reading a payroll month: the register, the summary and the payslip.
+///
+/// All three read stored payslips and recompute nothing, which is what keeps them agreeing
+/// with each other and with what actually left the bank.
+/// </summary>
+public interface IPayrollReportService
+{
+    /// <summary>One row per employee, columns discovered from what the run produced.</summary>
+    Task<Result<PayRegisterDto>> GetRegisterAsync(int payrollPeriodId, int? departmentId);
+
+    /// <summary>One line per department, plus the totals a GL journal needs.</summary>
+    Task<Result<PaySummaryDto>> GetSummaryAsync(int payrollPeriodId);
+
+    /// <summary>Every payslip in a month, for bulk printing. One call, not one per employee.</summary>
+    Task<Result<IEnumerable<PayslipDto>>> GetPayslipsAsync(int payrollPeriodId, int? departmentId);
+
+    Task<Result<PayslipDto>> GetPayslipAsync(int payslipId);
+}
+
+/// <summary>Runs a payroll month and stores a payslip per employee.</summary>
+public interface IPayrollRunService
+{
+    /// <summary>
+    /// Calculates and stores the month. Repeatable while the period is Draft — a re-run
+    /// replaces the previous attempt rather than adding to it.
+    /// </summary>
+    Task<Result<PayrollRunResultDto>> RunAsync(int payrollPeriodId);
+}
+
 /// <summary>Salary increments, for one employee or a whole department or grade.</summary>
 public interface ISalaryIncrementService
 {

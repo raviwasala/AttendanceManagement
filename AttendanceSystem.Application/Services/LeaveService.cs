@@ -312,30 +312,31 @@ public class LeaveService : ILeaveService
             .OrderByDescending(es => es.EffectiveFrom)
             .ToList();
 
+        // Shifts resolved up front so the counting itself needs no database. Every shift the
+        // range could touch is fetched once; a request spanning a shift change uses whichever
+        // assignment covers each day.
         var shiftCache = new Dictionary<int, Shift?>();
-        var days = 0;
-
-        for (var day = fromDate; day <= toDate; day = day.AddDays(1))
+        foreach (var a in assignments)
         {
-            if (holidays.Contains(day)) continue;
-
-            var assignment = assignments.FirstOrDefault(
-                es => es.EffectiveFrom.Date <= day && (es.EffectiveTo == null || es.EffectiveTo.Value.Date >= day));
-
-            if (assignment != null)
-            {
-                if (!shiftCache.TryGetValue(assignment.ShiftId, out var shift))
-                {
-                    shift = await _uow.Shifts.GetByIdAsync(assignment.ShiftId);
-                    shiftCache[assignment.ShiftId] = shift;
-                }
-                if (shift != null && AttendanceCalculator.IsWeeklyOff(shift, day)) continue;
-            }
-
-            days++;
+            if (!shiftCache.ContainsKey(a.ShiftId))
+                shiftCache[a.ShiftId] = await _uow.Shifts.GetByIdAsync(a.ShiftId);
         }
 
-        return days;
+        bool IsWeeklyOff(DateTime day)
+        {
+            var assignment = assignments.FirstOrDefault(
+                es => es.EffectiveFrom.Date <= day
+                   && (es.EffectiveTo == null || es.EffectiveTo.Value.Date >= day));
+
+            // No assignment means no known off days, so only holidays are excluded.
+            if (assignment == null) return false;
+
+            return shiftCache.TryGetValue(assignment.ShiftId, out var shift)
+                && shift != null
+                && AttendanceCalculator.IsWeeklyOff(shift, day);
+        }
+
+        return LeaveCalculator.CountWorkingDays(fromDate, toDate, holidays, IsWeeklyOff);
     }
 
     private static LeaveTypeDto MapType(LeaveType l) =>

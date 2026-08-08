@@ -4,6 +4,7 @@ using AttendanceSystem.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AttendanceSystem.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AttendanceDbContext))]
-    partial class AttendanceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260808081619_AddIncrementArrears")]
+    partial class AddIncrementArrears
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2731,12 +2734,6 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.Property<decimal>("BasicSalary")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("BroughtForward")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("CarriedForward")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<decimal>("CostToCompany")
                         .HasColumnType("decimal(18,2)");
 
@@ -2745,9 +2742,6 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
 
                     b.Property<int?>("CreatedBy")
                         .HasColumnType("int");
-
-                    b.Property<decimal>("EarnedBasic")
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("EmployeeEpf")
                         .HasColumnType("decimal(18,2)");
@@ -2771,9 +2765,6 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.Property<decimal>("GrossPay")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<bool>("IsBankTransfer")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
@@ -2795,9 +2786,6 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.Property<decimal>("NoPayDeduction")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<decimal>("OvertimeAmount")
                         .HasColumnType("decimal(18,2)");
 
@@ -2810,22 +2798,10 @@ namespace AttendanceSystem.Infrastructure.Data.Migrations
                     b.Property<int>("PresentDays")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("SalaryArrears")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("SrLevy")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("StampDuty")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<decimal>("TotalDeductions")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("TotalFixedAllowances")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TotalLoanInstalments")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("TotalOtherDeductions")

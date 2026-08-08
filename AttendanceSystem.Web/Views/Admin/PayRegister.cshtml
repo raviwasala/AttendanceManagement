@@ -1,0 +1,70 @@
+@{
+    ViewData["Title"] = "Pay Register";
+}
+
+<div class="mb-3 d-flex justify-content-between align-items-start">
+    <div>
+        <h5 class="mb-0">Pay Register</h5>
+        <div class="text-muted small">
+            Every employee's pay for the month, on one sheet. Check this before the money moves.
+        </div>
+    </div>
+    <button class="btn btn-sm btn-outline-secondary d-print-none" onclick="window.print()">
+        <i class="feather icon-printer me-1"></i>Print
+    </button>
+</div>
+
+<div id="prAlert"></div>
+
+<div class="card mb-3 d-print-none">
+    <div class="card-body py-3">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold">Payroll month</label>
+                <select id="prPeriod" class="form-select" onchange="prLoad()"></select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small">Department</label>
+                <select id="prDept" class="form-select" onchange="prLoad()">
+                    <option value="">All departments</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small">&nbsp;</label>
+                <button class="btn btn-outline-primary w-100" onclick="prExport()">
+                    <i class="feather icon-download me-1"></i>Export CSV
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* The bank/cash split sits above the grid because it is the first thing anyone releasing
+   payment needs: two different payment runs come out of one register. *@
+<div class="row g-2 mb-3" id="prTiles"></div>
+
+<div class="card">
+    <div class="card-header py-2">
+        <strong class="small" id="prTitle">Pay Register</strong>
+        <span class="text-muted small ms-2" id="prCount"></span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height:600px;overflow:auto;">
+            <table class="table table-sm table-bordered mb-0" id="prTable" style="font-size:.78rem;">
+                <thead class="table-light" style="position:sticky;top:0;z-index:2;">
+                    <tr id="prHead"></tr>
+                </thead>
+                <tbody id="prBody">
+                    <tr><td class="text-center py-4 text-muted">Choose a payroll month.</td></tr>
+                </tbody>
+                <tfoot class="table-light fw-bold" style="position:sticky;bottom:0;">
+                    <tr id="prFoot"></tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/admin/pay-register.js" asp-append-version="true"></script>
+}

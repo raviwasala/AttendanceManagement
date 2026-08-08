@@ -25,14 +25,40 @@ public class SalaryIncrementService : ISalaryIncrementService
     private readonly IAuditService _audit;
     private readonly ICurrentUserContext _currentUser;
     private readonly IApprovalScopeService _scopes;
+    private readonly IPayrollPeriodService _periods;
 
     public SalaryIncrementService(IUnitOfWork uow, IAuditService audit,
-                                  ICurrentUserContext currentUser, IApprovalScopeService scopes)
+                                  ICurrentUserContext currentUser, IApprovalScopeService scopes,
+                                  IPayrollPeriodService periods)
     {
         _uow = uow;
         _audit = audit;
         _currentUser = currentUser;
         _scopes = scopes;
+        _periods = periods;
+    }
+
+    /// <summary>
+    /// How many already-paid months a raise is back-dated across.
+    ///
+    /// Whole months only, counted from the effective month up to but excluding the open
+    /// payroll month — the open month is paid at the new rate directly, so counting it would
+    /// pay the raise twice for that month. An increment effective on the 15th still counts
+    /// its whole month: payroll is monthly, and part-month raises are not something this
+    /// system offers.
+    ///
+    /// Static and pure so it can be checked against a hand count, which is the only way
+    /// anybody will trust a figure that appears on a payslip as one lump sum.
+    /// </summary>
+    public static int ArrearsMonthsBetween(DateTime effectiveDate, int openYearMonth)
+    {
+        var effective = effectiveDate.Year * 100 + effectiveDate.Month;
+        if (effective >= openYearMonth) return 0;
+
+        var months = (openYearMonth / 100 - effectiveDate.Year) * 12
+                   + (openYearMonth % 100 - effectiveDate.Month);
+
+        return months > 0 ? months : 0;
     }
 
     /// <summary>
@@ -295,6 +321,30 @@ public class SalaryIncrementService : ISalaryIncrementService
             if (increments.Any(i => i.Status != IncrementStatus.Pending))
                 return Result<string>.Failure("Some of those have already been dealt with. Reload the page.");
 
+            // The open payroll month decides what "back-dated" means. Without it there is no
+            // reference point, and applying a raise dated three months ago would silently
+            // forgive three months of back-pay.
+            var period = await _periods.GetCurrentAsync();
+            if (!period.IsSuccess || period.Data == null)
+                return Result<string>.Failure(
+                    "No payroll month is open, so a back-dated increment cannot be worked out. "
+                    + "Open one under Payroll Months first.");
+
+            var openYm = period.Data.YearMonth;
+
+            // A raise that starts next month must not take effect now. Refused rather than
+            // queued, because queueing needs something to run later and there is no scheduler
+            // here — a refusal with the date is honest, an applied-early raise is not.
+            var early = increments
+                .Where(i => i.EffectiveDate.Year * 100 + i.EffectiveDate.Month > openYm)
+                .ToList();
+
+            if (early.Any())
+                return Result<string>.Failure(
+                    $"{early.Count} of these take effect after {period.Data.MonthDisplay} "
+                    + $"(earliest {early.Min(i => i.EffectiveDate):MMMM yyyy}). "
+                    + "Confirm them in the month they start, or they would be paid early.");
+
             var scope = await _scopes.GetDataScopeAsync();
             var employees = (await _uow.Employees.FindAsync(e => !e.IsDeleted)).ToDictionary(e => e.Id);
             var infos = (await _uow.EmployeePayrollInfos.GetAllAsync()).ToDictionary(i => i.EmployeeId);
@@ -344,6 +394,14 @@ public class SalaryIncrementService : ISalaryIncrementService
                 info.ModifiedAt = DateTime.Now;
                 if (info.Id != 0) await _uow.EmployeePayrollInfos.UpdateAsync(info);
 
+                // Back-pay for the months already paid at the old rate. Computed here, once,
+                // and left unpaid until a payroll run picks it up.
+                inc.ArrearsMonths = ArrearsMonthsBetween(inc.EffectiveDate, openYm);
+                inc.ArrearsAmount = inc.ArrearsMonths > 0
+                    ? Math.Round((inc.NewBasic - inc.PreviousBasic) * inc.ArrearsMonths, 2,
+                                 MidpointRounding.AwayFromZero)
+                    : 0m;
+
                 inc.Status = IncrementStatus.Confirmed;
                 inc.ConfirmedAt = DateTime.Now;
                 inc.ConfirmedBy = _currentUser.UserId;
@@ -355,8 +413,14 @@ public class SalaryIncrementService : ISalaryIncrementService
             await _uow.SaveChangesAsync();
 
             var total = increments.Sum(i => i.NewBasic - i.PreviousBasic);
+            var arrears = increments.Sum(i => i.ArrearsAmount);
+
             var summary = $"{increments.Count} increment(s) confirmed. "
-                        + $"Monthly cost up {total:N2}.";
+                        + $"Monthly cost up {total:N2}."
+                        + (arrears > 0
+                            ? $" Back-pay of {arrears:N2} is owed for earlier months and will "
+                              + $"be paid in {period.Data.MonthDisplay}."
+                            : "");
 
             await _audit.LogAsync("Payroll", "ConfirmIncrement", _currentUser.UserId,
                 "SalaryIncrement", null, null, summary);
